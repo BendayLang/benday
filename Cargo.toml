@@ -1,0 +1,8 @@
+[workspace]
+members = ["pg_sdl", "benday"]
+default-members = ["benday"]
+
+
+[workspace.dependencies]
+sdl2 = { version = "0.35.2", features = ["ttf", "gfx"] }
+nalgebra = "0.32.2"

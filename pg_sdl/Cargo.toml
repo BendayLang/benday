@@ -1,0 +1,26 @@
+[package]
+name = "pg_sdl"
+license = "MIT"
+edition = "2021"
+version = "0.1.1"
+description = "A SDL2-superset library for easy game or application development."
+authors = [
+    "Arnaud Jungo <arnolo.jo@gmail.com>",
+    "Quentin Jungo <quentin.jungo@gmail.com>",
+]
+categories = ["rendering", "api-bindings", "game-engines", "multimedia", "gui"]
+keywords = ["SDL", "gui", "graphics", "superset", "engine"]
+readme = "README.md"
+repository = "https://github.com/DynamicUI/pg_sdl"
+documentation = "https://docs.rs/pg_sdl/"
+
+[lib]
+path = "./src/lib.rs"
+
+[dependencies]
+sdl2 = { workspace = true }
+nalgebra = { workspace = true }
+itertools = "0.10.5"
+as-any = "0.3.0"
+ndarray = "0.13.0"
+rand = "0.8.5"
