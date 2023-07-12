@@ -1,4 +1,4 @@
-#![allow(dead_code, unused_variables, unused_mut, unused_imports, private_in_public)]
+// #![allow(dead_code, unused_variables)]
 mod blocs;
 
 use crate::blocs::BlocType;
@@ -246,14 +246,7 @@ impl App for MyApp {
 			AppState::BlocMoving { hovered_container, .. } => {
 				if let Some(Container { bloc_id, bloc_container }) = hovered_container {
 					let bloc = self.blocs.get(bloc_id).unwrap();
-					match bloc_container {
-						BlocContainer::Slot { slot_id } => {
-							bloc.draw_slot_hover(canvas, &self.camera, *slot_id);
-						}
-						BlocContainer::Sequence { sequence_id, place } => {
-							// TODO sequence
-						}
-					}
+					bloc.draw_container_hover(canvas, &self.camera, bloc_container);
 				}
 			}
 			_ => (),

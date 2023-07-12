@@ -30,7 +30,7 @@ impl TextBox {
 		&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, position: Point2<f64>,
 		selected: bool,
 	) {
-		let color = if selected { paler(self.color, 0.2) } else { self.color };
+		let color = if selected { self.default_color } else { self.color };
 		camera.fill_rounded_rect(canvas, color, position, self.size, Slot::RADIUS);
 		let position = position + Vector2::new(5.0, self.size.y * 0.5);
 		if self.text.is_empty() {

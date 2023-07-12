@@ -108,9 +108,9 @@ impl Bloc {
 				Box::new(|bloc: &Bloc, sequence_id| {
 					let width = Self::IF_TEXT_SIZE.x + bloc.slots[0].get_size().x + 2.0 * Self::INNER_MARGIN;
 					let height =
-						bloc.sequences[0..sequence_id].iter().map(|sequence| sequence.get_size().y).sum::<f64>();
-					let nb_sequences = bloc.sequences.len();
-					Vector2::new(width, height) + Vector2::new(1, nb_sequences).cast() * Self::MARGIN
+						bloc.sequences[0..sequence_id].iter().map(|sequence| sequence.get_size().y).sum::<f64>()
+							+ sequence_id as f64 * Self::INNER_MARGIN;
+					Vector2::new(width, height) + Vector2::new(1.0, 1.0) * Self::MARGIN
 				}),
 				Box::new(|bloc: &Bloc| {
 					let nb_sequences = bloc.sequences.len();
@@ -122,8 +122,9 @@ impl Bloc {
 							.map(|sequence| sequence.get_size().x)
 							.max_by(|a, b| a.partial_cmp(b).unwrap())
 							.unwrap() + 2.0 * Self::INNER_MARGIN;
-					let height = bloc.sequences.iter().map(|sequence| sequence.get_size().y).sum::<f64>()
-						+ (nb_sequences - 1) as f64 * Self::INNER_MARGIN;
+					let height = (bloc.sequences.iter().map(|sequence| sequence.get_size().y).sum::<f64>()
+						+ (nb_sequences - 1) as f64 * Self::INNER_MARGIN)
+						.max(bloc.slots[0].get_size().y);
 					Vector2::new(width, height) + Vector2::new(2.0, 2.0) * Self::MARGIN
 				}),
 			),
@@ -141,16 +142,16 @@ impl Bloc {
 			get_size,
 			parent: None,
 		};
+
 		(0..bloc.slots.len()).for_each(|slot_id| {
 			let slot_position = (*bloc.slots_positions)(&bloc, slot_id);
 			bloc.slots[slot_id].set_position(slot_position);
 		});
-		/*
 		(0..bloc.sequences.len()).for_each(|sequence_id| {
 			let sequence_position = (*bloc.sequences_positions)(&bloc, sequence_id);
 			bloc.sequences[sequence_id].set_position(sequence_position);
 		});
-		 */
+
 		bloc.size = (*bloc.get_size)(&bloc);
 		bloc
 	}
@@ -202,14 +203,17 @@ impl Bloc {
 			let slot_position = (*self.slots_positions)(&self, slot_id);
 			self.slots[slot_id].set_position(slot_position);
 		});
-		// TODO same for sequences
+		(0..self.sequences.len()).for_each(|sequence_id| {
+			let sequence_position = (*self.sequences_positions)(&self, sequence_id);
+			self.sequences[sequence_id].set_position(sequence_position);
+		});
 		self.size = (*self.get_size)(&self);
 	}
 
 	/// Met à jour la position de ses enfants
 	pub fn update_child_position(&self, blocs: &mut HashMap<u32, Bloc>) {
 		self.slots.iter().for_each(|slot| slot.update_child_position(self.position, blocs));
-		// TODO same for sequences
+		self.sequences.iter().for_each(|sequences| sequences.update_child_position(self.position, blocs))
 	}
 
 	pub fn collide_element(&self, point: Point2<f64>) -> Option<BlocElement> {
@@ -437,8 +441,15 @@ impl Bloc {
 		camera.draw_text(canvas, text_drawer, Colors::BLACK, self.position, 15.0, text, Align::TopLeft);
 	}
 
-	pub fn draw_slot_hover(&self, canvas: &mut Canvas<Window>, camera: &Camera, slot_id: usize) {
-		self.slots[slot_id].draw_hover(canvas, camera, self.position);
+	pub fn draw_container_hover(&self, canvas: &mut Canvas<Window>, camera: &Camera, bloc_container: &BlocContainer) {
+		match bloc_container {
+			BlocContainer::Slot { slot_id } => {
+				self.slots[*slot_id].draw_hover(canvas, camera, self.position);
+			}
+			BlocContainer::Sequence { sequence_id, place } => {
+				self.sequences[*sequence_id].draw_hover(canvas, camera, self.position, *place);
+			}
+		}
 	}
 }
 

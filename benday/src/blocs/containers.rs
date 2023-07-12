@@ -13,10 +13,10 @@ use std::collections::HashMap;
 ///
 /// Peut contenir du texte où un bloc.
 pub struct Slot {
-	text_box: TextBox,
-	child_id: Option<u32>,
 	position: Vector2<f64>,
 	size: Vector2<f64>,
+	text_box: TextBox,
+	child_id: Option<u32>,
 }
 
 impl Slot {
@@ -25,10 +25,10 @@ impl Slot {
 
 	pub fn new(color: Color, default_text: String) -> Self {
 		Self {
-			text_box: TextBox::new(Self::DEFAULT_SIZE, color, default_text),
-			child_id: None,
 			position: Vector2::zeros(),
 			size: Self::DEFAULT_SIZE,
+			text_box: TextBox::new(Self::DEFAULT_SIZE, color, default_text),
+			child_id: None,
 		}
 	}
 
@@ -164,10 +164,11 @@ impl Slot {
 }
 
 pub struct Sequence {
-	color: Color,
-	blocs_ids: Vec<u32>,
 	position: Vector2<f64>,
 	size: Vector2<f64>,
+	color: Color,
+	childs_ids: Vec<u32>,
+	childs_positions: Vec<Vector2<f64>>,
 }
 
 impl Sequence {
@@ -176,7 +177,13 @@ impl Sequence {
 	const RADIUS: f64 = 10.0;
 
 	pub fn new(color: Color) -> Self {
-		Self { color, position: Vector2::zeros(), size: Self::DEFAULT_SIZE, blocs_ids: vec![] }
+		Self {
+			position: Vector2::zeros(),
+			size: Self::DEFAULT_SIZE,
+			color,
+			childs_ids: Vec::new(),
+			childs_positions: Vec::new(),
+		}
 	}
 
 	/*
@@ -189,6 +196,10 @@ impl Sequence {
 		self.position
 	}
 
+	pub fn set_position(&mut self, position: Vector2<f64>) {
+		self.position = position;
+	}
+
 	/// Retourne la taille de la séquence.
 	pub fn get_size(&self) -> Vector2<f64> {
 		self.size
@@ -196,27 +207,35 @@ impl Sequence {
 
 	/// Met à jour la taille de la séquence.
 	fn update_size(&mut self, blocs: &HashMap<u32, Bloc>) {
-		self.size = if self.blocs_ids.is_empty() {
+		self.size = if self.childs_ids.is_empty() {
 			Self::DEFAULT_SIZE
 		} else {
 			let width = self
-				.blocs_ids
+				.childs_ids
 				.iter()
 				.map(|bloc_id| blocs.get(bloc_id).unwrap().get_size().x)
 				.max_by(|a, b| a.partial_cmp(b).unwrap())
 				.unwrap();
-			let height = (self.blocs_ids.iter().map(|bloc_id| blocs.get(bloc_id).unwrap().get_size().y).sum::<f64>())
+			let height = (self.childs_ids.iter().map(|bloc_id| blocs.get(bloc_id).unwrap().get_size().y).sum::<f64>())
 				.max(Self::DEFAULT_SIZE.y);
-			let nb_blocs = self.blocs_ids.len();
+			let nb_blocs = self.childs_ids.len();
 			Vector2::new(width, height) + Vector2::new(1, nb_blocs).cast() * Self::MARGIN
 		};
+		(0..self.childs_ids.len()).for_each(|place| self.childs_positions[place] = self.child_position(place, blocs));
 	}
 
-	/// Renvoie la position du bloc donné en référence à la séquence parent.
-	fn bloc_position(&self, place: usize, blocs: &HashMap<u32, Bloc>) -> Vector2<f64> {
+	pub fn update_child_position(&self, parent_position: Point2<f64>, blocs: &mut HashMap<u32, Bloc>) {
+		self.childs_ids.iter().enumerate().for_each(|(place, child_id)| {
+			let child_position = self.child_position(place, &blocs);
+			blocs.get_mut(&child_id).unwrap().set_position(parent_position + self.position + child_position);
+		});
+	}
+
+	/// Renvoie la position du bloc donné en référence à la séquence.
+	fn child_position(&self, place: usize, blocs: &HashMap<u32, Bloc>) -> Vector2<f64> {
 		Vector2::new(
 			0.0,
-			(0..place).map(|i| blocs.get(self.blocs_ids.get(i).unwrap()).unwrap().size.y + Self::MARGIN).sum(),
+			(0..place).map(|i| blocs.get(self.childs_ids.get(i).unwrap()).unwrap().size.y + Self::MARGIN).sum(),
 		)
 	}
 
@@ -330,17 +349,18 @@ impl Sequence {
 
 	/// Retourne l’id du gap survolé par un point donné (pour savoir où ajouter un nouveau bloc).
 	fn hovered_gap(self, point: Point2<f64>, blocs: &HashMap<u32, Bloc>) -> usize {
-		if self.blocs_ids.is_empty() {
+		if self.childs_ids.is_empty() {
 			return 0;
 		} else {
-			for nth_bloc in 0..self.blocs_ids.len() {
+			for nth_bloc in 0..self.childs_ids.len() {
 				if point.y
-					< self.bloc_position(nth_bloc, blocs).y + blocs.get(&self.blocs_ids[nth_bloc]).unwrap().size.y * 0.5
+					< self.child_position(nth_bloc, blocs).y
+						+ blocs.get(&self.childs_ids[nth_bloc]).unwrap().size.y * 0.5
 				{
 					return nth_bloc;
 				}
 			}
-			return self.blocs_ids.len();
+			return self.childs_ids.len();
 		}
 	}
 
@@ -351,7 +371,7 @@ impl Sequence {
 
 	/// Enlève le bloc donné de la séquence.
 	fn set_empty(&mut self, nth_bloc: usize) {
-		self.blocs_ids.remove(nth_bloc);
+		self.childs_ids.remove(nth_bloc);
 	}
 
 	/// Ajoute un espace à une position donnée.
@@ -376,6 +396,29 @@ impl Sequence {
 		selected: bool, hovered: bool,
 	) {
 		camera.fill_rounded_rect(canvas, darker(self.color, 0.7), position + self.position, self.size, Self::RADIUS);
+		if selected {
+			camera.draw_rounded_rect(canvas, Colors::BLACK, position + self.position, self.size, Self::RADIUS);
+		}
+		if hovered {
+			let hovered_color = Color::from((0, 0, 0, Bloc::HOVER_ALPHA));
+			canvas.set_blend_mode(BlendMode::Mod);
+			camera.fill_rounded_rect(canvas, hovered_color, position + self.position, self.size, Self::RADIUS);
+			canvas.set_blend_mode(BlendMode::None);
+		}
+	}
+
+	pub fn draw_hover(&self, canvas: &mut Canvas<Window>, camera: &Camera, position: Point2<f64>, place: usize) {
+		let size = Vector2::new(60.0, Self::MARGIN);
+		let hovered_color = Color::from((0, 0, 0, 50));
+		canvas.set_blend_mode(BlendMode::Mod);
+		camera.fill_rounded_rect(
+			canvas,
+			hovered_color,
+			position + self.position + self.childs_positions[place] - Vector2::new(0.0, Self::MARGIN),
+			size,
+			Self::RADIUS,
+		);
+		canvas.set_blend_mode(BlendMode::None);
 	}
 }
 
