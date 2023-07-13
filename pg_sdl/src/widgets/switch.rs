@@ -72,7 +72,7 @@ impl Switch {
 }
 
 impl Widget for Switch {
-	fn update(&mut self, input: &Input, _delta: f64, _text_drawer: &mut TextDrawer) -> bool {
+	fn update(&mut self, input: &Input, _delta: f64, _text_drawer: &TextDrawer) -> bool {
 		let mut changed = false;
 		self.state.update();
 

@@ -8,13 +8,14 @@ use pg_sdl::app::{App, PgSdl};
 use pg_sdl::camera::Camera;
 use pg_sdl::color::{hsv_color, Colors};
 use pg_sdl::input::Input;
-use pg_sdl::rect;
+use pg_sdl::{point, rect};
 use pg_sdl::text::{TextDrawer, TextStyle};
 use pg_sdl::widgets::{Button, TextBox, Widgets};
 use sdl2::render::Canvas;
 use sdl2::ttf::FontStyle;
-use sdl2::video::Window;
+use sdl2::video::{Window, WindowContext};
 use std::collections::HashMap;
+use pg_sdl::prelude::Align;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 struct Element {
@@ -23,7 +24,7 @@ struct Element {
 }
 
 #[derive(PartialEq, Debug, Clone)]
-struct Container {
+pub struct Container {
 	bloc_id: u32,
 	bloc_container: BlocContainer,
 }
@@ -42,13 +43,13 @@ pub struct MyApp {
 }
 
 impl App for MyApp {
-	fn update(&mut self, _delta: f64, input: &Input, widgets: &mut Widgets) -> bool {
+	fn update(&mut self, delta_sec: f64, input: &Input, widgets: &mut Widgets) -> bool {
 		let mut changed = false;
-
+		
 		match &self.app_state {
 			AppState::Idle { selected_element, hovered_element } => {
 				changed |= self.camera.update(input, selected_element.is_some());
-
+				
 				// Add new bloc
 				if widgets.get_button("Add").state.is_pressed() {
 					let id = self.id_counter;
@@ -61,6 +62,7 @@ impl App for MyApp {
 					self.blocs.insert(id, new_bloc);
 					self.blocs_order.push(id);
 					self.id_counter += 1;
+					update_layout_and_positions(&id, &mut self.blocs);
 				}
 				// Mouse click
 				else if input.mouse.left_button.is_pressed() {
@@ -74,24 +76,21 @@ impl App for MyApp {
 								let childs_order_ids = childs
 									.iter()
 									.rev()
-									.map(|child_id| {
-										new_blocs_order
-											.remove(new_blocs_order.iter().position(|i| i == child_id).unwrap())
-									})
+									.map(|child_id| new_blocs_order.remove(new_blocs_order.iter().position(|i| i == child_id).unwrap()))
 									.collect::<Vec<u32>>();
 								new_blocs_order.extend(childs_order_ids);
 								self.blocs_order = new_blocs_order;
-
+								
 								// Rearrange parents / childs
 								if let Some(Container { bloc_id: parent_id, bloc_container }) =
 									self.blocs.get(bloc_id).unwrap().get_parent().clone()
 								{
-									match bloc_container {
-										BlocContainer::Slot { slot_id } => {
-											self.blocs.get_mut(&parent_id).unwrap().set_slot_empty(slot_id);
-										}
-										BlocContainer::Sequence { .. } => (),
+									{
+										let mut bloc = self.blocs.remove(&parent_id).unwrap();
+										bloc.remove_child(bloc_container, &mut self.blocs);
+										self.blocs.insert(parent_id, bloc);
 									}
+									
 									self.blocs.get_mut(bloc_id).unwrap().set_parent(None);
 									let root_id = get_root(&parent_id, &self.blocs);
 									update_layout_and_positions(&root_id, &mut self.blocs);
@@ -101,17 +100,13 @@ impl App for MyApp {
 								});
 								let delta = self.blocs.get(bloc_id).unwrap().get_position().clone()
 									- self.camera.transform.inverse() * input.mouse.position.cast();
-
-								self.app_state =
-									AppState::BlocMoving { moving_bloc_id: *bloc_id, delta, hovered_container: None };
+								
+								self.app_state = AppState::BlocMoving { moving_bloc_id: *bloc_id, delta, hovered_container: None };
 							}
-							// Select a slot's textbox
-							BlocElement::Slot(_) => {
-								let element = Element { bloc_id: *bloc_id, bloc_element: *bloc_element };
-								self.app_state =
-									AppState::Idle { selected_element: Some(element), hovered_element: Some(element) };
+							_ => {
+								let element = Some(Element { bloc_id: *bloc_id, bloc_element: *bloc_element });
+								self.app_state = AppState::Idle { selected_element: element, hovered_element: element };
 							}
-							_ => (),
 						}
 					}
 					// Click in void
@@ -120,7 +115,7 @@ impl App for MyApp {
 					}
 					changed = true;
 				}
-				// Update the (mouse) hovered element
+				// Update witch element is (mouse) hovered
 				else if !input.mouse.delta.is_empty() {
 					let mouse_position = self.camera.transform.inverse() * input.mouse.position.cast();
 					let mut new_hovered_element = None;
@@ -138,40 +133,45 @@ impl App for MyApp {
 						changed = true;
 					}
 				}
+				// Update the selected element
+				if let Some(Element { bloc_id, bloc_element }) = selected_element {
+					self.blocs.get_mut(bloc_id).unwrap().update_element(bloc_element, input, delta_sec, text_drawer, &self.camera);
+				}
 			}
 			AppState::BlocMoving { moving_bloc_id, delta, hovered_container } => {
 				// Release the bloc
 				if input.mouse.left_button.is_released() {
 					if let Some(Container { bloc_id, bloc_container }) = hovered_container {
-						match bloc_container {
-							BlocContainer::Slot { slot_id } => {
-								self.blocs.get_mut(bloc_id).unwrap().set_slot_child(*slot_id, *moving_bloc_id);
-								self.blocs.get_mut(moving_bloc_id).unwrap().set_parent(hovered_container.clone());
-								// Update layout and childs positions
-								let root_id = get_root(bloc_id, &self.blocs);
-								update_layout_and_positions(&root_id, &mut self.blocs);
-							}
-							BlocContainer::Sequence { sequence_id, place } => {
-								// TODO release bloc in sequence
-							}
+						// Update parents and childs
+						{
+							let mut bloc = self.blocs.remove(bloc_id).unwrap();
+							bloc.set_child(*moving_bloc_id, bloc_container.clone(), &mut self.blocs);
+							self.blocs.insert(*bloc_id, bloc);
 						}
+						self.blocs.get_mut(moving_bloc_id).unwrap().set_parent(hovered_container.clone());
+						// Update layout and childs positions
+						let root_id = get_root(bloc_id, &self.blocs);
+						update_layout_and_positions(&root_id, &mut self.blocs);
 					} else {
 						let childs = self.blocs.get(&moving_bloc_id).unwrap().get_recursive_childs(&self.blocs);
 						childs.iter().for_each(|child_id| {
 							self.blocs.get_mut(child_id).unwrap().translate(Bloc::SHADOW);
 						});
 					}
-
-					let element = Element { bloc_id: *moving_bloc_id, bloc_element: BlocElement::Body };
-					self.app_state = AppState::Idle { selected_element: Some(element), hovered_element: Some(element) };
+					
+					let element = Some(Element { bloc_id: *moving_bloc_id, bloc_element: BlocElement::Body });
+					self.app_state = AppState::Idle { selected_element: element, hovered_element: element };
 					changed = true;
-				// Move the bloc
-				} else if !input.mouse.delta.is_empty() {
+					// Move the bloc
+				}
+				// Move the moving bloc
+				else if !input.mouse.delta.is_empty() {
 					let mouse_position = self.camera.transform.inverse() * input.mouse.position.cast();
 					self.blocs.get_mut(&moving_bloc_id).unwrap().set_position(mouse_position + delta);
 					update_layout_and_positions(&moving_bloc_id, &mut self.blocs);
-
+					
 					// Update the (moving bloc) hovered container
+					// iter through all blocs to get the bloc with the biggest 'ratio' of "hoveredness"
 					let moving_bloc = self.blocs.get(&moving_bloc_id).unwrap();
 					let moving_bloc_childs = moving_bloc.get_recursive_childs(&self.blocs);
 					let (mut new_hovered_container, mut ratio) = (None, 0.0);
@@ -204,10 +204,10 @@ impl App for MyApp {
 		}
 		changed
 	}
-
+	
 	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer) {
 		self.camera.draw_grid(canvas, text_drawer, Colors::LIGHT_GREY, true, false);
-
+		
 		self.blocs_order.iter().for_each(|bloc_id| {
 			let (moving, selected, hovered) = match &self.app_state {
 				AppState::Idle { selected_element, hovered_element } => (
@@ -241,7 +241,7 @@ impl App for MyApp {
 			};
 			self.blocs.get(bloc_id).unwrap().draw(canvas, text_drawer, &self.camera, moving, selected, hovered);
 		});
-
+		
 		match &self.app_state {
 			AppState::BlocMoving { hovered_container, .. } => {
 				if let Some(Container { bloc_id, bloc_container }) = hovered_container {
@@ -251,7 +251,14 @@ impl App for MyApp {
 			}
 			_ => (),
 		}
-
+		
+		if let AppState::BlocMoving { hovered_container, .. } = &self.app_state {
+			if let Some(Container { bloc_container, .. }) = hovered_container {
+				let text = format!("{:?}", bloc_container);
+				text_drawer.draw(canvas, point!(100, 50), &TextStyle::default(), &text, Align::TopLeft);
+			}
+		}
+		
 		// text of blocs
 		/*
 		if !self.blocs.is_empty() {
@@ -272,7 +279,7 @@ impl App for MyApp {
 fn main() {
 	let resolution = Vector2::new(1280, 720);
 	let camera = Camera::new(resolution, 6, 3.0, 5.0, -4000.0, 4000.0, -5000.0, 5000.0);
-
+	
 	let my_app = &mut MyApp {
 		camera,
 		id_counter: 0,
@@ -280,9 +287,9 @@ fn main() {
 		blocs: HashMap::new(),
 		blocs_order: Vec::new(),
 	};
-
-	let mut app = PgSdl::init("Benday", resolution.x, resolution.y, Some(60), true, Colors::LIGHT_GREY);
-
+	
+	let mut app = PgSdl::init("Benday", resolution.x, resolution.y, Some(120), true, Colors::LIGHT_GREY);
+	
 	app.add_widget(
 		"Add",
 		Box::new(Button::new(
@@ -295,20 +302,8 @@ fn main() {
 	);
 	app.add_widget("test", Box::new(TextBox::new(rect!(400, 100, 100, 30), None, Some("bob".to_string()))));
 	app.change_mouse_cursor();
-
+	
 	app.run(my_app);
-}
-
-fn update_layout(bloc_id: u32, blocs: &mut HashMap<u32, Bloc>) {
-	let mut bloc = blocs.remove(&bloc_id).unwrap();
-	bloc.update_layout(&blocs);
-	blocs.insert(bloc_id, bloc);
-}
-
-fn update_childs_positions(bloc_id: u32, blocs: &mut HashMap<u32, Bloc>) {
-	let mut bloc = blocs.remove(&bloc_id).unwrap();
-	bloc.update_child_position(blocs);
-	blocs.insert(bloc_id, bloc);
 }
 
 fn get_root(bloc_id: &u32, blocs: &HashMap<u32, Bloc>) -> u32 {
@@ -324,9 +319,18 @@ fn get_root(bloc_id: &u32, blocs: &HashMap<u32, Bloc>) -> u32 {
 
 fn update_layout_and_positions(bloc_id: &u32, blocs: &mut HashMap<u32, Bloc>) {
 	let childs = blocs.get(bloc_id).unwrap().get_recursive_childs(&blocs);
-	childs.iter().for_each(|child_id| update_layout(*child_id, blocs));
-	childs.iter().rev().for_each(|child_id| update_childs_positions(*child_id, blocs));
+	childs.iter().for_each(|child_id| {
+		let mut bloc = blocs.remove(&child_id).unwrap();
+		bloc.update_layout(&blocs);
+		blocs.insert(*child_id, bloc);
+	});
+	childs.iter().rev().for_each(|child_id| {
+		let mut bloc = blocs.remove(&child_id).unwrap();
+		bloc.update_child_position(blocs);
+		blocs.insert(*child_id, bloc);
+	});
 }
+
 
 /*
 // Update layout of blocs

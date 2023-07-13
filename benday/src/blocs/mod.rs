@@ -1,5 +1,4 @@
 pub mod containers;
-mod variable_assignment;
 mod widgets;
 
 use crate::blocs::containers::{Sequence, Slot};
@@ -12,6 +11,7 @@ use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
 use std::collections::HashMap;
+use pg_sdl::input::Input;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub enum BlocElement {
@@ -57,12 +57,15 @@ pub struct Bloc {
 	sequences_positions: Box<dyn Fn(&Self, usize) -> Vector2<f64>>,
 	get_size: Box<dyn Fn(&Self) -> Vector2<f64>>,
 	parent: Option<Container>,
+	bloc_type: BlocType,
 }
 impl Bloc {
 	pub const RADIUS: f64 = 8.0;
 	const MARGIN: f64 = 12.0;
 	const INNER_MARGIN: f64 = 6.0;
 	pub const SHADOW: Vector2<f64> = Vector2::new(6.0, 8.0);
+	const TOP_BOX_SIZE: Vector2<f64> = Vector2::new(100.0, 25.0);
+	const TOP_BOX_MARGIN: f64 = 3.0;
 	const HOVER_ALPHA: u8 = 20;
 	// const COLOR: Color = hsv_color(330, 0.3, 1.0);
 	const PRINT_TEXT_SIZE: Vector2<f64> = Vector2::new(30.0, 10.0); // size of "PRINT" text
@@ -91,7 +94,7 @@ impl Bloc {
 					}
 				}),
 				Vec::new() as Vec<Sequence>,
-				Box::new(|bloc: &Bloc, sequence_id| panic!("no sequences in PrintBloc")),
+				Box::new(|_bloc: &Bloc, _sequence_id| panic!("no sequences in PrintBloc")),
 				Box::new(|bloc: &Bloc| {
 					let width = bloc.slots[0].get_size().x.max(bloc.slots[1].get_size().x);
 					let height = bloc.slots[0].get_size().y + bloc.slots[1].get_size().y;
@@ -101,7 +104,7 @@ impl Bloc {
 			),
 			BlocType::IfElse => (
 				vec![Slot::new(color, "condition".to_string())],
-				Box::new(|bloc: &Bloc, slot_id: usize| {
+				Box::new(|_bloc: &Bloc, _slot_id: usize| {
 					Vector2::new(Self::IF_TEXT_SIZE.x + Self::INNER_MARGIN, 0.0) + Vector2::new(1.0, 1.0) * Self::MARGIN
 				}),
 				vec![Sequence::new(color), Sequence::new(color)],
@@ -141,6 +144,7 @@ impl Bloc {
 			sequences_positions,
 			get_size,
 			parent: None,
+			bloc_type,
 		};
 
 		(0..bloc.slots.len()).for_each(|slot_id| {
@@ -151,7 +155,6 @@ impl Bloc {
 			let sequence_position = (*bloc.sequences_positions)(&bloc, sequence_id);
 			bloc.sequences[sequence_id].set_position(sequence_position);
 		});
-
 		bloc.size = (*bloc.get_size)(&bloc);
 		bloc
 	}
@@ -180,6 +183,7 @@ impl Bloc {
 
 	pub fn translate(&mut self, delta: Vector2<f64>) {
 		self.position += delta;
+		self.slots.iter_mut().for_each(|slot| slot.translate(delta));
 	}
 
 	pub fn get_size(&self) -> &Vector2<f64> {
@@ -192,6 +196,9 @@ impl Bloc {
 		self.slots.iter().for_each(|slot| {
 			childs.extend(slot.get_recursive_childs(blocs));
 		});
+		self.sequences.iter().for_each(|sequence| {
+			childs.extend(sequence.get_recursive_childs(blocs));
+		});
 		childs.push(self.id);
 		childs
 	}
@@ -203,6 +210,7 @@ impl Bloc {
 			let slot_position = (*self.slots_positions)(&self, slot_id);
 			self.slots[slot_id].set_position(slot_position);
 		});
+		self.sequences.iter_mut().for_each(|sequence| sequence.update_size(blocs));
 		(0..self.sequences.len()).for_each(|sequence_id| {
 			let sequence_position = (*self.sequences_positions)(&self, sequence_id);
 			self.sequences[sequence_id].set_position(sequence_position);
@@ -211,8 +219,8 @@ impl Bloc {
 	}
 
 	/// Met à jour la position de ses enfants
-	pub fn update_child_position(&self, blocs: &mut HashMap<u32, Bloc>) {
-		self.slots.iter().for_each(|slot| slot.update_child_position(self.position, blocs));
+	pub fn update_child_position(&mut self, blocs: &mut HashMap<u32, Bloc>) {
+		self.slots.iter_mut().for_each(|slot| slot.update_child_position(self.position, blocs));
 		self.sequences.iter().for_each(|sequences| sequences.update_child_position(self.position, blocs))
 	}
 
@@ -236,6 +244,17 @@ impl Bloc {
 		Some(BlocElement::Body)
 	}
 
+	pub fn update_element(&mut self, bloc_element: &BlocElement, input: &Input, delta_sec: f64, text_drawer: &mut TextDrawer, camera: &Camera) -> bool{
+		match bloc_element {
+			BlocElement::Slot(slot_id) => {
+				self.slots[slot_id].update_text_box(input, delta_sec, text_drawer, camera)
+			},
+			BlocElement::CustomButton(_) => {
+				false
+			}
+			_ => false
+		}
+	}
 	pub fn collide_container(&self, position: Point2<f64>, size: Vector2<f64>) -> Option<(BlocContainer, f64)> {
 		if !self.collide_rect(position, size) {
 			return None;
@@ -252,8 +271,16 @@ impl Bloc {
 				}
 			}
 		});
-
-		// TODO idem for sequences
+		
+		self.sequences.iter().enumerate().for_each(|(sequence_id, sequence)| {
+			if sequence.collide_rect(position - self.position.coords, size) {
+				let (place, new_ratio) = sequence.get_place_ratio(position - self.position.coords, size);
+				if new_ratio > ratio {
+					bloc_container = Some(BlocContainer::Sequence { sequence_id, place });
+					ratio = new_ratio;
+				}
+			}
+		});
 
 		if let Some(bloc_container) = bloc_container {
 			return Some((bloc_container, ratio));
@@ -261,12 +288,26 @@ impl Bloc {
 		None
 	}
 
-	pub fn set_slot_child(&mut self, slot_id: usize, child_id: u32) {
-		self.slots[slot_id].set_child(child_id);
+	pub fn set_child(&mut self, child_id: u32, bloc_container: BlocContainer, blocs: &mut HashMap<u32, Bloc>) {
+		match bloc_container {
+			BlocContainer::Slot { slot_id } => {
+				self.slots[slot_id].set_child(child_id);
+			}
+			BlocContainer::Sequence { sequence_id, place } => {
+				self.sequences[sequence_id].set_child(child_id, place, blocs);
+			}
+		}
 	}
 
-	pub fn set_slot_empty(&mut self, slot_id: usize) {
-		self.slots[slot_id].set_empty();
+	pub fn remove_child(&mut self, bloc_container: BlocContainer, blocs: &mut HashMap<u32, Bloc>) {
+		match bloc_container {
+			BlocContainer::Slot { slot_id } => {
+				self.slots[slot_id].remove_child();
+			}
+			BlocContainer::Sequence { sequence_id, place } => {
+				self.sequences[sequence_id].remove_child(place, blocs);
+			}
+		}
 	}
 
 	pub fn collide_point(&self, point: Point2<f64>) -> bool {
@@ -282,96 +323,7 @@ impl Bloc {
 			&& self.position.y < position.y + size.y
 			&& position.y < self.position.y + self.size.y
 	}
-
-	/// Retourne la référence du bloc en collision avec un point (hiérarchie)
-	///
-	/// et sur quelle partie du bloc est ce point (hovered on).
-	/*
-	fn collide_point(&self, point: Vector2<f64>, blocs: &HashMap<u32, Bloc>) -> Option<(Vec<usize>, HoveredOn)> {
-		if !self.collide(point) {
-			return None;
-		}
-		/*
-		for button_id in 0..self.buttons.len(){
-			if self.collide_button(point, button_id) {
-				return Some((Vec::new(), HoveredOn::CustomButton(button_id)))
-			}
-		}
-		*/
-		for (i, slot) in self.slots.iter().rev().enumerate() {
-			let slot_id = (self.slots.len() - 1 - i) as usize;
-			let slot_collide = slot.collide_point(point - self.slot_position(slot_id), slot_id, blocs);
-			if slot_collide.is_some() {
-				return slot_collide;
-			}
-		}
-
-		for (i, sequence) in self.sequences.iter().rev().enumerate() {
-			let sequence_id = (self.sequences.len() - 1 - i) as usize;
-			let sequence_collide =
-				sequence.collide_point(point - self.sequence_position(sequence_id), sequence_id, blocs);
-			if sequence_collide.is_some() {
-				return sequence_collide;
-			}
-		}
-		/*
-		if self.collide_info_bt(point){
-			return Some((Vec::new(), HoveredOn::InfoButton));
-		}
-
-		if self.collide_copy_bt(point){
-			return Some((Vec::new(), HoveredOn::CopyButton));
-		}
-
-		if self.collide_cross_bt(point){
-			return Some((Vec::new(), HoveredOn::DeleteButton));
-		}
-		*/
-		return Some((Vec::new(), HoveredOn::Body));
-	}
-	 */
-
-	/// Retourne la référence du slot ou de la séquence en collision avec un rectangle (hiérarchie)
-	///
-	/// et la proportion de collision en hauteur (float).
-	/*
-	fn hovered_slot(
-		&self, position: Point2<f64>, size: Vector2<f64>, ratio: f32, blocs: &HashMap<u32, Bloc>,
-	) -> Option<(Vec<usize>, f32)> {
-		if !(Self::MARGIN - size.x < position.x
-			&& position.x < self.size.x - 2.0 * Self::MARGIN
-			&& Self::MARGIN - size.y < position.y
-			&& position.y < self.size.y - 2.0 * Self::MARGIN)
-		{
-			return None;
-		}
-		let mut hierarchy_ratio = None;
-
-		self.slots.iter().enumerate().for_each(|(slot_id, slot)| {
-			let slot_position = self.slot_position(slot_id as usize);
-
-			if let Some(slot_hovered) = slot.hovered_slot(position - slot_position, size, ratio, slot_id as usize, blocs)
-			{
-				let (hierarchy, ratio) = slot_hovered;
-				hierarchy_ratio = Some((hierarchy, ratio));
-			}
-		});
-
-		self.sequences.iter().enumerate().for_each(|(sequence_id, sequence)| {
-			let sequence_position = self.sequence_position(sequence_id as usize);
-
-			if let Some(sequence_hovered) =
-				sequence.hovered_slot(position - sequence_position, size, ratio, sequence_id as usize, blocs)
-			{
-				let (hierarchy, ratio) = sequence_hovered;
-				hierarchy_ratio = Some((hierarchy, ratio));
-			}
-		});
-
-		hierarchy_ratio
-	}
-	 */
-
+	
 	pub fn draw(
 		&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, moving: bool,
 		selected: Option<&BlocElement>, hovered: Option<&BlocElement>,
@@ -386,7 +338,9 @@ impl Bloc {
 		// BODY
 		camera.fill_rounded_rect(canvas, self.color, self.position, self.size, Self::RADIUS);
 		if selected.is_some() || hovered.is_some() {
-			// draw top box
+			// TOP BOX
+			let position = Vector2::new((self.size.x - Self::TOP_BOX_SIZE.x) * 0.5, -Self::TOP_BOX_SIZE.y);
+			camera.fill_rounded_rect(canvas, self.color, self.position + position, Self::TOP_BOX_SIZE, Self::RADIUS);
 		}
 		// HOVERED
 		if let Some(element) = hovered {
@@ -412,7 +366,7 @@ impl Bloc {
 			} else {
 				false
 			};
-			slot.draw(canvas, text_drawer, camera, self.position, selected, hovered);
+			slot.draw(canvas, text_drawer, camera, selected, hovered);
 		});
 		// SEQUENCES
 		self.sequences.iter().enumerate().for_each(|(sequence_id, sequence)| {
@@ -426,7 +380,7 @@ impl Bloc {
 			} else {
 				false
 			};
-			sequence.draw(canvas, text_drawer, camera, self.position, selected, hovered);
+			sequence.draw(canvas, camera, self.position, selected, hovered);
 		});
 		// SELECTED
 		if let Some(element) = selected {
@@ -452,42 +406,3 @@ impl Bloc {
 		}
 	}
 }
-
-/*
-pub fn draw_bloc<'a>(
-	bloc: &Bloc, blocs: &HashMap<u32, Bloc>, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer,
-	texture_creator: &'a TextureCreator<WindowContext>,
-) -> Surface<'a> {
-	let mut surface =
-		Surface::new(bloc.rect.width(), bloc.rect.height(), texture_creator.default_pixel_format()).unwrap();
-	surface.fill_rect(rect!(0, 0, bloc.rect.width(), bloc.rect.height()), bloc.color).unwrap();
-
-	if let Some(child_id) = bloc.child {
-		let bloc = blocs.get(&child_id).unwrap();
-		let child_surface = draw_bloc(bloc, blocs, canvas, text_drawer, texture_creator);
-		child_surface.blit(None, surface.as_mut(), Some(bloc.rect)).unwrap();
-	}
-
-	surface
-}
- */
-
-/*
-pub fn set_child(child_id: u32, parent_id: u32, blocs: &mut HashMap<u32, Bloc>) {
-	let child_size = blocs.get(&child_id).unwrap().size;
-	{
-		let parent_bloc = blocs.get_mut(&parent_id).unwrap();
-		parent_bloc.child = Some(child_id);
-
-		parent_bloc.size = parent_bloc.size + child_size;
-	}
-
-	let parent_size = blocs.get(&parent_id).unwrap().size;
-	{
-		let child_bloc = blocs.get_mut(&child_id).unwrap();
-		child_bloc.parent = Some(parent_id);
-
-		child_bloc.position = Point2::from((parent_size - child_size) * 0.5);
-	}
-}
-*/

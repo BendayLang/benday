@@ -35,9 +35,8 @@ pub struct TextBox {
 	pub content: String,
 	hovered: bool,
 	is_focused: bool,
-	carrot_timer: f64,
+	carrot_timer_sec: f64,
 	carrot_position: usize,
-	carrot_visible: bool,
 	selection: Option<(usize, usize)>,
 	is_selecting: bool,
 	pub state: KeyState,
@@ -45,6 +44,7 @@ pub struct TextBox {
 
 impl TextBox {
 	const LEFT_SHIFT: i32 = 5;
+	const BLINKING_TIME_SEC: f64 = 0.4;
 
 	pub fn new(rect: Rect, style: Option<TextBoxStyle>, default_text: Option<String>) -> Self {
 		let carrot_position = match default_text {
@@ -58,15 +58,14 @@ impl TextBox {
 			hovered: false,
 			state: KeyState::new(),
 			is_focused: false,
-			carrot_timer: 0.0,
+			carrot_timer_sec: 0.0,
 			carrot_position,
-			carrot_visible: true,
 			selection: None,
 			is_selecting: false,
 		}
 	}
 
-	fn get_carrot_position_from_mouse(&self, text_drawer: &mut TextDrawer, mouse_x: i32) -> Option<usize> {
+	fn get_carrot_position_from_mouse(&self, text_drawer: &TextDrawer, mouse_x: i32) -> Option<usize> {
 		let mut x: u32 = 0;
 		for (i, c) in self.content.chars().enumerate() {
 			let text_width = text_drawer.text_size(&self.style.text_style, &c.to_string()).0;
@@ -77,18 +76,24 @@ impl TextBox {
 		}
 		return None;
 	}
+	
+	fn is_carrot_visible(&self) -> bool{
+		self.carrot_timer_sec < Self::BLINKING_TIME_SEC
+	}
 }
 
 impl Widget for TextBox {
-	fn update(&mut self, input: &Input, delta: f64, text_drawer: &mut TextDrawer) -> bool {
+	fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &TextDrawer) -> bool {
 		let mut changed = false;
 		self.state.update();
 
 		// Carrot blinking
-		self.carrot_timer += delta;
-		if self.carrot_timer > 0.5 {
-			self.carrot_timer = 0.0;
-			self.carrot_visible = !self.carrot_visible;
+		self.carrot_timer_sec += delta_sec;
+		if Self::BLINKING_TIME_SEC < self.carrot_timer_sec && self.carrot_timer_sec < Self::BLINKING_TIME_SEC + delta_sec {
+			changed = true;
+		}
+		if self.carrot_timer_sec > 2.0 * Self::BLINKING_TIME_SEC {
+			self.carrot_timer_sec = 0.0;
 			changed = true;
 		}
 
@@ -120,8 +125,7 @@ impl Widget for TextBox {
 				self.state.press();
 				self.is_focused = true;
 				self.is_selecting = true;
-				self.carrot_timer = 0.0;
-				self.carrot_visible = true;
+				self.carrot_timer_sec = 0.0;
 				changed = true;
 			} else if input.mouse.left_button.is_down() && self.is_selecting {
 				// Selection
@@ -221,8 +225,7 @@ impl Widget for TextBox {
 					self.content.remove(self.carrot_position - 1);
 					self.carrot_position -= 1;
 				}
-				self.carrot_timer = 0.0;
-				self.carrot_visible = true;
+				self.carrot_timer_sec = 0.0;
 				changed = true;
 			}
 
@@ -231,16 +234,14 @@ impl Widget for TextBox {
 				if self.carrot_position > 0 {
 					self.carrot_position -= 1;
 				}
-				self.carrot_timer = 0.0;
-				self.carrot_visible = true;
+				self.carrot_timer_sec = 0.0;
 				changed = true;
 			}
 			if input.keys_state.right.is_pressed() {
 				if self.carrot_position < self.content.len() {
 					self.carrot_position += 1;
 				}
-				self.carrot_timer = 0.0;
-				self.carrot_visible = true;
+				self.carrot_timer_sec = 0.0;
 				changed = true;
 			}
 		}
@@ -282,7 +283,7 @@ impl Widget for TextBox {
 		}
 
 		// Carrot
-		if self.is_focused && self.carrot_visible {
+		if self.is_focused && self.is_carrot_visible() {
 			let carrot_x_position = if self.carrot_position != 0 {
 				text_drawer.text_size(&self.style.text_style, &self.content[..self.carrot_position]).0 as i32
 			} else {

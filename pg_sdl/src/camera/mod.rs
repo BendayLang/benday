@@ -42,7 +42,7 @@ impl Camera {
 		}
 	}
 
-	fn scale(&self) -> f64 {
+	pub fn scale(&self) -> f64 {
 		self.transform.scaling()
 	}
 
@@ -175,7 +175,7 @@ impl Camera {
 		let position = self.transform * position;
 		let size = self.transform * size;
 		let rect = Rect::new(position.x as i32, position.y as i32, size.x as u32, size.y as u32);
-		let radius = (self.transform.scaling() * radius) as u16;
+		let radius = (self.scale() * radius) as u16;
 		if self.is_in_scope(rect) {
 			draw_rounded_rect(canvas, rect, color, radius);
 		};
@@ -187,7 +187,7 @@ impl Camera {
 		let position = self.transform * position;
 		let size = self.transform * size;
 		let rect = Rect::new(position.x as i32, position.y as i32, size.x as u32, size.y as u32);
-		let radius = (self.transform.scaling() * radius) as u16;
+		let radius = (self.scale() * radius) as u16;
 		if self.is_in_scope(rect) {
 			fill_rounded_rect(canvas, rect, color, radius);
 		};
@@ -293,7 +293,7 @@ impl Camera {
 		}
 		let start = self.transform * start;
 		let end = self.transform * end;
-		let width = self.transform.scaling() * width;
+		let width = self.scale() * width;
 		// TODO clean up
 		let x_dir = end - start;
 		let y_dir = x_dir.perpendicular() * width / 2.0;
