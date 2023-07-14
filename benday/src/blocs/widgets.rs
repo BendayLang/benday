@@ -1,14 +1,14 @@
 use crate::blocs::containers::Slot;
+use crate::blocs::Bloc;
 use nalgebra::{Point2, Vector2};
 use pg_sdl::camera::Camera;
 use pg_sdl::color::{paler, Colors};
+use pg_sdl::input::{Input, Shortcut};
 use pg_sdl::prelude::Align;
 use pg_sdl::text::{TextDrawer, TextStyle};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
-use pg_sdl::input::{Input, Shortcut};
-use crate::blocs::Bloc;
 
 pub struct BaseWidget {
 	pub position: Point2<f64>,
@@ -27,12 +27,11 @@ pub trait Widget {
 	fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &mut TextDrawer, camera: &Camera) -> bool;
 	/// Draw the widget on the canvas
 	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, selected: bool, hovered: bool);
-	
+
 	fn get_base_widget(&self) -> &BaseWidget;
-	
+
 	fn get_base_widget_mut(&mut self) -> &mut BaseWidget;
 }
-
 
 pub struct TextBox {
 	base_widget: BaseWidget,
@@ -49,7 +48,7 @@ impl TextBox {
 	const FONT_SIZE: f64 = 12.0;
 	const LEFT_SHIFT: i32 = 5;
 	const BLINKING_TIME_SEC: f64 = 0.4;
-	
+
 	pub fn new(base_widget: BaseWidget, color: Color, default_text: String) -> Self {
 		Self {
 			base_widget,
@@ -65,7 +64,7 @@ impl TextBox {
 	pub fn get_text(&self) -> String {
 		self.content.clone()
 	}
-	
+
 	fn get_carrot_position(&self, mouse_position: Point2<i32>, text_drawer: &mut TextDrawer, camera: &Camera) -> Option<usize> {
 		let mouse_x = mouse_position.x - self.base_widget.position.x as i32;
 		let mut x: u32 = 0;
@@ -84,7 +83,7 @@ impl TextBox {
 impl Widget for TextBox {
 	fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &mut TextDrawer, camera: &Camera) -> bool {
 		let mut changed = false;
-		
+
 		// Carrot blinking
 		self.carrot_timer_sec += delta_sec;
 		if Self::BLINKING_TIME_SEC < self.carrot_timer_sec && self.carrot_timer_sec < Self::BLINKING_TIME_SEC + delta_sec {
@@ -94,7 +93,7 @@ impl Widget for TextBox {
 			self.carrot_timer_sec = 0.0;
 			changed = true;
 		}
-		
+
 		if input.mouse.left_button_double_clicked() {
 			// Mouse double click
 			self.selection = Some((0, self.content.len()));
@@ -102,7 +101,7 @@ impl Widget for TextBox {
 		} else if input.mouse.left_button.is_pressed() {
 			// Mouse click
 			self.selection = None;
-			
+
 			// Carrot position
 			self.carrot_position =
 				if let Some(new_carrot_position) = self.get_carrot_position(input.mouse.position, text_drawer, camera) {
@@ -110,7 +109,7 @@ impl Widget for TextBox {
 				} else {
 					self.content.len()
 				};
-			
+
 			// Selection
 			self.carrot_timer_sec = 0.0;
 			changed = true;
@@ -131,7 +130,7 @@ impl Widget for TextBox {
 				changed = true;
 			}
 		}
-		
+
 		// Keyboard input
 		// Clipboard
 		if input.shortcut_pressed(&Shortcut::PASTE()) && input.clipboard.has_clipboard_text() {
@@ -170,7 +169,7 @@ impl Widget for TextBox {
 			self.carrot_position = 0;
 			return true;
 		}
-		
+
 		// Text input
 		if let Some(c) = input.last_char {
 			if let Some((start, end)) = self.selection {
@@ -197,7 +196,7 @@ impl Widget for TextBox {
 			self.carrot_timer_sec = 0.0;
 			changed = true;
 		}
-		
+
 		// Carrot movement
 		if input.keys_state.left.is_pressed() {
 			if self.carrot_position > 0 {
@@ -213,18 +212,34 @@ impl Widget for TextBox {
 			self.carrot_timer_sec = 0.0;
 			changed = true;
 		}
-		
+
 		changed
 	}
-	
+
 	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, selected: bool, hovered: bool) {
 		let color = if selected { self.default_color } else { self.color };
 		camera.fill_rounded_rect(canvas, color, self.base_widget.position, self.base_widget.size, Slot::RADIUS);
 		let text_position = self.base_widget.position + Vector2::new(5.0, self.base_widget.size.y * 0.5);
 		if self.content.is_empty() {
-			camera.draw_text(canvas, text_drawer, Colors::GREY, text_position, Self::FONT_SIZE, self.default_text.clone(), Align::Left);
+			camera.draw_text(
+				canvas,
+				text_drawer,
+				Colors::GREY,
+				text_position,
+				Self::FONT_SIZE,
+				self.default_text.clone(),
+				Align::Left,
+			);
 		} else {
-			camera.draw_text(canvas, text_drawer, Colors::BLACK, text_position, Self::FONT_SIZE, self.content.clone(), Align::Left);
+			camera.draw_text(
+				canvas,
+				text_drawer,
+				Colors::BLACK,
+				text_position,
+				Self::FONT_SIZE,
+				self.content.clone(),
+				Align::Left,
+			);
 		}
 		if selected {
 			camera.draw_rounded_rect(canvas, Colors::BLACK, self.base_widget.position, self.base_widget.size, Slot::RADIUS);
@@ -236,11 +251,11 @@ impl Widget for TextBox {
 			canvas.set_blend_mode(BlendMode::None);
 		}
 	}
-	
+
 	fn get_base_widget(&self) -> &BaseWidget {
 		&self.base_widget
 	}
-	
+
 	fn get_base_widget_mut(&mut self) -> &mut BaseWidget {
 		&mut self.base_widget
 	}

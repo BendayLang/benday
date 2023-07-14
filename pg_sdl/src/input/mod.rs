@@ -1,11 +1,10 @@
 mod key_state;
 mod mouse;
 
-use nalgebra::Vector2;
 pub use key_state::{KeyState, KeysState, Shortcut};
+use nalgebra::Vector2;
 use sdl2::clipboard::ClipboardUtil;
 use sdl2::event::WindowEvent;
-
 
 pub struct Input {
 	event_pump: sdl2::EventPump,
@@ -30,22 +29,22 @@ impl Input {
 			window_resized: None,
 		}
 	}
-	
+
 	/// should be called every frame
 	pub fn get_events(&mut self) {
 		self.last_char = None;
 		self.window_resized = None;
-		
+
 		for key_state in self.keys_state.as_mut_array() {
 			key_state.update()
 		}
-		
+
 		self.mouse.update();
-		
+
 		for event in self.event_pump.poll_iter() {
 			use sdl2::event::Event;
 			self.mouse.get_event(event.clone());
-			
+
 			match event {
 				Event::TextEditing { text, .. } => {
 					println!("TextEditing {:?}", text);
@@ -68,19 +67,17 @@ impl Input {
 						self.keys_state.release_key(keycode);
 					}
 				}
-				Event::Window { win_event, .. } => {
-					match win_event {
-						WindowEvent::SizeChanged(width, height) => {
-							self.window_resized = Some(Vector2::new(width as u32, height as u32));
-						},
-						_ => ()
+				Event::Window { win_event, .. } => match win_event {
+					WindowEvent::SizeChanged(width, height) => {
+						self.window_resized = Some(Vector2::new(width as u32, height as u32));
 					}
-				}
+					_ => (),
+				},
 				_ => {}
 			}
 		}
 	}
-	
+
 	pub fn shortcut_pressed(&self, shortcut: &Shortcut) -> bool {
 		self.keys_state.shortcut_pressed(shortcut)
 	}

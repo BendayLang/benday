@@ -6,12 +6,12 @@ use crate::Container;
 use nalgebra::{Point2, Vector2};
 use pg_sdl::camera::Camera;
 use pg_sdl::color::Colors;
+use pg_sdl::input::Input;
 use pg_sdl::prelude::{Align, TextDrawer};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
 use std::collections::HashMap;
-use pg_sdl::input::Input;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub enum BlocElement {
@@ -82,10 +82,7 @@ impl Bloc {
 			BlocType::Print => (
 				vec![Slot::new(color, "value".to_string()), Slot::new(color, "value".to_string())],
 				Box::new(|bloc: &Bloc, slot_id: usize| match slot_id {
-					0 => {
-						Vector2::new(Self::PRINT_TEXT_SIZE.x + Self::INNER_MARGIN, 0.0)
-							+ Vector2::new(1.0, 1.0) * Self::MARGIN
-					}
+					0 => Vector2::new(Self::PRINT_TEXT_SIZE.x + Self::INNER_MARGIN, 0.0) + Vector2::new(1.0, 1.0) * Self::MARGIN,
 					_ => {
 						Vector2::new(
 							Self::PRINT_TEXT_SIZE.x + Self::INNER_MARGIN,
@@ -110,9 +107,8 @@ impl Bloc {
 				vec![Sequence::new(color), Sequence::new(color)],
 				Box::new(|bloc: &Bloc, sequence_id| {
 					let width = Self::IF_TEXT_SIZE.x + bloc.slots[0].get_size().x + 2.0 * Self::INNER_MARGIN;
-					let height =
-						bloc.sequences[0..sequence_id].iter().map(|sequence| sequence.get_size().y).sum::<f64>()
-							+ sequence_id as f64 * Self::INNER_MARGIN;
+					let height = bloc.sequences[0..sequence_id].iter().map(|sequence| sequence.get_size().y).sum::<f64>()
+						+ sequence_id as f64 * Self::INNER_MARGIN;
 					Vector2::new(width, height) + Vector2::new(1.0, 1.0) * Self::MARGIN
 				}),
 				Box::new(|bloc: &Bloc| {
@@ -244,15 +240,13 @@ impl Bloc {
 		Some(BlocElement::Body)
 	}
 
-	pub fn update_element(&mut self, bloc_element: &BlocElement, input: &Input, delta_sec: f64, text_drawer: &mut TextDrawer, camera: &Camera) -> bool{
+	pub fn update_element(
+		&mut self, bloc_element: &BlocElement, input: &Input, delta_sec: f64, text_drawer: &mut TextDrawer, camera: &Camera,
+	) -> bool {
 		match bloc_element {
-			BlocElement::Slot(slot_id) => {
-				self.slots[*slot_id].update_text_box(input, delta_sec, text_drawer, camera)
-			},
-			BlocElement::CustomButton(_) => {
-				false
-			}
-			_ => false
+			BlocElement::Slot(slot_id) => self.slots[*slot_id].update_text_box(input, delta_sec, text_drawer, camera),
+			BlocElement::CustomButton(_) => false,
+			_ => false,
 		}
 	}
 	pub fn collide_container(&self, position: Point2<f64>, size: Vector2<f64>) -> Option<(BlocContainer, f64)> {
@@ -271,7 +265,7 @@ impl Bloc {
 				}
 			}
 		});
-		
+
 		self.sequences.iter().enumerate().for_each(|(sequence_id, sequence)| {
 			if sequence.collide_rect(position - self.position.coords, size) {
 				let (place, new_ratio) = sequence.get_place_ratio(position - self.position.coords, size);
@@ -323,7 +317,7 @@ impl Bloc {
 			&& self.position.y < position.y + size.y
 			&& position.y < self.position.y + self.size.y
 	}
-	
+
 	pub fn draw(
 		&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, moving: bool,
 		selected: Option<&BlocElement>, hovered: Option<&BlocElement>,
@@ -356,16 +350,10 @@ impl Bloc {
 		}
 		// SLOTS
 		self.slots.iter().enumerate().for_each(|(slot_id, slot)| {
-			let selected = if let Some(BlocElement::Slot(selected_slot_id)) = selected {
-				&slot_id == selected_slot_id
-			} else {
-				false
-			};
-			let hovered = if let Some(BlocElement::Slot(hovered_slot_id)) = hovered {
-				&slot_id == hovered_slot_id
-			} else {
-				false
-			};
+			let selected =
+				if let Some(BlocElement::Slot(selected_slot_id)) = selected { &slot_id == selected_slot_id } else { false };
+			let hovered =
+				if let Some(BlocElement::Slot(hovered_slot_id)) = hovered { &slot_id == hovered_slot_id } else { false };
 			slot.draw(canvas, text_drawer, camera, selected, hovered);
 		});
 		// SEQUENCES

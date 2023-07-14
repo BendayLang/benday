@@ -71,8 +71,7 @@ impl TextDrawer {
 		font.set_style(*font_style);
 
 		// render a surface, and convert it to a texture bound to the canvas
-		let surface =
-			font.render(text).blended(*color).map_err(|e| e.to_string()).expect("text texture rendering error");
+		let surface = font.render(text).blended(*color).map_err(|e| e.to_string()).expect("text texture rendering error");
 
 		self.texture_creator.create_texture_from_surface(&surface).map_err(|e| e.to_string()).ok().unwrap()
 	}

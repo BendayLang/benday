@@ -26,8 +26,8 @@ pub struct Camera {
 
 impl Camera {
 	pub fn new(
-		resolution: Vector2<u32>, doubling_steps: u8, zoom_in_limit: f64, zoom_out_limit: f64, top_limit: f64,
-		bottom_limit: f64, left_limit: f64, right_limit: f64,
+		resolution: Vector2<u32>, doubling_steps: u8, zoom_in_limit: f64, zoom_out_limit: f64, top_limit: f64, bottom_limit: f64,
+		left_limit: f64, right_limit: f64,
 	) -> Self {
 		Camera {
 			resolution,
@@ -196,37 +196,21 @@ impl Camera {
 	pub fn draw_ellipse(&self, canvas: &mut Canvas<Window>, color: Color, position: Point2<f64>, radii: Vector2<f64>) {
 		let position = self.transform * position;
 		let radii = self.transform * radii;
-		let rect = Rect::new(
-			(position.x - radii.x) as i32,
-			(position.y - radii.y) as i32,
-			2 * radii.x as u32,
-			2 * radii.y as u32,
-		);
+		let rect =
+			Rect::new((position.x - radii.x) as i32, (position.y - radii.y) as i32, 2 * radii.x as u32, 2 * radii.y as u32);
 		if self.is_in_scope(rect) {
-			DrawRenderer::ellipse(canvas, position.x as i16, position.y as i16, radii.x as i16, radii.y as i16, color)
-				.unwrap();
+			DrawRenderer::ellipse(canvas, position.x as i16, position.y as i16, radii.x as i16, radii.y as i16, color).unwrap();
 		};
 	}
 	/// Draws a filled ellipse as seen by the camera
 	pub fn fill_ellipse(&self, canvas: &mut Canvas<Window>, color: Color, position: Point2<f64>, radii: Vector2<f64>) {
 		let position = self.transform * position;
 		let radii = self.transform * radii;
-		let rect = Rect::new(
-			(position.x - radii.x) as i32,
-			(position.y - radii.y) as i32,
-			2 * radii.x as u32,
-			2 * radii.y as u32,
-		);
+		let rect =
+			Rect::new((position.x - radii.x) as i32, (position.y - radii.y) as i32, 2 * radii.x as u32, 2 * radii.y as u32);
 		if self.is_in_scope(rect) {
-			DrawRenderer::filled_ellipse(
-				canvas,
-				position.x as i16,
-				position.y as i16,
-				radii.x as i16,
-				radii.y as i16,
-				color,
-			)
-			.unwrap();
+			DrawRenderer::filled_ellipse(canvas, position.x as i16, position.y as i16, radii.x as i16, radii.y as i16, color)
+				.unwrap();
 		};
 	}
 
@@ -234,8 +218,7 @@ impl Camera {
 	pub fn draw_circle(&self, canvas: &mut Canvas<Window>, color: Color, position: Point2<f64>, radius: f64) {
 		let position = self.transform * position;
 		let radius = self.scale() * radius;
-		let rect =
-			Rect::new((position.x - radius) as i32, (position.y - radius) as i32, 2 * radius as u32, 2 * radius as u32);
+		let rect = Rect::new((position.x - radius) as i32, (position.y - radius) as i32, 2 * radius as u32, 2 * radius as u32);
 		if self.is_in_scope(rect) {
 			DrawRenderer::circle(canvas, position.x as i16, position.y as i16, radius as i16, color).unwrap()
 		};
@@ -244,8 +227,7 @@ impl Camera {
 	pub fn fill_circle(&self, canvas: &mut Canvas<Window>, color: Color, position: Point2<f64>, radius: f64) {
 		let position = self.transform * position;
 		let radius = self.scale() * radius;
-		let rect =
-			Rect::new((position.x - radius) as i32, (position.y - radius) as i32, 2 * radius as u32, 2 * radius as u32);
+		let rect = Rect::new((position.x - radius) as i32, (position.y - radius) as i32, 2 * radius as u32, 2 * radius as u32);
 		if self.is_in_scope(rect) {
 			DrawRenderer::filled_circle(canvas, position.x as i16, position.y as i16, radius as i16, color).unwrap()
 		};
@@ -284,9 +266,7 @@ impl Camera {
 	}
 
 	/// Draws an arrow as seen by the camera
-	pub fn draw_arrow(
-		&self, canvas: &mut Canvas<Window>, color: Color, start: Point2<f64>, end: Point2<f64>, width: f64,
-	) {
+	pub fn draw_arrow(&self, canvas: &mut Canvas<Window>, color: Color, start: Point2<f64>, end: Point2<f64>, width: f64) {
 		if start == end {
 			return;
 		}
@@ -296,9 +276,8 @@ impl Camera {
 		// TODO clean up
 		let x_dir = end - start;
 		let y_dir = x_dir.perpendicular() * width / 2.0;
-		let transform = Transform2::from_matrix_unchecked(Matrix3::new(
-			x_dir.x, y_dir.x, start.x, x_dir.y, y_dir.y, start.y, 0.0, 0.0, 1.0,
-		));
+		let transform =
+			Transform2::from_matrix_unchecked(Matrix3::new(x_dir.x, y_dir.x, start.x, x_dir.y, y_dir.y, start.y, 0.0, 0.0, 1.0));
 
 		let head_back: f64 = 1.0 - 3.0 * width / x_dir.norm();
 
@@ -321,9 +300,7 @@ impl Camera {
 	}
 
 	/// Draws a grid
-	pub fn draw_grid(
-		&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, color: Color, axes: bool, graduations: bool,
-	) {
+	pub fn draw_grid(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, color: Color, axes: bool, graduations: bool) {
 		let max_depth = 2;
 
 		let p = (self.scale().log(5.0) + 1.4).floor();
@@ -372,14 +349,12 @@ impl Camera {
 
 			(start.x..end.x).for_each(|x_th| {
 				if (x_th % 5 != 0) | (depth == max_depth) {
-					DrawRenderer::vline(canvas, x_transform(x_th, scale), 0, self.resolution.y as i16 - 1, line_color)
-						.unwrap();
+					DrawRenderer::vline(canvas, x_transform(x_th, scale), 0, self.resolution.y as i16 - 1, line_color).unwrap();
 				}
 			});
 			(start.y..end.y).for_each(|y_th| {
 				if (y_th % 5 != 0) | (depth == max_depth) {
-					DrawRenderer::hline(canvas, 0, self.resolution.x as i16 - 1, y_transform(y_th, scale), line_color)
-						.unwrap();
+					DrawRenderer::hline(canvas, 0, self.resolution.x as i16 - 1, y_transform(y_th, scale), line_color).unwrap();
 				}
 			});
 		});
@@ -453,8 +428,8 @@ impl Camera {
 
 	/// Draws text as seen by the camera
 	pub fn draw_text(
-		&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, color: Color, position: Point2<f64>,
-		font_size: f64, text: String, align: Align,
+		&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, color: Color, position: Point2<f64>, font_size: f64,
+		text: String, align: Align,
 	) {
 		if !text.is_empty() {
 			let position = self.transform * position;
