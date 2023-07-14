@@ -247,7 +247,7 @@ impl Bloc {
 	pub fn update_element(&mut self, bloc_element: &BlocElement, input: &Input, delta_sec: f64, text_drawer: &mut TextDrawer, camera: &Camera) -> bool{
 		match bloc_element {
 			BlocElement::Slot(slot_id) => {
-				self.slots[slot_id].update_text_box(input, delta_sec, text_drawer, camera)
+				self.slots[*slot_id].update_text_box(input, delta_sec, text_drawer, camera)
 			},
 			BlocElement::CustomButton(_) => {
 				false

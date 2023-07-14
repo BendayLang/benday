@@ -3,7 +3,7 @@ use crate::color::{darker, Colors};
 use crate::style::{Align, HAlign, VAlign};
 use crate::text::{TextDrawer, TextStyle};
 use crate::vector2::Vector2Plus;
-use crate::{input::Input, point};
+use crate::{input::Input, point, rect};
 use nalgebra::{Matrix2, Matrix3, Point2, Scale2, Similarity2, Transform2, Translation2, Vector2};
 use sdl2::gfx::primitives::DrawRenderer;
 use sdl2::pixels::Color;
@@ -459,10 +459,13 @@ impl Camera {
 	) {
 		if !text.is_empty() {
 			let position = self.transform * position;
-			// TODO if self.is_in_scope(rect) {
 			let position = Point::new(position.x as i32, position.y as i32);
 			let text_style = &TextStyle { font_size: (self.scale() * font_size) as u16, color, ..Default::default() };
-			text_drawer.draw(canvas, position, text_style, &text, align);
+			let (width, height) = text_drawer.text_size(text_style, &text);
+			let rect = Rect::new(position.x, position.y, width, height);
+			if self.is_in_scope(rect) {
+				text_drawer.draw(canvas, position, text_style, &text, align);
+			}
 		}
 	}
 }

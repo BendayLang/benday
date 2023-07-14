@@ -133,10 +133,9 @@ impl App for MyApp {
 						changed = true;
 					}
 				}
+				
 				// Update the selected element
-				if let Some(Element { bloc_id, bloc_element }) = selected_element {
-					self.blocs.get_mut(bloc_id).unwrap().update_element(bloc_element, input, delta_sec, text_drawer, &self.camera);
-				}
+				// if let Some(Element { bloc_id, bloc_element }) = selected_element { self.blocs.get_mut(bloc_id).unwrap().update_element(bloc_element, input, delta_sec, text_drawer,&self.camera); }
 			}
 			AppState::BlocMoving { moving_bloc_id, delta, hovered_container } => {
 				// Release the bloc
