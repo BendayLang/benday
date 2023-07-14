@@ -10,13 +10,12 @@ use pg_sdl::color::{hsv_color, Colors};
 use pg_sdl::input::Input;
 use pg_sdl::style::Align;
 use pg_sdl::text::{TextDrawer, TextStyle};
-use pg_sdl::widgets::{Button, TextBox, WidgetsManager};
-use sdl2::rect::Point;
-use sdl2::render::Canvas;
-use sdl2::ttf::FontStyle;
-use sdl2::video::{Window, WindowContext};
-use std::collections::HashMap;
 use pg_sdl::widgets::button::ButtonStyle;
+use pg_sdl::widgets::text_box_q::TextBox;
+use pg_sdl::widgets::{Button, WidgetsManager};
+use sdl2::render::Canvas;
+use sdl2::video::Window;
+use std::collections::HashMap;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 struct Element {
@@ -278,11 +277,21 @@ fn main() {
 			"New bloc".to_string(),
 			false,
 		)),
+	)
+	.add_widget(
+		"name",
+		Box::new(TextBox::new(
+			Point2::new(200.0, 200.0),
+			Vector2::new(200.0, 100.0),
+			ButtonStyle::default(),
+			Some("New text box".to_string()),
+			false,
+		)),
 	);
-	app.add_widget(
-		"test",
-		Box::new(TextBox::new(Point2::new(400.0, 100.0), Vector2::new(100.0, 30.0), None, Some("bob".to_string()), false)),
-	);
+	// app.add_widget(
+	// 	"test",
+	// 	Box::new(TextBox::new(Point2::new(400.0, 100.0), Vector2::new(100.0, 30.0), None, Some("bob".to_string()), false)),
+	// );
 	app.change_mouse_cursor();
 
 	app.run(my_app);

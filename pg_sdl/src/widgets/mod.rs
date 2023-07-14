@@ -2,6 +2,7 @@ pub mod button;
 pub mod slider;
 pub mod switch;
 pub mod text_box;
+pub mod text_box_q;
 use crate::camera;
 use crate::camera::Camera;
 use crate::color::Colors;
@@ -25,7 +26,6 @@ pub enum Orientation {
 	Horizontal,
 	Vertical,
 }
-
 
 /// A widget is a UI object that can be interacted with to take inputs from the user.
 pub trait Widget: AsAny {
