@@ -1,17 +1,17 @@
-use nalgebra::{Point2, Vector2};
 use crate::input::{Input, KeyState};
-use crate::widgets::{HOVER, PUSH, Widget};
+use crate::widgets::{Widget, HOVER, PUSH};
+use nalgebra::{Point2, Vector2};
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::Canvas;
 use sdl2::ttf::FontStyle;
 
-use crate::primitives::{draw_rounded_rect, fill_rounded_rect};
-use sdl2::video::Window;
 use crate::camera::Camera;
-use crate::color::{Colors, darker, paler};
+use crate::color::{darker, paler, Colors};
+use crate::primitives::{draw_rounded_rect, fill_rounded_rect};
 use crate::style::Align;
 use crate::text::{TextDrawer, TextStyle};
+use sdl2::video::Window;
 
 pub enum Orientation {
 	Horizontal,
@@ -45,17 +45,19 @@ pub struct Slider {
 	hovered_thumb_color: Color,
 	pushed_thumb_color: Color,
 	orientation: Orientation,
-	corner_radius: u16,
+	corner_radius: f64,
 	hovered: bool,
 	pub state: KeyState,
 	/// Internal value of the slider (0.0 - 1.0)
 	value: f32,
 	slider_type: SliderType,
-	has_camera: bool
+	has_camera: bool,
 }
 
 impl Slider {
-	pub fn new(position: Point2<f64>, size: Vector2<f64>, color: Color, corner_radius: u16, slider_type: SliderType, has_camera: bool) -> Self {
+	pub fn new(
+		position: Point2<f64>, size: Vector2<f64>, color: Color, corner_radius: f64, slider_type: SliderType, has_camera: bool,
+	) -> Self {
 		let orientation = {
 			if size.x > size.y {
 				Orientation::Horizontal
@@ -164,60 +166,55 @@ impl Widget for Slider {
 	}
 
 	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, selected: bool, hovered: bool) {
-		let b: f32 = 0.7;
+		let b = 0.7;
+		let camera = if self.has_camera { Some(camera) } else { None };
+		let margin = self.thickness() * (1.0 - b) * 0.5;
 
-		// Back bar
-		let margin = (self.thickness() as f32 * (1.0 - b)* 0.5) as u32;
-		/* TODO
-		let (back_rect, rect) = match self.orientation {
+		// Background
+		let (back_position, back_size): (Point2<f64>, Vector2<f64>) = match self.orientation {
 			Orientation::Horizontal => (
-				Rect::new(
+				Point2::new(
 					self.position.x + (self.thumb_position() + self.thickness() * 0.5),
-					self.position.y + self.size.y + margin as i32,
-					self.size.x - self.thumb_position() as u32 - self.thickness() * 0.5 - margin,
-					self.size.y as f32 * b
+					self.position.y + self.size.y + margin,
 				),
-				Rect::new(
-					self.position.x + margin as i32,
-					self.position.y + self.size.y + margin as i32,
-					self.thumb_position() + self.thickness()* 0.5 - margin,
-					self.size.y as f32 * b
-				),
+				Vector2::new(self.size.x - self.thumb_position() - self.thickness() * 0.5 - margin, self.size.y * b),
 			),
 			Orientation::Vertical => (
-				Rect::new(
-					self.position.x + margin as i32,
-					self.position.y + self.size.y + margin as i32,
-					self.size.x as f32 * b as u32,
-					self.size.y - self.thumb_position() - self.thickness()* 0.5 - margin
-				),
-				Rect::new(
-					self.position.x + margin as i32,
-					self.position.y - (self.thumb_position() + self.thickness()* 0.5) as i32,
-					self.size.x as f32 * b as u32,
-					self.thumb_position() + self.thickness()* 0.5 - margin
-				),
+				Point2::new(self.position.x + margin, self.position.y + self.size.y + margin),
+				Vector2::new(self.size.x * b, self.size.y - self.thumb_position() - self.thickness() * 0.5 - margin),
+			),
+		};
+		let color =
+			if self.hovered | self.state.is_pressed() | self.state.is_down() { self.hovered_back_color } else { self.back_color };
+		fill_rounded_rect(canvas, camera, color, back_position, back_size, self.corner_radius);
+		draw_rounded_rect(canvas, camera, Colors::BLACK, back_position, back_size, self.corner_radius);
+
+		// Front ?
+		let (position, size): (Point2<f64>, Vector2<f64>) = match self.orientation {
+			Orientation::Horizontal => (
+				Point2::new(self.position.x + margin, self.position.y + self.size.y + margin),
+				Vector2::new(self.thumb_position() + self.thickness() * 0.5 - margin, self.size.y * b),
+			),
+
+			Orientation::Vertical => (
+				Point2::new(self.position.x + margin, self.position.y - (self.thumb_position() + self.thickness() * 0.5)),
+				Vector2::new(self.size.x * b, self.thumb_position() + self.thickness() * 0.5 - margin),
 			),
 		};
 
-		let color =
-			if self.hovered | self.state.is_pressed() | self.state.is_down() { self.hovered_back_color } else { self.back_color };
-		fill_rounded_rect(canvas, back_rect, color, self.corner_radius);
-		draw_rounded_rect(canvas, back_rect, Colors::BLACK, self.corner_radius);
 		let color = if self.hovered | self.state.is_pressed() | self.state.is_down() { self.hovered_color } else { self.color };
-		fill_rounded_rect(canvas, rect, color, self.corner_radius);
-		draw_rounded_rect(canvas, rect, Colors::BLACK, self.corner_radius);
+		fill_rounded_rect(canvas, camera, color, position, size, self.corner_radius);
+		draw_rounded_rect(canvas, camera, Colors::BLACK, position, size, self.corner_radius);
 
 		// Pad
-		let rect = match self.orientation {
-			Orientation::Horizontal => {
-				Rect::new(self.position.x + self.thumb_position() as i32, self.position.y + self.size.y, self.thickness(), self.thickness())
-			}
-			Orientation::Vertical => Rect::new(
-				self.position.x,
-				self.position.y - self.thumb_position() as i32 - self.thickness() as i32,
-				self.thickness(),
-				self.thickness()
+		let (position, size): (Point2<f64>, Vector2<f64>) = match self.orientation {
+			Orientation::Horizontal => (
+				Point2::new(self.position.x + self.thumb_position(), self.position.y + self.size.y),
+				Vector2::new(self.thickness(), self.thickness()),
+			),
+			Orientation::Vertical => (
+				Point2::new(self.position.x, self.position.y - self.thumb_position() - self.thickness()),
+				Vector2::new(self.thickness(), self.thickness()),
 			),
 		};
 
@@ -228,8 +225,8 @@ impl Widget for Slider {
 		} else {
 			self.thumb_color
 		};
-		fill_rounded_rect(canvas, rect, color, self.corner_radius);
-		draw_rounded_rect(canvas, rect, Colors::BLACK, self.corner_radius);
+		fill_rounded_rect(canvas, camera, color, position, size, self.corner_radius);
+		draw_rounded_rect(canvas, camera, Colors::BLACK, position, size, self.corner_radius);
 
 		match &self.slider_type {
 			SliderType::Discrete { snap, display, .. } => {
@@ -237,7 +234,7 @@ impl Widget for Slider {
 					let text: String = format((self.value * *snap as f32).round() as u32);
 					text_drawer.draw(
 						canvas,
-						rect.center(),
+						todo!(),
 						&TextStyle::new(20, None, Color::BLACK, FontStyle::NORMAL),
 						&text,
 						Align::Center,
@@ -249,7 +246,7 @@ impl Widget for Slider {
 					let text = format(self.value);
 					text_drawer.draw(
 						canvas,
-						rect.center(),
+						todo!(),
 						&TextStyle::new(20, None, Color::BLACK, FontStyle::NORMAL),
 						&text,
 						Align::Center,
@@ -257,11 +254,10 @@ impl Widget for Slider {
 				}
 			}
 		}
-		 */
 	}
-	
+
 	fn collide_point(&self, point: Point2<f64>, camera: &Camera) -> bool {
-		let point = if self.has_camera{ camera.transform * point } else { point };
+		let point = if self.has_camera { camera.transform * point } else { point };
 		self.position.x < point.x
 			&& point.x < self.position.x + self.size.x
 			&& self.position.y < point.y
