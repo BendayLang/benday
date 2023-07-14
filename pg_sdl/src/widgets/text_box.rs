@@ -48,7 +48,7 @@ pub struct TextBox {
 }
 
 impl TextBox {
-	const LEFT_SHIFT: i32 = 5;
+	const LEFT_SHIFT: f64 = 5.0;
 	const BLINKING_TIME_SEC: f64 = 0.4;
 
 	pub fn new(position: Point2<f64>, size: Vector2<f64>, style: Option<TextBoxStyle>, default_text: Option<String>, has_camera: bool) -> Self {
@@ -279,7 +279,7 @@ impl Widget for TextBox {
 		if !self.content.is_empty() {
 			text_drawer.draw(
 				canvas,
-				Point::new(self.position.x as i32 + Self::LEFT_SHIFT, self.size.y as i32 / 2 + self.position.y as i32),
+				Point2::new(self.position.x + Self::LEFT_SHIFT, self.size.y * 0.5 + self.position.y),
 				&self.style.text_style,
 				&self.content,
 				Align::Left,
