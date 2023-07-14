@@ -1,10 +1,10 @@
 mod text;
+use crate::style::Align;
+use nalgebra::{Point2, Vector2};
 use sdl2::render::TextureQuery;
+use sdl2::{render::Canvas, video::Window};
 use std::path::Path;
 pub use text::TextStyle;
-use crate::style::Align;
-use sdl2::{render::Canvas, video::Window};
-use sdl2::rect::{Point, Rect};
 
 /*
 // pub fn get_text_<'a>(text_style: &TextStyle, text: &str) -> (u32, u32) {
@@ -88,23 +88,27 @@ impl TextDrawer {
 		(x, y)
 	}
 
-	pub fn draw(&self, canvas: &mut Canvas<Window>, position: Point, text_style: &TextStyle, text: &str, align: Align) {
+	pub fn draw(
+		&self, canvas: &mut Canvas<Window>, position: nalgebra::Point2<f64>, text_style: &TextStyle, text: &str, align: Align,
+	) {
 		let texture = self.get_texture(text_style, text);
 		let TextureQuery { width, height, .. } = texture.query();
-		let size = Point::new(width as i32, height as i32);
+		let width = width as f64;
+		let height = height as f64;
+		let size: Vector2<f64> = Vector2::new(width, height);
 
-		let target_position = match align {
+		let target_position: nalgebra::Point2<f64> = match align {
 			Align::TopLeft => position,
-			Align::Top => position - Point::new(size.x / 2, 0),
-			Align::TopRight => position - Point::new(size.x, 0),
-			Align::Left => position - Point::new(0, size.y / 2),
-			Align::Center => position - size / 2,
-			Align::Right => position - Point::new(size.x, size.y / 2),
-			Align::BottomLeft => position - Point::new(0, size.y),
-			Align::Bottom => position - Point::new(size.x / 2, size.y),
+			Align::Top => position - Vector2::new(size.x / 2.0, 0.),
+			Align::TopRight => position - Vector2::new(size.x, 0.),
+			Align::Left => position - Vector2::new(0., size.y / 2.),
+			Align::Center => position - size / 2.0,
+			Align::Right => position - Vector2::new(size.x, size.y / 2.),
+			Align::BottomLeft => position - Vector2::new(0., size.y),
+			Align::Bottom => position - Vector2::new(size.x / 2., size.y),
 			Align::BottomRight => position - size,
 		};
-		let target = Rect::new(target_position.x, target_position.y, width, height);
+		let target = sdl2::rect::Rect::new(target_position.x as i32, target_position.y as i32, width as u32, height as u32);
 
 		canvas.copy(&texture, None, Some(target)).unwrap();
 	}

@@ -1,21 +1,23 @@
+use crate::camera::Camera;
+use crate::color::Colors;
+use crate::input::Input;
+use crate::primitives::fill_rounded_rect;
+use crate::style::Align;
+use crate::text::{TextDrawer, TextStyle};
 use crate::widgets::{Widget, WidgetsManager};
+use nalgebra::{Point2, Vector2};
 use ndarray::AssignElem;
 use sdl2::mouse::{Cursor, MouseUtil, SystemCursor};
+use sdl2::rect::{Point, Rect};
 use sdl2::ttf::FontStyle;
 use sdl2::{pixels::Color, render::Canvas, video::Window};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use nalgebra::{Point2, Vector2};
-use sdl2::rect::{Point, Rect};
-use crate::camera::Camera;
-use crate::primitives::fill_rounded_rect;
-use crate::color::Colors;
-use crate::input::Input;
-use crate::style::Align;
-use crate::text::{TextDrawer, TextStyle};
 
 pub trait App {
-	fn update(&mut self, delta_sec: f64, input: &Input, widget_change: bool, widgets_manager: &mut WidgetsManager, camera: &mut Camera) -> bool;
+	fn update(
+		&mut self, delta_sec: f64, input: &Input, widget_change: bool, widgets_manager: &mut WidgetsManager, camera: &mut Camera,
+	) -> bool;
 	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera);
 }
 
@@ -71,7 +73,7 @@ impl PgSdl {
 		fill_rounded_rect(&mut self.canvas, None, Colors::WHITE, Point2::new(10.0, 2.0), Vector2::new(120.0, 32.0), 5.0);
 		self.text_drawer.draw(
 			&mut self.canvas,
-			Point::new(65, 17),
+			Point2::new(65., 17.),
 			&TextStyle::new(24, None, Color::BLACK, FontStyle::NORMAL),
 			&format!("FPS: {0:.0}", 1.0 / delta_sec),
 			Align::Center,
