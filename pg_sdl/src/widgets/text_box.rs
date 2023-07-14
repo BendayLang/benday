@@ -1,9 +1,16 @@
-use crate::canvas::{draw_rect, draw_rounded_rect, fill_rect, fill_rounded_rect};
-use crate::input::{KeyState, KeysState, Shortcut};
-use crate::prelude::*;
-use crate::widgets::{HOVER, PUSH};
+use nalgebra::{Point2, Vector2};
+use crate::primitives::{draw_rect, draw_rounded_rect, fill_rect, fill_rounded_rect};
+use crate::input::{KeyState, KeysState, Shortcut, Input};
+use crate::widgets::{HOVER, PUSH, Widget};
 use sdl2::keyboard::Keycode;
-use sdl2::render::BlendMode;
+use sdl2::pixels::Color;
+use sdl2::rect::{Point, Rect};
+use sdl2::render::{BlendMode, Canvas};
+use sdl2::video::Window;
+use crate::camera::Camera;
+use crate::color::{Colors, darker, paler};
+use crate::style::Align;
+use crate::text::{TextDrawer, TextStyle};
 
 pub struct TextBoxStyle {
 	background_color: Color,
@@ -30,7 +37,8 @@ impl Default for TextBoxStyle {
 }
 
 pub struct TextBox {
-	rect: Rect,
+	position: Point2<f64>,
+	size: Vector2<f64>,
 	style: TextBoxStyle,
 	pub content: String,
 	hovered: bool,
@@ -40,19 +48,21 @@ pub struct TextBox {
 	selection: Option<(usize, usize)>,
 	is_selecting: bool,
 	pub state: KeyState,
+	has_camera: bool,
 }
 
 impl TextBox {
 	const LEFT_SHIFT: i32 = 5;
 	const BLINKING_TIME_SEC: f64 = 0.4;
 
-	pub fn new(rect: Rect, style: Option<TextBoxStyle>, default_text: Option<String>) -> Self {
+	pub fn new(position: Point2<f64>, size: Vector2<f64>, style: Option<TextBoxStyle>, default_text: Option<String>, has_camera: bool) -> Self {
 		let carrot_position = match default_text {
 			Some(ref text) => text.len(),
 			None => 0,
 		};
 		Self {
-			rect,
+			position,
+			size,
 			style: style.unwrap_or_default(),
 			content: default_text.unwrap_or_default(),
 			hovered: false,
@@ -62,10 +72,11 @@ impl TextBox {
 			carrot_position,
 			selection: None,
 			is_selecting: false,
+			has_camera,
 		}
 	}
 
-	fn get_carrot_position_from_mouse(&self, text_drawer: &TextDrawer, mouse_x: i32) -> Option<usize> {
+	fn get_carrot_position_from_mouse(&self, text_drawer: &TextDrawer, mouse_x: f64) -> Option<usize> {
 		let mut x: u32 = 0;
 		for (i, c) in self.content.chars().enumerate() {
 			let text_width = text_drawer.text_size(&self.style.text_style, &c.to_string()).0;
@@ -83,7 +94,7 @@ impl TextBox {
 }
 
 impl Widget for TextBox {
-	fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &TextDrawer, camera: Option<&Camera>) -> bool {
+	fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &TextDrawer, camera: &Camera) -> bool {
 		let mut changed = false;
 		self.state.update();
 
@@ -97,53 +108,44 @@ impl Widget for TextBox {
 			changed = true;
 		}
 
-		// Mouse hover
-		let mouse_position = Point::new(input.mouse.position.x, input.mouse.position.y);
-		let hovered = self.rect.contains_point(mouse_position);
-		if hovered != self.hovered {
-			self.hovered = hovered;
+		// Mouse click
+		if input.mouse.left_button_double_clicked() {
+			self.selection = Some((0, self.content.len()));
 			changed = true;
-		}
-		if hovered {
-			// Mouse click
-			if input.mouse.left_button_double_clicked() {
-				self.selection = Some((0, self.content.len()));
-				changed = true;
-			} else if input.mouse.left_button.is_pressed() {
-				self.selection = None;
+		} else if input.mouse.left_button.is_pressed() {
+			self.selection = None;
 
-				// Carrot position
-				let mouse_x = input.mouse.position.x - self.rect.x;
-				self.carrot_position =
-					if let Some(new_carrot_position) = self.get_carrot_position_from_mouse(text_drawer, mouse_x) {
-						new_carrot_position
-					} else {
-						self.content.len()
-					};
+			// Carrot position
+			let mouse_x = input.mouse.position.x as f64 - self.position.x;
+			self.carrot_position =
+				if let Some(new_carrot_position) = self.get_carrot_position_from_mouse(text_drawer, mouse_x) {
+					new_carrot_position
+				} else {
+					self.content.len()
+				};
 
-				// Selection
-				self.state.press();
-				self.is_focused = true;
-				self.is_selecting = true;
-				self.carrot_timer_sec = 0.0;
-				changed = true;
-			} else if input.mouse.left_button.is_down() && self.is_selecting {
-				// Selection
-				let mouse_x = input.mouse.position.x - self.rect.x;
-				let new_carrot_position =
-					if let Some(new_carrot_position) = self.get_carrot_position_from_mouse(text_drawer, mouse_x) {
-						new_carrot_position
-					} else {
-						self.content.len()
-					};
-				if new_carrot_position != self.carrot_position {
-					if self.carrot_position > new_carrot_position {
-						self.selection = Some((new_carrot_position, self.carrot_position));
-					} else {
-						self.selection = Some((self.carrot_position, new_carrot_position));
-					}
-					changed = true;
+			// Selection
+			self.state.press();
+			self.is_focused = true;
+			self.is_selecting = true;
+			self.carrot_timer_sec = 0.0;
+			changed = true;
+		} else if input.mouse.left_button.is_down() && self.is_selecting {
+			// Selection
+			let mouse_x = input.mouse.position.x as f64 - self.position.x;
+			let new_carrot_position =
+				if let Some(new_carrot_position) = self.get_carrot_position_from_mouse(text_drawer, mouse_x) {
+					new_carrot_position
+				} else {
+					self.content.len()
+				};
+			if new_carrot_position != self.carrot_position {
+				if self.carrot_position > new_carrot_position {
+					self.selection = Some((new_carrot_position, self.carrot_position));
+				} else {
+					self.selection = Some((self.carrot_position, new_carrot_position));
 				}
+				changed = true;
 			}
 		}
 
@@ -249,9 +251,10 @@ impl Widget for TextBox {
 		changed
 	}
 
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>) {
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, selected: bool, hovered: bool) {
 		// Box
 		let background_color = if self.hovered { self.style.background_hovered_color } else { self.style.background_color };
+		/* TODO
 		if let Some(corner_radius) = self.style.corner_radius {
 			fill_rounded_rect(canvas, self.rect, background_color, corner_radius);
 			draw_rounded_rect(canvas, self.rect, self.style.contour_color, corner_radius);
@@ -273,7 +276,7 @@ impl Widget for TextBox {
 		if !self.content.is_empty() {
 			text_drawer.draw(
 				canvas,
-				point!(self.rect.left() + Self::LEFT_SHIFT, self.rect.height() as i32 / 2 + self.rect.top()),
+				Point(self.rect.left() + Self::LEFT_SHIFT, self.rect.height() as i32 / 2 + self.rect.top()),
 				&self.style.text_style,
 				&self.content,
 				Align::Left,
@@ -307,5 +310,14 @@ impl Widget for TextBox {
 			fill_rect(canvas, selection_rect, selection_color);
 			canvas.set_blend_mode(BlendMode::None);
 		}
+		 */
+	}
+	
+	fn collide_point(&self, point: Point2<f64>, camera: &Camera) -> bool {
+		let point = if self.has_camera{ camera.transform * point } else { point };
+		self.position.x < point.x
+			&& point.x < self.position.x + self.size.x
+			&& self.position.y < point.y
+			&& point.y < self.position.y + self.size.y
 	}
 }

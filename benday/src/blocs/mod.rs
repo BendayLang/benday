@@ -7,11 +7,13 @@ use nalgebra::{Point2, Vector2};
 use pg_sdl::camera::Camera;
 use pg_sdl::color::Colors;
 use pg_sdl::input::Input;
-use pg_sdl::prelude::{Align, TextDrawer};
+use pg_sdl::style::Align;
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
 use std::collections::HashMap;
+use pg_sdl::primitives::{draw_rounded_rect, fill_rounded_rect};
+use pg_sdl::text::TextDrawer;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub enum BlocElement {
@@ -326,15 +328,15 @@ impl Bloc {
 		if moving {
 			let shadow_color = Color::from((0, 0, 0, 50));
 			canvas.set_blend_mode(BlendMode::Mod);
-			camera.fill_rounded_rect(canvas, shadow_color, self.position + Self::SHADOW, self.size, Self::RADIUS);
+			fill_rounded_rect(canvas, Some(camera), shadow_color, self.position + Self::SHADOW, self.size, Self::RADIUS);
 			canvas.set_blend_mode(BlendMode::None);
 		};
 		// BODY
-		camera.fill_rounded_rect(canvas, self.color, self.position, self.size, Self::RADIUS);
+		fill_rounded_rect(canvas, Some(camera), self.color, self.position, self.size, Self::RADIUS);
 		if selected.is_some() || hovered.is_some() {
 			// TOP BOX
 			let position = Vector2::new((self.size.x - Self::TOP_BOX_SIZE.x) * 0.5, -Self::TOP_BOX_SIZE.y);
-			camera.fill_rounded_rect(canvas, self.color, self.position + position, Self::TOP_BOX_SIZE, Self::RADIUS);
+			fill_rounded_rect(canvas, Some(camera), self.color, self.position + position, Self::TOP_BOX_SIZE, Self::RADIUS);
 		}
 		// HOVERED
 		if let Some(element) = hovered {
@@ -342,7 +344,7 @@ impl Bloc {
 				BlocElement::Body => {
 					let hovered_color = Color::from((0, 0, 0, Bloc::HOVER_ALPHA));
 					canvas.set_blend_mode(BlendMode::Mod);
-					camera.fill_rounded_rect(canvas, hovered_color, self.position, self.size, Self::RADIUS);
+					fill_rounded_rect(canvas, Some(camera), hovered_color, self.position, self.size, Self::RADIUS);
 					canvas.set_blend_mode(BlendMode::None);
 				}
 				_ => (),
@@ -374,7 +376,7 @@ impl Bloc {
 		if let Some(element) = selected {
 			match element {
 				BlocElement::Body => {
-					camera.draw_rounded_rect(canvas, Colors::BLACK, self.position, self.size, Self::RADIUS);
+					draw_rounded_rect(canvas, Some(camera), Colors::BLACK, self.position, self.size, Self::RADIUS);
 				}
 				_ => (),
 			}

@@ -11,6 +11,7 @@ use as_any::{AsAny, Downcast};
 use sdl2::render::Canvas;
 use sdl2::video::Window;
 use std::collections::HashMap;
+use nalgebra::{Point2, Vector2};
 
 pub use button::Button;
 pub use slider::Slider;
@@ -28,41 +29,81 @@ pub enum Orientation {
 /// A widget is a UI object that can be interacted with to take inputs from the user.
 pub trait Widget: AsAny {
 	/// Update the widget based on the inputs
-	fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &TextDrawer, camera: Option<&Camera>) -> bool;
+	fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &TextDrawer, camera: &Camera) -> bool;
 	/// Draw the widget on the canvas
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>);
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, selected: bool, hovered: bool);
+	/// Returns if a point collides with the widget
+	fn collide_point(&self, point: Point2<f64>, camera: &Camera) -> bool;
 }
 
-pub struct Widgets(HashMap<String, Box<dyn Widget>>);
+pub struct WidgetsManager {
+	widgets: HashMap<String, Box<dyn Widget>>,
+	selected_widget: Option<String>,
+	hovered_widget: Option<String>,
+}
 
-impl Widgets {
+impl WidgetsManager {
 	pub fn new() -> Self {
-		Widgets(HashMap::new())
+		WidgetsManager { 
+			widgets: HashMap::new(),
+			selected_widget: None,
+			hovered_widget: None,
+		}
 	}
 
 	pub fn add(&mut self, name: &str, widget: Box<dyn Widget>) {
-		self.0.insert(name.to_string(), widget);
+		self.widgets.insert(name.to_string(), widget);
 	}
 
 	pub fn get<T: Widget>(&self, name: &str) -> Option<&T> {
-		self.0.get(name).and_then(|w| w.as_ref().downcast_ref::<T>())
+		self.widgets.get(name).and_then(|w| w.as_ref().downcast_ref::<T>())
 	}
 
 	pub fn get_mut<T: Widget>(&mut self, name: &str) -> Option<&mut T> {
-		self.0.get_mut(name).and_then(|w| w.as_mut().downcast_mut::<T>())
+		self.widgets.get_mut(name).and_then(|w| w.as_mut().downcast_mut::<T>())
 	}
 
-	pub fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &mut TextDrawer, camera: Option<&Camera>) -> bool {
+	pub fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &mut TextDrawer, camera: &Camera) -> bool {
 		let mut changed = false;
-		for widget in self.0.values_mut() {
-			changed |= widget.update(input, delta_sec, text_drawer, camera);
+		
+		// Update witch widget is selected (Mouse click)
+		if input.mouse.left_button.is_pressed() {
+			self.selected_widget = if let Some(name) = &self.hovered_widget {
+				Some(name.clone())
+			} else { None };
+			changed = true;
 		}
+		
+		// Update witch widget is hovered (Mouse movement)
+		if !input.mouse.delta.is_empty() {
+			let mut new_hovered_widget = None;
+			let mouse_position = input.mouse.position.cast();
+			for (name, widget) in &self.widgets{
+				if widget.collide_point(mouse_position, camera) {
+					new_hovered_widget = Some(name.clone());
+					break;
+				}
+			}
+			
+			if new_hovered_widget != self.hovered_widget {
+				self.hovered_widget = new_hovered_widget;
+				changed = true;
+			}
+		}
+		// Update the selected widget
+		if let Some(selected_widget) = &self.selected_widget{
+			changed |= self.widgets.get_mut(selected_widget).unwrap().update(input, delta_sec, text_drawer, camera);
+		}
+		println!("hovered ({:?})  selected ({:?})", self.hovered_widget, self.selected_widget);
+		
 		changed
 	}
 
-	pub fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>) {
-		for widget in self.0.values() {
-			widget.draw(canvas, text_drawer, camera);
+	pub fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera) {
+		for (name, widget) in &self.widgets {
+			let selected = Some(name.clone()) == self.selected_widget;
+			let hovered = Some(name.clone()) == self.hovered_widget;
+			widget.draw(canvas, text_drawer, camera, selected, hovered);
 		}
 	}
 

@@ -1,14 +1,21 @@
-use crate::prelude::*;
-use crate::widgets::Widgets;
+use crate::widgets::{Widget, WidgetsManager};
 use ndarray::AssignElem;
 use sdl2::mouse::{Cursor, MouseUtil, SystemCursor};
 use sdl2::ttf::FontStyle;
 use sdl2::{pixels::Color, render::Canvas, video::Window};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
+use nalgebra::{Point2, Vector2};
+use sdl2::rect::{Point, Rect};
+use crate::camera::Camera;
+use crate::primitives::fill_rounded_rect;
+use crate::color::Colors;
+use crate::input::Input;
+use crate::style::Align;
+use crate::text::{TextDrawer, TextStyle};
 
 pub trait App {
-	fn update(&mut self, delta_sec: f64, input: &Input, widgets: &mut Widgets, camera: &mut Camera) -> bool;
+	fn update(&mut self, delta_sec: f64, input: &Input, widget_change: bool, widgets_manager: &mut WidgetsManager, camera: &mut Camera) -> bool;
 	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera);
 }
 
@@ -18,7 +25,7 @@ pub struct PgSdl {
 	canvas: Canvas<Window>,
 	text_drawer: TextDrawer,
 	background_color: Color,
-	widgets: Widgets,
+	widgets_manager: WidgetsManager,
 	fps: Option<u32>,
 	draw_fps: bool,
 	camera: Camera,
@@ -44,14 +51,14 @@ impl PgSdl {
 		let canvas = window.into_canvas().build().expect("Canvas could not be created");
 
 		// TODO mettre ca en paramettre ?
-		let resolution = nalgebra::Vector2::new(window_width, window_height);
-		let camera = Camera::new(resolution, 6, 3.0, 5.0, -4000.0, 4000.0, -5000.0, 5000.0);
+		let resolution = Vector2::new(window_width, window_height);
+		let camera = Camera::new(resolution, 6, 2.5, 5.0, -4000.0, 4000.0, -5000.0, 5000.0);
 
 		PgSdl {
 			mouse: sdl_context.mouse(),
 			text_drawer: TextDrawer::new(canvas.texture_creator()),
 			input: Input::new(sdl_context, video_subsystem.clipboard()),
-			widgets: Widgets::new(),
+			widgets_manager: WidgetsManager::new(),
 			canvas,
 			background_color,
 			fps,
@@ -61,11 +68,10 @@ impl PgSdl {
 	}
 
 	fn draw_fps(&mut self, delta_sec: f64) {
-		self.canvas.set_draw_color(Color::WHITE);
-		self.canvas.fill_rect(rect!(10.0, 2.0, 120.0, 32.0)).unwrap();
+		fill_rounded_rect(&mut self.canvas, None, Colors::WHITE, Point2::new(10.0, 2.0), Vector2::new(120.0, 32.0), 5.0);
 		self.text_drawer.draw(
 			&mut self.canvas,
-			point!(65.0, 17.0),
+			Point::new(65, 17),
 			&TextStyle::new(24, None, Color::BLACK, FontStyle::NORMAL),
 			&format!("FPS: {0:.0}", 1.0 / delta_sec),
 			Align::Center,
@@ -79,7 +85,7 @@ impl PgSdl {
 		self.canvas.set_draw_color(self.background_color);
 		self.canvas.clear();
 		user_app.draw(&mut self.canvas, &mut self.text_drawer, &self.camera);
-		self.widgets.draw(&mut self.canvas, &self.text_drawer, Some(&self.camera));
+		self.widgets_manager.draw(&mut self.canvas, &self.text_drawer, &self.camera);
 	}
 
 	fn update<U>(&mut self, user_app: &mut U, delta_sec: f64) -> bool
@@ -89,9 +95,9 @@ impl PgSdl {
 		if let Some(new_resolution) = self.input.window_resized {
 			self.camera.resize(new_resolution)
 		}
-		let mut changed = self.widgets.update(&self.input, delta_sec, &mut self.text_drawer, Some(&self.camera));
-		changed |= user_app.update(delta_sec, &self.input, &mut self.widgets, &mut self.camera);
-		changed
+		let widget_change = self.widgets_manager.update(&self.input, delta_sec, &mut self.text_drawer, &self.camera);
+		let app_change = user_app.update(delta_sec, &self.input, widget_change, &mut self.widgets_manager, &mut self.camera);
+		widget_change || app_change
 	}
 
 	pub fn run<U>(&mut self, user_app: &mut U)
@@ -140,19 +146,19 @@ impl PgSdl {
 	}
 
 	pub fn add_widget(&mut self, name: &str, widget: Box<dyn Widget>) -> &mut Self {
-		self.widgets.add(name, widget);
+		self.widgets_manager.add(name, widget);
 		self
 	}
 
 	pub fn add_widgets(&mut self, widgets: HashMap<&str, Box<dyn Widget>>) {
 		for (name, widget) in widgets {
-			self.widgets.add(name, widget);
+			self.widgets_manager.add(name, widget);
 		}
 	}
 
 	pub fn change_mouse_cursor(&mut self) {
 		let cursor = Cursor::from_system(SystemCursor::WaitArrow).expect("mouse cursor loading error");
 		cursor.set();
-		// self.mouse
+		// TODO ca marche pas
 	}
 }

@@ -1,13 +1,17 @@
-use crate::input::KeyState;
-use crate::prelude::*;
-use crate::widgets::{HOVER, PUSH};
+use nalgebra::{Point2, Vector2};
+use crate::input::{Input, KeyState};
+use crate::widgets::{HOVER, PUSH, Widget};
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::Canvas;
 use sdl2::ttf::FontStyle;
 
-use crate::canvas::{draw_rounded_rect, fill_rounded_rect};
+use crate::primitives::{draw_rounded_rect, fill_rounded_rect};
 use sdl2::video::Window;
+use crate::camera::Camera;
+use crate::color::{Colors, darker, paler};
+use crate::style::Align;
+use crate::text::{TextDrawer, TextStyle};
 
 pub enum Orientation {
 	Horizontal,
@@ -31,6 +35,8 @@ pub enum SliderType {
 ///
 /// It can be discrete or continuous
 pub struct Slider {
+	position: Point2<f64>,
+	size: Vector2<f64>,
 	color: Color,
 	hovered_color: Color,
 	back_color: Color,
@@ -38,7 +44,6 @@ pub struct Slider {
 	thumb_color: Color,
 	hovered_thumb_color: Color,
 	pushed_thumb_color: Color,
-	rect: Rect,
 	orientation: Orientation,
 	corner_radius: u16,
 	hovered: bool,
@@ -46,12 +51,13 @@ pub struct Slider {
 	/// Internal value of the slider (0.0 - 1.0)
 	value: f32,
 	slider_type: SliderType,
+	has_camera: bool
 }
 
 impl Slider {
-	pub fn new(color: Color, rect: Rect, corner_radius: u16, slider_type: SliderType) -> Self {
+	pub fn new(position: Point2<f64>, size: Vector2<f64>, color: Color, corner_radius: u16, slider_type: SliderType, has_camera: bool) -> Self {
 		let orientation = {
-			if rect.width() > rect.height() {
+			if size.x > size.y {
 				Orientation::Horizontal
 			} else {
 				Orientation::Vertical
@@ -60,6 +66,8 @@ impl Slider {
 		let thumb_color = Colors::LIGHT_GREY;
 		let back_color = darker(paler(color, 0.5), 0.9);
 		Self {
+			position,
+			size,
 			color,
 			hovered_color: darker(color, HOVER),
 			back_color,
@@ -67,7 +75,6 @@ impl Slider {
 			thumb_color,
 			hovered_thumb_color: darker(thumb_color, HOVER),
 			pushed_thumb_color: darker(thumb_color, PUSH),
-			rect,
 			orientation,
 			corner_radius,
 			hovered: false,
@@ -77,6 +84,7 @@ impl Slider {
 				SliderType::Continuous { default_value, .. } => default_value,
 			},
 			slider_type,
+			has_camera,
 		}
 	}
 
@@ -99,36 +107,29 @@ impl Slider {
 		self.value = value;
 	}
 
-	fn thumb_position(&self) -> u32 {
-		(self.value * self.length() as f32) as u32
+	fn thumb_position(&self) -> f64 {
+		self.value as f64 * self.length()
 	}
 
-	fn length(&self) -> u32 {
+	fn length(&self) -> f64 {
 		match self.orientation {
-			Orientation::Horizontal => self.rect.width() - self.rect.height(),
-			Orientation::Vertical => self.rect.height() - self.rect.width(),
+			Orientation::Horizontal => self.size.x - self.size.y,
+			Orientation::Vertical => self.size.y - self.size.x,
 		}
 	}
 
-	fn thickness(&self) -> u32 {
+	fn thickness(&self) -> f64 {
 		match self.orientation {
-			Orientation::Horizontal => self.rect.height(),
-			Orientation::Vertical => self.rect.width(),
+			Orientation::Horizontal => self.size.y,
+			Orientation::Vertical => self.size.x,
 		}
 	}
 }
 
 impl Widget for Slider {
-	fn update(&mut self, input: &Input, _delta: f64, _text_drawer: &TextDrawer, camera: Option<&Camera>) -> bool {
+	fn update(&mut self, input: &Input, _delta: f64, _text_drawer: &TextDrawer, camera: &Camera) -> bool {
 		let mut changed = false;
 		self.state.update();
-
-		let mouse_position = Point::new(input.mouse.position.x, input.mouse.position.y);
-		let hovered = self.rect.contains_point(mouse_position);
-		if hovered != self.hovered {
-			self.hovered = hovered;
-			changed = true;
-		}
 
 		if input.mouse.left_button.is_pressed() && self.hovered {
 			self.state.press();
@@ -140,12 +141,12 @@ impl Widget for Slider {
 
 		if self.state.is_pressed() | self.state.is_down() {
 			let value = {
-				let point = input.mouse.position;
+				let point = input.mouse.position.cast::<f64>();
 				let thumb_position = match self.orientation {
-					Orientation::Horizontal => point.x - self.rect.left(),
-					Orientation::Vertical => self.rect.bottom() - point.y,
-				} - self.thickness() as i32 / 2;
-				thumb_position.clamp(0, self.length() as i32) as f32 / self.length() as f32
+					Orientation::Horizontal => point.x - self.position.x,
+					Orientation::Vertical => self.position.y - point.y,
+				} - self.thickness() * 0.5;
+				thumb_position.clamp(0.0, self.length()) as f32 / self.length() as f32
 			};
 
 			let value = match self.slider_type {
@@ -162,39 +163,39 @@ impl Widget for Slider {
 		changed
 	}
 
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>) {
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, selected: bool, hovered: bool) {
 		let b: f32 = 0.7;
 
 		// Back bar
-		let margin = (self.thickness() as f32 * (1.0 - b) / 2.0) as u32;
-
+		let margin = (self.thickness() as f32 * (1.0 - b)* 0.5) as u32;
+		/* TODO
 		let (back_rect, rect) = match self.orientation {
 			Orientation::Horizontal => (
-				rect!(
-					self.rect.left() + (self.thumb_position() + self.thickness() / 2) as i32,
-					self.rect.top() + margin as i32,
-					self.rect.width() - self.thumb_position() as u32 - self.thickness() / 2 - margin,
-					self.rect.height() as f32 * b
+				Rect::new(
+					self.position.x + (self.thumb_position() + self.thickness() * 0.5),
+					self.position.y + self.size.y + margin as i32,
+					self.size.x - self.thumb_position() as u32 - self.thickness() * 0.5 - margin,
+					self.size.y as f32 * b
 				),
-				rect!(
-					self.rect.left() + margin as i32,
-					self.rect.top() + margin as i32,
-					self.thumb_position() + self.thickness() / 2 - margin,
-					self.rect.height() as f32 * b
+				Rect::new(
+					self.position.x + margin as i32,
+					self.position.y + self.size.y + margin as i32,
+					self.thumb_position() + self.thickness()* 0.5 - margin,
+					self.size.y as f32 * b
 				),
 			),
 			Orientation::Vertical => (
-				rect!(
-					self.rect.left() + margin as i32,
-					self.rect.top() + margin as i32,
-					self.rect.width() as f32 * b,
-					self.rect.height() - self.thumb_position() - self.thickness() / 2 - margin
+				Rect::new(
+					self.position.x + margin as i32,
+					self.position.y + self.size.y + margin as i32,
+					self.size.x as f32 * b as u32,
+					self.size.y - self.thumb_position() - self.thickness()* 0.5 - margin
 				),
-				rect!(
-					self.rect.left() + margin as i32,
-					self.rect.bottom() - (self.thumb_position() + self.thickness() / 2) as i32,
-					self.rect.width() as f32 * b,
-					self.thumb_position() + self.thickness() / 2 - margin
+				Rect::new(
+					self.position.x + margin as i32,
+					self.position.y - (self.thumb_position() + self.thickness()* 0.5) as i32,
+					self.size.x as f32 * b as u32,
+					self.thumb_position() + self.thickness()* 0.5 - margin
 				),
 			),
 		};
@@ -210,11 +211,11 @@ impl Widget for Slider {
 		// Pad
 		let rect = match self.orientation {
 			Orientation::Horizontal => {
-				rect!(self.rect.left() + self.thumb_position() as i32, self.rect.top(), self.thickness(), self.thickness())
+				Rect::new(self.position.x + self.thumb_position() as i32, self.position.y + self.size.y, self.thickness(), self.thickness())
 			}
-			Orientation::Vertical => rect!(
-				self.rect.left(),
-				self.rect.bottom() - self.thumb_position() as i32 - self.thickness() as i32,
+			Orientation::Vertical => Rect::new(
+				self.position.x,
+				self.position.y - self.thumb_position() as i32 - self.thickness() as i32,
 				self.thickness(),
 				self.thickness()
 			),
@@ -256,5 +257,14 @@ impl Widget for Slider {
 				}
 			}
 		}
+		 */
+	}
+	
+	fn collide_point(&self, point: Point2<f64>, camera: &Camera) -> bool {
+		let point = if self.has_camera{ camera.transform * point } else { point };
+		self.position.x < point.x
+			&& point.x < self.position.x + self.size.x
+			&& self.position.y < point.y
+			&& point.y < self.position.y + self.size.y
 	}
 }

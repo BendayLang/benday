@@ -1,53 +1,54 @@
-use crate::input::KeyState;
-use crate::prelude::*;
-use crate::widgets::{HOVER, PUSH};
+use nalgebra::{Point2, Vector2};
+use crate::input::{Input, KeyState};
+use crate::widgets::{HOVER, Orientation, PUSH, Widget};
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::Canvas;
+use sdl2::video::Window;
 use sdl2::ttf::FontStyle;
 
-use crate::canvas::{draw_rounded_rect, fill_rounded_rect};
-use sdl2::video::Window;
+use crate::primitives::{draw_rounded_rect, fill_rounded_rect};
+use crate::camera::Camera;
+use crate::color::{Colors, darker};
+use crate::text::TextDrawer;
 
 /// A switch is a widget that can be toggled __on__ or __off__
 pub struct Switch {
+	position: Point2<f64>,
+	size: Vector2<f64>,
 	on_color: Color,
 	hovered_on_color: Color,
 	off_color: Color,
 	hovered_off_color: Color,
 	thumb_color: Color,
 	hovered_thumb_color: Color,
-	rect: Rect,
 	orientation: Orientation,
 	corner_radius: u16,
 	hovered: bool,
 	pub state: KeyState,
 	switched: bool,
+	has_camera: bool
 }
 
 impl Switch {
-	pub fn new(on_color: Color, off_color: Color, rect: Rect, corner_radius: u16) -> Self {
-		let orientation = {
-			if rect.width() > rect.height() {
-				Orientation::Horizontal
-			} else {
-				Orientation::Vertical
-			}
-		};
+	pub fn new(position: Point2<f64>, size: Vector2<f64>, on_color: Color, off_color: Color, corner_radius: u16, has_camera: bool) -> Self {
+		let orientation = { if size.x > size.y { Orientation::Horizontal } else { Orientation::Vertical } };
 		let thumb_color = Colors::LIGHT_GREY;
 		Self {
+			position,
+			size,
 			on_color,
 			hovered_on_color: darker(on_color, HOVER),
 			off_color,
 			hovered_off_color: darker(off_color, HOVER),
 			thumb_color,
 			hovered_thumb_color: darker(thumb_color, HOVER),
-			rect,
 			orientation,
 			corner_radius,
 			hovered: false,
 			state: KeyState::new(),
 			switched: false,
+			has_camera,
 		}
 	}
 
@@ -59,29 +60,22 @@ impl Switch {
 		self.switched
 	}
 
-	fn thumb_position(&self) -> u32 {
-		self.switched as u32 * self.length()
+	fn thumb_position(&self) -> f64 {
+		f64::from(self.switched) * self.length()
 	}
 
-	fn length(&self) -> u32 {
+	fn length(&self) -> f64 {
 		match self.orientation {
-			Orientation::Horizontal => self.rect.width() - self.rect.height(),
-			Orientation::Vertical => self.rect.height() - self.rect.width(),
+			Orientation::Horizontal => self.size.x - self.size.y,
+			Orientation::Vertical => self.size.y - self.size.x,
 		}
 	}
 }
 
 impl Widget for Switch {
-	fn update(&mut self, input: &Input, _delta: f64, _text_drawer: &TextDrawer, camera: Option<&Camera>) -> bool {
+	fn update(&mut self, input: &Input, _delta: f64, _text_drawer: &TextDrawer, camera: &Camera) -> bool {
 		let mut changed = false;
 		self.state.update();
-
-		let mouse_position = Point::new(input.mouse.position.x, input.mouse.position.y);
-		let hovered = self.rect.contains_point(mouse_position);
-		if hovered != self.hovered {
-			self.hovered = hovered;
-			changed = true;
-		}
 
 		if input.mouse.left_button.is_pressed() && self.hovered {
 			self.state.press();
@@ -98,7 +92,7 @@ impl Widget for Switch {
 		changed
 	}
 
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>) {
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, selected: bool, hovered: bool) {
 		let b: f32 = 0.7;
 
 		let color = {
@@ -116,12 +110,13 @@ impl Widget for Switch {
 				}
 			}
 		};
+		/* TODO
 		fill_rounded_rect(canvas, self.rect, color, self.corner_radius);
 		draw_rounded_rect(canvas, self.rect, Colors::BLACK, self.corner_radius);
 
 		let thickness = match self.orientation {
-			Orientation::Horizontal => self.rect.height(),
-			Orientation::Vertical => self.rect.width(),
+			Orientation::Horizontal => self.size.y,
+			Orientation::Vertical => self.size.x,
 		};
 		let margin = (thickness as f32 * (1.0 - b) / 2.0) as u32;
 		let dot_width = thickness - 2 * margin; // (thickness as f32 * b) as u32;
@@ -129,16 +124,16 @@ impl Widget for Switch {
 		// Pad
 		let thumb_rect = match self.orientation {
 			Orientation::Horizontal => {
-				rect!(
-					margin as i32 + self.rect.left() + self.thumb_position() as i32,
+				Rect::new(
+					margin as i32 + self.position.x + self.thumb_position() as i32,
 					margin as i32 + self.rect.top(),
 					dot_width,
 					dot_width
 				)
 			}
-			Orientation::Vertical => rect!(
-				margin as i32 + self.rect.left(),
-				margin as i32 + self.rect.bottom() - self.thumb_position() as i32 - thickness as i32,
+			Orientation::Vertical => Rect::new(
+				margin as i32 + self.position.x,
+				margin as i32 + self.position.y - self.thumb_position() as i32 - thickness as i32,
 				dot_width,
 				dot_width
 			),
@@ -148,5 +143,14 @@ impl Widget for Switch {
 		let color = if self.hovered { self.hovered_thumb_color } else { self.thumb_color };
 		fill_rounded_rect(canvas, thumb_rect, color, radius);
 		draw_rounded_rect(canvas, thumb_rect, Colors::BLACK, radius);
+		 */
+	}
+	
+	fn collide_point(&self, point: Point2<f64>, camera: &Camera) -> bool {
+		let point = if self.has_camera{ camera.transform * point } else { point };
+		self.position.x < point.x
+			&& point.x < self.position.x + self.size.x
+			&& self.position.y < point.y
+			&& point.y < self.position.y + self.size.y
 	}
 }

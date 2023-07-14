@@ -1,9 +1,12 @@
-use crate::prelude::*;
 mod text;
 use sdl2::render::TextureQuery;
 use std::path::Path;
 pub use text::TextStyle;
+use crate::style::Align;
+use sdl2::{render::Canvas, video::Window};
+use sdl2::rect::{Point, Rect};
 
+/*
 // pub fn get_text_<'a>(text_style: &TextStyle, text: &str) -> (u32, u32) {
 //     let TextStyle {
 //         // text,
@@ -46,6 +49,7 @@ pub use text::TextStyle;
 //         .query();
 //     return (height, width);
 // }
+ */
 
 pub struct TextDrawer {
 	pub texture_creator: sdl2::render::TextureCreator<sdl2::video::WindowContext>,
@@ -87,20 +91,20 @@ impl TextDrawer {
 	pub fn draw(&self, canvas: &mut Canvas<Window>, position: Point, text_style: &TextStyle, text: &str, align: Align) {
 		let texture = self.get_texture(text_style, text);
 		let TextureQuery { width, height, .. } = texture.query();
-		let size = point!(width, height);
+		let size = Point::new(width as i32, height as i32);
 
 		let target_position = match align {
 			Align::TopLeft => position,
-			Align::Top => position - point!(size.x / 2, 0),
-			Align::TopRight => position - point!(size.x, 0),
-			Align::Left => position - point!(0, size.y / 2),
+			Align::Top => position - Point::new(size.x / 2, 0),
+			Align::TopRight => position - Point::new(size.x, 0),
+			Align::Left => position - Point::new(0, size.y / 2),
 			Align::Center => position - size / 2,
-			Align::Right => position - point!(size.x, size.y / 2),
-			Align::BottomLeft => position - point!(0, size.y),
-			Align::Bottom => position - point!(size.x / 2, size.y),
+			Align::Right => position - Point::new(size.x, size.y / 2),
+			Align::BottomLeft => position - Point::new(0, size.y),
+			Align::Bottom => position - Point::new(size.x / 2, size.y),
 			Align::BottomRight => position - size,
 		};
-		let target = rect!(target_position.x, target_position.y, width, height);
+		let target = Rect::new(target_position.x, target_position.y, width, height);
 
 		canvas.copy(&texture, None, Some(target)).unwrap();
 	}

@@ -1,5 +1,6 @@
-use crate::prelude::*;
 use std::path::Path;
+use sdl2::pixels::Color;
+use crate::color::Colors;
 
 // TODO
 static FONT_PATH: &str = "./fonts";
@@ -41,7 +42,7 @@ impl Default for TextStyle {
 			// text: String::new(),
 			font_size: 16,
 			font_name: format!("{}/{}", FONT_PATH, DEFAULT_FONT_NAME),
-			color: Color::BLACK,
+			color: Colors::BLACK,
 			font_style: sdl2::ttf::FontStyle::NORMAL,
 		}
 	}

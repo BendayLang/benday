@@ -1,15 +1,16 @@
-use crate::blocs::widgets::{BaseWidget, TextBox, Widget};
+use crate::blocs::widgets::{BaseWidgetS, TextBoxS, WidgetS};
 use crate::blocs::{Bloc, BlocContainer};
 use crate::Container;
 use nalgebra::{Point2, Vector2};
 use pg_sdl::color::{darker, Colors};
 use pg_sdl::input::Input;
-use pg_sdl::prelude::Camera;
+use pg_sdl::camera::Camera;
 use pg_sdl::text::TextDrawer;
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
 use std::collections::HashMap;
+use pg_sdl::primitives::{draw_rounded_rect, fill_rounded_rect};
 
 /// Compartiment d'un bloc.
 ///
@@ -17,7 +18,7 @@ use std::collections::HashMap;
 pub struct Slot {
 	position: Vector2<f64>,
 	size: Vector2<f64>,
-	text_box: TextBox,
+	text_box: TextBoxS,
 	child_id: Option<u32>,
 }
 
@@ -29,7 +30,7 @@ impl Slot {
 		Self {
 			position: Vector2::zeros(),
 			size: Self::DEFAULT_SIZE,
-			text_box: TextBox::new(BaseWidget::new(Point2::origin(), Self::DEFAULT_SIZE), color, default_text),
+			text_box: TextBoxS::new(BaseWidgetS::new(Point2::origin(), Self::DEFAULT_SIZE), color, default_text),
 			child_id: None,
 		}
 	}
@@ -138,7 +139,7 @@ impl Slot {
 	pub fn draw_hover(&self, canvas: &mut Canvas<Window>, camera: &Camera, position: Point2<f64>) {
 		let hovered_color = Color::from((0, 0, 0, 50));
 		canvas.set_blend_mode(BlendMode::Mod);
-		camera.fill_rounded_rect(canvas, hovered_color, position + self.position, self.size, Self::RADIUS);
+		fill_rounded_rect(canvas, Some(camera), hovered_color, position + self.position, self.size, Self::RADIUS);
 		canvas.set_blend_mode(BlendMode::None);
 	}
 
@@ -319,14 +320,14 @@ impl Sequence {
 
 	/// Affiche la séquence.
 	pub fn draw(&self, canvas: &mut Canvas<Window>, camera: &Camera, position: Point2<f64>, selected: bool, hovered: bool) {
-		camera.fill_rounded_rect(canvas, darker(self.color, 0.7), position + self.position, self.size, Self::RADIUS);
+		fill_rounded_rect(canvas, Some(camera), darker(self.color, 0.7), position + self.position, self.size, Self::RADIUS);
 		if selected {
-			camera.draw_rounded_rect(canvas, Colors::BLACK, position + self.position, self.size, Self::RADIUS);
+			draw_rounded_rect(canvas, Some(camera), Colors::BLACK, position + self.position, self.size, Self::RADIUS);
 		}
 		if hovered {
 			let hovered_color = Color::from((0, 0, 0, Bloc::HOVER_ALPHA));
 			canvas.set_blend_mode(BlendMode::Mod);
-			camera.fill_rounded_rect(canvas, hovered_color, position + self.position, self.size, Self::RADIUS);
+			fill_rounded_rect(canvas, Some(camera), hovered_color, position + self.position, self.size, Self::RADIUS);
 			canvas.set_blend_mode(BlendMode::None);
 		}
 	}
@@ -340,7 +341,7 @@ impl Sequence {
 
 		let hovered_color = Color::from((0, 0, 0, 50));
 		canvas.set_blend_mode(BlendMode::Mod);
-		camera.fill_rounded_rect(canvas, hovered_color, position + self.position + place_position, size, radius);
+		fill_rounded_rect(canvas, Some(camera), hovered_color, position + self.position + place_position, size, radius);
 		canvas.set_blend_mode(BlendMode::None);
 	}
 }

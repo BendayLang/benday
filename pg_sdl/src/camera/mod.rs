@@ -1,9 +1,9 @@
-use crate::canvas::{draw_rect, draw_rounded_rect, fill_rect, fill_rounded_rect};
+use crate::primitives::{draw_rect, draw_rounded_rect, fill_rect, fill_rounded_rect};
 use crate::color::{darker, Colors};
 use crate::style::{Align, HAlign, VAlign};
 use crate::text::{TextDrawer, TextStyle};
 use crate::vector2::Vector2Plus;
-use crate::{input::Input, point, rect};
+use crate::input::Input;
 use nalgebra::{Matrix2, Matrix3, Point2, Scale2, Similarity2, Transform2, Translation2, Vector2};
 use sdl2::gfx::primitives::DrawRenderer;
 use sdl2::pixels::Color;
@@ -50,7 +50,7 @@ impl Camera {
 		self.transform.isometry.translation.vector
 	}
 
-	fn is_in_scope(&self, rect: Rect) -> bool {
+	pub fn is_in_scope(&self, rect: Rect) -> bool {
 		let camera_scope = Rect::new(0, 0, self.resolution.x, self.resolution.y);
 		camera_scope.has_intersection(rect)
 	}
@@ -130,13 +130,7 @@ impl Camera {
 		self.translate((new_resolution.cast() - self.resolution.cast()) * 0.5);
 		self.resolution = new_resolution;
 	}
-
-	/// Draws a line as seen by the camera
-	pub fn draw_line(&self, canvas: &mut Canvas<Window>, color: Color, start: Point2<f64>, end: Point2<f64>) {
-		let start = self.transform * start;
-		let end = self.transform * end;
-		DrawRenderer::line(canvas, start.x as i16, start.y as i16, end.x as i16, end.y as i16, color).unwrap();
-	}
+	
 	/// Draws a vertical line running the height of the screen and the x coordinate as seen by the camera
 	pub fn draw_vline(&self, canvas: &mut Canvas<Window>, color: Color, x: f64) {
 		let x = self.scale() * x + self.translation().x;
@@ -146,50 +140,6 @@ impl Camera {
 	pub fn draw_hline(&self, canvas: &mut Canvas<Window>, color: Color, y: f64) {
 		let y = self.scale() * y + self.translation().y;
 		DrawRenderer::hline(canvas, 0, self.resolution.x as i16 - 1, y as i16, color).unwrap();
-	}
-
-	/// Draws the contour of a rectangle as seen by the camera
-	pub fn draw_rect(&self, canvas: &mut Canvas<Window>, color: Color, position: Point2<f64>, size: Vector2<f64>) {
-		let position = self.transform * position;
-		let size = self.transform * size;
-		let rect = Rect::new(position.x as i32, position.y as i32, size.x as u32, size.y as u32);
-		if self.is_in_scope(rect) {
-			draw_rect(canvas, rect, color);
-		};
-	}
-	/// Draws a filled rectangle as seen by the camera
-	pub fn fill_rect(&self, canvas: &mut Canvas<Window>, color: Color, position: Point2<f64>, size: Vector2<f64>) {
-		let position = self.transform * position;
-		let size = self.transform * size;
-		let rect = Rect::new(position.x as i32, position.y as i32, size.x as u32, size.y as u32);
-		if self.is_in_scope(rect) {
-			fill_rect(canvas, rect, color);
-		};
-	}
-
-	/// Draws the contour of a rectangle as seen by the camera
-	pub fn draw_rounded_rect(
-		&self, canvas: &mut Canvas<Window>, color: Color, position: Point2<f64>, size: Vector2<f64>, radius: f64,
-	) {
-		let position = self.transform * position;
-		let size = self.transform * size;
-		let rect = Rect::new(position.x as i32, position.y as i32, size.x as u32, size.y as u32);
-		let radius = (self.scale() * radius) as u16;
-		if self.is_in_scope(rect) {
-			draw_rounded_rect(canvas, rect, color, radius);
-		};
-	}
-	/// Draws a filled rectangle as seen by the camera
-	pub fn fill_rounded_rect(
-		&self, canvas: &mut Canvas<Window>, color: Color, position: Point2<f64>, size: Vector2<f64>, radius: f64,
-	) {
-		let position = self.transform * position;
-		let size = self.transform * size;
-		let rect = Rect::new(position.x as i32, position.y as i32, size.x as u32, size.y as u32);
-		let radius = (self.scale() * radius) as u16;
-		if self.is_in_scope(rect) {
-			fill_rounded_rect(canvas, rect, color, radius);
-		};
 	}
 
 	/// Draws the contour of an ellipse as seen by the camera

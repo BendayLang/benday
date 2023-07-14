@@ -4,37 +4,38 @@ use nalgebra::{Point2, Vector2};
 use pg_sdl::camera::Camera;
 use pg_sdl::color::{paler, Colors};
 use pg_sdl::input::{Input, Shortcut};
-use pg_sdl::prelude::Align;
+use pg_sdl::style::Align;
 use pg_sdl::text::{TextDrawer, TextStyle};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
+use pg_sdl::primitives::{draw_rounded_rect, fill_rounded_rect};
 
-pub struct BaseWidget {
+pub struct BaseWidgetS {
 	pub position: Point2<f64>,
 	pub size: Vector2<f64>,
 }
 
-impl BaseWidget {
+impl BaseWidgetS {
 	pub fn new(position: Point2<f64>, size: Vector2<f64>) -> Self {
 		Self { position, size }
 	}
 }
 
 /// A widget is a UI object that can be interacted with to take inputs from the user.
-pub trait Widget {
+pub trait WidgetS {
 	/// Update the widget based on the inputs
 	fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &mut TextDrawer, camera: &Camera) -> bool;
 	/// Draw the widget on the canvas
 	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, selected: bool, hovered: bool);
 
-	fn get_base_widget(&self) -> &BaseWidget;
+	fn get_base_widget(&self) -> &BaseWidgetS;
 
-	fn get_base_widget_mut(&mut self) -> &mut BaseWidget;
+	fn get_base_widget_mut(&mut self) -> &mut BaseWidgetS;
 }
 
-pub struct TextBox {
-	base_widget: BaseWidget,
+pub struct TextBoxS {
+	base_widget: BaseWidgetS,
 	default_text: String,
 	default_color: Color,
 	color: Color,
@@ -44,12 +45,12 @@ pub struct TextBox {
 	selection: Option<(usize, usize)>,
 }
 
-impl TextBox {
+impl TextBoxS {
 	const FONT_SIZE: f64 = 12.0;
 	const LEFT_SHIFT: i32 = 5;
 	const BLINKING_TIME_SEC: f64 = 0.4;
 
-	pub fn new(base_widget: BaseWidget, color: Color, default_text: String) -> Self {
+	pub fn new(base_widget: BaseWidgetS, color: Color, default_text: String) -> Self {
 		Self {
 			base_widget,
 			default_text,
@@ -80,7 +81,7 @@ impl TextBox {
 	}
 }
 
-impl Widget for TextBox {
+impl WidgetS for TextBoxS {
 	fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &mut TextDrawer, camera: &Camera) -> bool {
 		let mut changed = false;
 
@@ -218,7 +219,7 @@ impl Widget for TextBox {
 
 	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, selected: bool, hovered: bool) {
 		let color = if selected { self.default_color } else { self.color };
-		camera.fill_rounded_rect(canvas, color, self.base_widget.position, self.base_widget.size, Slot::RADIUS);
+		fill_rounded_rect(canvas, Some(camera), color, self.base_widget.position, self.base_widget.size, Slot::RADIUS);
 		let text_position = self.base_widget.position + Vector2::new(5.0, self.base_widget.size.y * 0.5);
 		if self.content.is_empty() {
 			camera.draw_text(
@@ -242,21 +243,21 @@ impl Widget for TextBox {
 			);
 		}
 		if selected {
-			camera.draw_rounded_rect(canvas, Colors::BLACK, self.base_widget.position, self.base_widget.size, Slot::RADIUS);
+			draw_rounded_rect(canvas, Some(camera), Colors::BLACK, self.base_widget.position, self.base_widget.size, Slot::RADIUS);
 		}
 		if hovered {
 			let hovered_color = Color::from((0, 0, 0, Bloc::HOVER_ALPHA));
 			canvas.set_blend_mode(BlendMode::Mod);
-			camera.fill_rounded_rect(canvas, hovered_color, self.base_widget.position, self.base_widget.size, Slot::RADIUS);
+			fill_rounded_rect(canvas, Some(camera), hovered_color, self.base_widget.position, self.base_widget.size, Slot::RADIUS);
 			canvas.set_blend_mode(BlendMode::None);
 		}
 	}
 
-	fn get_base_widget(&self) -> &BaseWidget {
+	fn get_base_widget(&self) -> &BaseWidgetS {
 		&self.base_widget
 	}
 
-	fn get_base_widget_mut(&mut self) -> &mut BaseWidget {
+	fn get_base_widget_mut(&mut self) -> &mut BaseWidgetS {
 		&mut self.base_widget
 	}
 }

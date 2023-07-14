@@ -1,42 +1,48 @@
-use crate::canvas::{draw_rect, draw_rounded_rect, fill_rect, fill_rounded_rect};
-use crate::prelude::*;
+use nalgebra::{Point2, Vector2};
+use crate::primitives::{draw_rect, draw_rounded_rect, fill_rect, fill_rounded_rect};
 use crate::{
 	color::{darker, Colors},
 	input::{Input, KeyState},
 	text::TextDrawer,
 	widgets::Widget,
 	widgets::{HOVER, PUSH},
+	text::TextStyle,
 };
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::Canvas;
 use sdl2::video::Window;
+use crate::camera::Camera;
+use crate::style::Align;
 
 /// A button is a widget that it can be clicked.
 pub struct Button {
+	position: Point2<f64>,
+	size: Vector2<f64>,
 	color: Color,
 	hovered_color: Color,
 	pushed_color: Color,
-	rect: Rect,
-	corner_radius: Option<u16>,
+	corner_radius: Option<f64>,
 	text_style: TextStyle,
 	text: String,
-	hovered: bool,
 	pub state: KeyState,
+	has_camera: bool,
 }
 
 impl Button {
-	pub fn new(color: Color, rect: Rect, corner_radius: Option<u16>, text_style: TextStyle, text: String) -> Self {
+	pub fn new(position: Point2<f64>, size: Vector2<f64>, color: Color, corner_radius: Option<f64>,
+	           text_style: TextStyle, text: String, has_camera: bool) -> Self {
 		Self {
+			position,
+			size,
 			color,
 			hovered_color: darker(color, HOVER),
 			pushed_color: darker(color, PUSH),
-			rect,
 			corner_radius,
 			text_style,
 			text,
-			hovered: false,
 			state: KeyState::new(),
+			has_camera,
 		}
 	}
 	pub fn set_text(&mut self, new_text: String) {
@@ -45,18 +51,11 @@ impl Button {
 }
 
 impl Widget for Button {
-	fn update(&mut self, input: &Input, _delta: f64, _text_drawer: &TextDrawer, camera: Option<&Camera>) -> bool {
+	fn update(&mut self, input: &Input, _delta_sec: f64, _text_drawer: &TextDrawer, _camera: &Camera) -> bool {
 		let mut changed = false;
 		self.state.update();
 
-		let mouse_position = Point::new(input.mouse.position.x, input.mouse.position.y);
-		let hovered = self.rect.contains_point(mouse_position);
-		if hovered != self.hovered {
-			self.hovered = hovered;
-			changed = true;
-		}
-
-		if input.mouse.left_button.is_pressed() && self.hovered {
+		if input.mouse.left_button.is_pressed() {
 			self.state.press();
 			changed = true;
 		} else if self.state.is_down() && input.mouse.left_button.is_released() {
@@ -67,23 +66,31 @@ impl Widget for Button {
 		changed
 	}
 
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>) {
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, selected: bool, hovered: bool) {
 		let color = if self.state.is_pressed() | self.state.is_down() {
 			self.pushed_color
-		} else if self.hovered {
+		} else if hovered {
 			self.hovered_color
 		} else {
 			self.color
 		};
-
+		let camera = if self.has_camera { Some(camera) } else { None };
 		if let Some(corner_radius) = self.corner_radius {
-			fill_rounded_rect(canvas, self.rect, color, corner_radius);
-			draw_rounded_rect(canvas, self.rect, Colors::BLACK, corner_radius);
+			fill_rounded_rect(canvas, camera, color, self.position, self.size, corner_radius);
+			draw_rounded_rect(canvas, camera, Colors::BLACK, self.position, self.size, corner_radius);
 		} else {
-			fill_rect(canvas, self.rect, color);
-			draw_rect(canvas, self.rect, Colors::BLACK);
+			fill_rect(canvas, camera, color, self.position, self.size);
+			draw_rect(canvas, camera, Colors::BLACK, self.position, self.size);
 		};
 
-		text_drawer.draw(canvas, self.rect.center(), &self.text_style, &self.text, Align::Center);
+		// text_drawer.draw(canvas, self.rect.center(), &self.text_style, &self.text, Align::Center); TODO
+	}
+	
+	fn collide_point(&self, point: Point2<f64>, camera: &Camera) -> bool {
+		let point = if self.has_camera{ camera.transform * point } else { point };
+		self.position.x < point.x
+			&& point.x < self.position.x + self.size.x
+			&& self.position.y < point.y
+			&& point.y < self.position.y + self.size.y
 	}
 }
