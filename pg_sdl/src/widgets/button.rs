@@ -14,6 +14,7 @@ use sdl2::render::Canvas;
 use sdl2::video::Window;
 use crate::camera::Camera;
 use crate::style::Align;
+use crate::widgets::SELECTED_COLOR;
 
 /// A button is a widget that it can be clicked.
 pub struct Button {
@@ -75,15 +76,6 @@ impl Widget for Button {
 			self.color
 		};
 		let camera = if self.has_camera { Some(camera) } else { None };
-		if selected {
-			let position = Point2::new(self.position.x + 1.0, self.position.y + 1.0);
-			let size = Vector2::new(self.size.x - 2.0, self.size.y - 2.0);
-			if let Some(corner_radius) = self.style.corner_radius {
-				draw_rounded_rect(canvas, camera, Self::SELECTED_COLOR, position, size, corner_radius - 1.0);
-			} else {
-				draw_rect(canvas, camera, Self::SELECTED_COLOR, position, size);
-			}
-		}
 		if let Some(corner_radius) = self.corner_radius {
 			fill_rounded_rect(canvas, camera, color, self.position, self.size, corner_radius);
 			draw_rounded_rect(canvas, camera, Colors::BLACK, self.position, self.size, corner_radius);
@@ -91,6 +83,15 @@ impl Widget for Button {
 			fill_rect(canvas, camera, color, self.position, self.size);
 			draw_rect(canvas, camera, Colors::BLACK, self.position, self.size);
 		};
+		if selected {
+			let position = Point2::new(self.position.x + 1.0, self.position.y + 1.0);
+			let size = Vector2::new(self.size.x - 2.0, self.size.y - 2.0);
+			if let Some(corner_radius) = self.corner_radius {
+				draw_rounded_rect(canvas, camera, SELECTED_COLOR, position, size, corner_radius - 1.0);
+			} else {
+				draw_rect(canvas, camera, SELECTED_COLOR, position, size);
+			}
+		}
 
 		// text_drawer.draw(canvas, self.rect.center(), &self.text_style, &self.text, Align::Center); TODO
 	}

@@ -28,6 +28,8 @@ pub enum Orientation {
 	Vertical,
 }
 
+const SELECTED_COLOR: Color = Colors::LIGHT_BLUE;
+
 /// A widget is a UI object that can be interacted with to take inputs from the user.
 pub trait Widget: AsAny {
 	/// Update the widget based on the inputs
