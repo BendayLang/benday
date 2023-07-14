@@ -86,6 +86,9 @@ impl PgSdl {
 	where
 		U: App,
 	{
+		if let Some(new_resolution) = self.input.window_resized {
+			self.camera.resize(new_resolution)
+		}
 		let mut changed = self.widgets.update(&self.input, delta_sec, &mut self.text_drawer, Some(&self.camera));
 		changed |= user_app.update(delta_sec, &self.input, &mut self.widgets, &mut self.camera);
 		changed
