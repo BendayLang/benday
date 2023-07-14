@@ -16,6 +16,7 @@ use sdl2::render::Canvas;
 use sdl2::ttf::FontStyle;
 use sdl2::video::{Window, WindowContext};
 use std::collections::HashMap;
+use pg_sdl::widgets::button::ButtonStyle;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 struct Element {
@@ -273,9 +274,7 @@ fn main() {
 		Box::new(Button::new(
 			Point2::new(100.0, 100.0),
 			Vector2::new(200.0, 100.0),
-			Colors::ROYAL_BLUE,
-			Some(9.0),
-			TextStyle::new(20, None, Colors::BLACK, FontStyle::NORMAL),
+			ButtonStyle::default(),
 			"New bloc".to_string(),
 			false,
 		)),

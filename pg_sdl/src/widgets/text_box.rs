@@ -1,7 +1,7 @@
 use nalgebra::{Point2, Vector2};
 use crate::primitives::{draw_rect, draw_rounded_rect, fill_rect, fill_rounded_rect};
 use crate::input::{KeyState, KeysState, Shortcut, Input};
-use crate::widgets::{HOVER, PUSH, SELECTED_COLOR, Widget};
+use crate::widgets::{HOVER, PUSH, Widget};
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::rect::{Point, Rect};
@@ -17,6 +17,7 @@ pub struct TextBoxStyle {
 	background_hovered_color: Color,
 	background_pushed_color: Color,
 	contour_color: Color,
+	selected_color: Color,
 	corner_radius: Option<f64>,
 	text_style: TextStyle,
 }
@@ -27,6 +28,7 @@ impl Default for TextBoxStyle {
 			background_color: Colors::WHITE,
 			background_hovered_color: darker(Colors::WHITE, HOVER),
 			background_pushed_color: darker(Colors::WHITE, PUSH),
+			selected_color: Colors::BLUE,
 			contour_color: Colors::BLACK,
 			corner_radius: Some(4.0),
 			text_style: TextStyle::default(),
@@ -254,9 +256,10 @@ impl Widget for TextBox {
 			let position = Point2::new(self.position.x + 1.0, self.position.y + 1.0);
 			let size = Vector2::new(self.size.x - 2.0, self.size.y - 2.0);
 			if let Some(corner_radius) = self.style.corner_radius {
-				draw_rounded_rect(canvas, camera, SELECTED_COLOR, position, size, corner_radius - 1.0);
+				draw_rounded_rect(canvas, camera, self.style.selected_color, position, size, corner_radius - 1.0);
+				draw_rounded_rect(canvas, camera, self.style.selected_color, position, size, corner_radius - 2.0);
 			} else {
-				draw_rect(canvas, camera, SELECTED_COLOR, position, size);
+				draw_rect(canvas, camera, self.style.selected_color, position, size);
 			}
 			// Selection
 			if let Some(selection) = self.selection {
@@ -279,7 +282,7 @@ impl Widget for TextBox {
 		if !self.content.is_empty() {
 			text_drawer.draw(
 				canvas,
-				Point2::new(self.position.x + Self::LEFT_SHIFT, self.size.y * 0.5 + self.position.y),
+				self.position + Vector2::new(Self::LEFT_SHIFT, self.size.y * 0.5),
 				&self.style.text_style,
 				&self.content,
 				Align::Left,
