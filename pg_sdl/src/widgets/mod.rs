@@ -12,11 +12,13 @@ use sdl2::render::Canvas;
 use sdl2::video::Window;
 use std::collections::HashMap;
 use nalgebra::{Point2, Vector2};
+use sdl2::pixels::Color;
 
 pub use button::Button;
 pub use slider::Slider;
 pub use slider::SliderType;
 pub use text_box::{TextBox, TextBoxStyle};
+use crate::color::Colors;
 
 const HOVER: f32 = 0.94;
 const PUSH: f32 = 0.80;
@@ -94,8 +96,6 @@ impl WidgetsManager {
 		if let Some(selected_widget) = &self.selected_widget{
 			changed |= self.widgets.get_mut(selected_widget).unwrap().update(input, delta_sec, text_drawer, camera);
 		}
-		println!("hovered ({:?})  selected ({:?})", self.hovered_widget, self.selected_widget);
-		
 		changed
 	}
 
@@ -106,6 +106,8 @@ impl WidgetsManager {
 			widget.draw(canvas, text_drawer, camera, selected, hovered);
 		}
 	}
+	
+	pub fn is_widget_selected(&self) -> bool { self.selected_widget.is_some() }
 
 	// TODO: remove this and replace with a macro that right all the code for us
 	// and for every widget type

@@ -15,7 +15,7 @@ use crate::style::Align;
 use crate::text::{TextDrawer, TextStyle};
 
 pub trait App {
-	fn update(&mut self, delta_sec: f64, input: &Input, widget_change: bool, widgets_manager: &mut WidgetsManager, camera: &mut Camera) -> bool;
+	fn update(&mut self, delta_sec: f64, input: &Input, widgets_manager: &mut WidgetsManager, camera: &mut Camera) -> bool;
 	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera);
 }
 
@@ -95,9 +95,10 @@ impl PgSdl {
 		if let Some(new_resolution) = self.input.window_resized {
 			self.camera.resize(new_resolution)
 		}
-		let widget_change = self.widgets_manager.update(&self.input, delta_sec, &mut self.text_drawer, &self.camera);
-		let app_change = user_app.update(delta_sec, &self.input, widget_change, &mut self.widgets_manager, &mut self.camera);
-		widget_change || app_change
+		let mut change = false;
+		change |= self.widgets_manager.update(&self.input, delta_sec, &mut self.text_drawer, &self.camera);
+		change |= user_app.update(delta_sec, &self.input, &mut self.widgets_manager, &mut self.camera);
+		change
 	}
 
 	pub fn run<U>(&mut self, user_app: &mut U)

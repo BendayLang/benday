@@ -43,12 +43,12 @@ pub struct MyApp {
 }
 
 impl App for MyApp {
-	fn update(&mut self, delta_sec: f64, input: &Input, widget_change: bool, widgets_manager: &mut WidgetsManager, camera: &mut Camera) -> bool {
+	fn update(&mut self, delta_sec: f64, input: &Input, widgets_manager: &mut WidgetsManager, camera: &mut Camera) -> bool {
 		let mut changed = false;
 
 		match self.app_state.clone() {
 			AppState::Idle { selected_element, hovered_element } => {
-				if !changed { changed = camera.update(input, selected_element.is_some()) };
+				changed |= camera.update(input, widgets_manager.is_widget_selected() || selected_element.is_some());
 
 				// Add new bloc
 				if widgets_manager.get_button("Add").state.is_pressed() {

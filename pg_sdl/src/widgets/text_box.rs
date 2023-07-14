@@ -17,8 +17,7 @@ pub struct TextBoxStyle {
 	background_hovered_color: Color,
 	background_pushed_color: Color,
 	contour_color: Color,
-	contour_focused_color: Color,
-	corner_radius: Option<u16>,
+	corner_radius: Option<f64>,
 	text_style: TextStyle,
 }
 
@@ -29,8 +28,7 @@ impl Default for TextBoxStyle {
 			background_hovered_color: darker(Colors::WHITE, HOVER),
 			background_pushed_color: darker(Colors::WHITE, PUSH),
 			contour_color: Colors::BLACK,
-			contour_focused_color: paler(Colors::BLUE, 0.9),
-			corner_radius: Some(4),
+			corner_radius: Some(4.0),
 			text_style: TextStyle::default(),
 		}
 	}
@@ -41,8 +39,6 @@ pub struct TextBox {
 	size: Vector2<f64>,
 	style: TextBoxStyle,
 	pub content: String,
-	hovered: bool,
-	is_focused: bool,
 	carrot_timer_sec: f64,
 	carrot_position: usize,
 	selection: Option<(usize, usize)>,
@@ -65,9 +61,7 @@ impl TextBox {
 			size,
 			style: style.unwrap_or_default(),
 			content: default_text.unwrap_or_default(),
-			hovered: false,
 			state: KeyState::new(),
-			is_focused: false,
 			carrot_timer_sec: 0.0,
 			carrot_position,
 			selection: None,
@@ -126,7 +120,6 @@ impl Widget for TextBox {
 
 			// Selection
 			self.state.press();
-			self.is_focused = true;
 			self.is_selecting = true;
 			self.carrot_timer_sec = 0.0;
 			changed = true;
@@ -154,98 +147,91 @@ impl Widget for TextBox {
 			changed = true;
 		}
 
-		if input.mouse.left_button.is_pressed() && !self.hovered {
-			self.state.release();
-			self.is_focused = false;
-			self.selection = None;
-			changed = true;
-		} else if self.state.is_down() && input.mouse.left_button.is_released() {
+		if self.state.is_down() && input.mouse.left_button.is_released() {
 			self.state.release();
 			changed = true;
 		}
 
 		// Keyboard input
-		if self.is_focused {
-			// Clipboard
-			if input.shortcut_pressed(&Shortcut::PASTE()) && input.clipboard.has_clipboard_text() {
-				if self.selection.is_some() {
-					let (start, end) = self.selection.unwrap();
-					self.content.drain(start..end);
-					self.carrot_position = start;
-					self.selection = None;
-				}
-				let clipboard_text = input.clipboard.clipboard_text().unwrap();
-				self.content.insert_str(self.carrot_position, &clipboard_text);
-				self.carrot_position = self.carrot_position + clipboard_text.len();
+		// Clipboard
+		if input.shortcut_pressed(&Shortcut::PASTE()) && input.clipboard.has_clipboard_text() {
+			if self.selection.is_some() {
+				let (start, end) = self.selection.unwrap();
+				self.content.drain(start..end);
+				self.carrot_position = start;
+				self.selection = None;
+			}
+			let clipboard_text = input.clipboard.clipboard_text().unwrap();
+			self.content.insert_str(self.carrot_position, &clipboard_text);
+			self.carrot_position = self.carrot_position + clipboard_text.len();
+			return true;
+		}
+		if input.shortcut_pressed(&Shortcut::COPY()) {
+			if self.selection.is_some() {
+				let (start, end) = self.selection.unwrap();
+				let text = self.content[start..end].to_string();
+				input.clipboard.set_clipboard_text(&text).unwrap();
 				return true;
 			}
-			if input.shortcut_pressed(&Shortcut::COPY()) {
-				if self.selection.is_some() {
-					let (start, end) = self.selection.unwrap();
-					let text = self.content[start..end].to_string();
-					input.clipboard.set_clipboard_text(&text).unwrap();
-					return true;
-				}
-				input.clipboard.set_clipboard_text(&self.content).unwrap();
+			input.clipboard.set_clipboard_text(&self.content).unwrap();
+			return true;
+		}
+		if input.shortcut_pressed(&Shortcut::CUT()) {
+			if self.selection.is_some() {
+				let (start, end) = self.selection.unwrap();
+				let text = self.content.drain(start..end).collect::<String>();
+				input.clipboard.set_clipboard_text(&text).unwrap();
+				self.carrot_position = start;
+				self.selection = None;
 				return true;
 			}
-			if input.shortcut_pressed(&Shortcut::CUT()) {
-				if self.selection.is_some() {
-					let (start, end) = self.selection.unwrap();
-					let text = self.content.drain(start..end).collect::<String>();
-					input.clipboard.set_clipboard_text(&text).unwrap();
-					self.carrot_position = start;
-					self.selection = None;
-					return true;
-				}
-				input.clipboard.set_clipboard_text(&self.content).unwrap();
-				self.content.clear();
-				self.carrot_position = 0;
-				return true;
-			}
+			input.clipboard.set_clipboard_text(&self.content).unwrap();
+			self.content.clear();
+			self.carrot_position = 0;
+			return true;
+		}
 
-			// Text input
-			if let Some(c) = input.last_char {
-				if let Some((start, end)) = self.selection {
-					self.content.drain(start..end);
-					self.carrot_position = start;
-					self.selection = None;
-				}
-				changed = true;
-				self.content.insert(self.carrot_position, c);
-				if self.carrot_position < self.content.len() {
-					self.carrot_position += 1;
-				}
+		// Text input
+		if let Some(c) = input.last_char {
+			if let Some((start, end)) = self.selection {
+				self.content.drain(start..end);
+				self.carrot_position = start;
+				self.selection = None;
 			}
-			if input.keys_state.backspace.is_pressed() {
-				if self.selection.is_some() {
-					let (start, end) = self.selection.unwrap();
-					self.content.drain(start..end);
-					self.carrot_position = start;
-					self.selection = None;
-				} else if self.carrot_position > 0 {
-					self.content.remove(self.carrot_position - 1);
-					self.carrot_position -= 1;
-				}
-				self.carrot_timer_sec = 0.0;
-				changed = true;
+			changed = true;
+			self.content.insert(self.carrot_position, c);
+			if self.carrot_position < self.content.len() {
+				self.carrot_position += 1;
 			}
+		}
+		if input.keys_state.backspace.is_pressed() {
+			if self.selection.is_some() {
+				let (start, end) = self.selection.unwrap();
+				self.content.drain(start..end);
+				self.carrot_position = start;
+				self.selection = None;
+			} else if self.carrot_position > 0 {
+				self.content.remove(self.carrot_position - 1);
+				self.carrot_position -= 1;
+			}
+			self.carrot_timer_sec = 0.0;
+			changed = true;
+		}
 
-			// Carrot movement
-			if input.keys_state.left.is_pressed() {
-				if self.carrot_position > 0 {
-					self.carrot_position -= 1;
-				}
-				self.carrot_timer_sec = 0.0;
-				changed = true;
+		// Carrot movement
+		if input.keys_state.left.is_pressed() {
+			if self.carrot_position > 0 {
+				self.carrot_position -= 1;
 			}
-			if input.keys_state.right.is_pressed() {
-				if self.carrot_position < self.content.len() {
-					self.carrot_position += 1;
-				}
-				self.carrot_timer_sec = 0.0;
-				changed = true;
+			self.carrot_timer_sec = 0.0;
+			changed = true;
+		}
+		if input.keys_state.right.is_pressed() {
+			if self.carrot_position < self.content.len() {
+				self.carrot_position += 1;
 			}
+			self.carrot_timer_sec = 0.0;
+			changed = true;
 		}
 
 		changed
@@ -253,22 +239,39 @@ impl Widget for TextBox {
 
 	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, selected: bool, hovered: bool) {
 		// Box
-		let background_color = if self.hovered { self.style.background_hovered_color } else { self.style.background_color };
-		/* TODO
+		let background_color = if hovered { self.style.background_hovered_color } else { self.style.background_color };
+		
+		let camera = if self.has_camera { Some(camera) } else { None };
 		if let Some(corner_radius) = self.style.corner_radius {
-			fill_rounded_rect(canvas, self.rect, background_color, corner_radius);
-			draw_rounded_rect(canvas, self.rect, self.style.contour_color, corner_radius);
+			fill_rounded_rect(canvas, camera, background_color, self.position, self.size, corner_radius);
+			draw_rounded_rect(canvas, camera, self.style.contour_color, self.position, self.size, corner_radius);
 		} else {
-			fill_rect(canvas, self.rect, background_color);
-			draw_rect(canvas, self.rect, self.style.contour_color);
+			fill_rect(canvas, camera, background_color, self.position, self.size);
+			draw_rect(canvas, camera, self.style.contour_color, self.position, self.size);
 		}
 
-		if self.is_focused {
-			let rect = Rect::new(self.rect.left() + 1, self.rect.top() + 1, self.rect.width() - 2, self.rect.height() - 2);
+		if selected {
+			let position = Point2::new(self.position.x + 1.0, self.position.y + 1.0);
+			let size = Vector2::new(self.size.x - 2.0, self.size.y - 2.0);
 			if let Some(corner_radius) = self.style.corner_radius {
-				draw_rounded_rect(canvas, rect, self.style.contour_focused_color, corner_radius - 1);
+				draw_rounded_rect(canvas, camera, self.style.contour_focused_color, position, size, corner_radius - 1.0);
 			} else {
-				draw_rect(canvas, rect, self.style.contour_focused_color)
+				draw_rect(canvas, camera, self.style.contour_focused_color, position, size);
+			}
+			// Selection
+			if let Some(selection) = self.selection {
+				let position = Point2::new(
+					self.position.x + 5.0 + text_drawer.text_size(&self.style.text_style, &self.content[..selection.0]).0 as f64,
+					self.position.y + 5.0);
+				let size = Vector2::new(
+					text_drawer.text_size(&self.style.text_style, &self.content[selection.0..selection.1]).0 as f64,
+					self.size.y - 10.0,
+				);
+				let mut selection_color = Colors::LIGHT_BLUE;
+				selection_color.a = 100;
+				canvas.set_blend_mode(BlendMode::Mod);
+				fill_rect(canvas, camera, selection_color, position, size);
+				canvas.set_blend_mode(BlendMode::None);
 			}
 		}
 
@@ -276,7 +279,7 @@ impl Widget for TextBox {
 		if !self.content.is_empty() {
 			text_drawer.draw(
 				canvas,
-				Point(self.rect.left() + Self::LEFT_SHIFT, self.rect.height() as i32 / 2 + self.rect.top()),
+				Point::new(self.position.x as i32 + Self::LEFT_SHIFT, self.size.y as i32 / 2 + self.position.y as i32),
 				&self.style.text_style,
 				&self.content,
 				Align::Left,
@@ -284,33 +287,17 @@ impl Widget for TextBox {
 		}
 
 		// Carrot
-		if self.is_focused && self.is_carrot_visible() {
+		if selected && self.is_carrot_visible() {
 			let carrot_x_position = if self.carrot_position != 0 {
-				text_drawer.text_size(&self.style.text_style, &self.content[..self.carrot_position]).0 as i32
+				text_drawer.text_size(&self.style.text_style, &self.content[..self.carrot_position]).0 as f64
 			} else {
-				0
+				0.0
 			};
 
-			let carrot_rect =
-				Rect::new(self.rect.left() + 5 + carrot_x_position, self.rect.top() + 5, 1, self.rect.height() - 10);
-			fill_rect(canvas, carrot_rect, Colors::BLACK);
+			let position = Point2::new(self.position.x + 5.0 + carrot_x_position, self.position.y + 5.0);
+			let size = Vector2::new(1.0, self.size.y - 10.0);
+			fill_rect(canvas, camera, Colors::BLACK, position, size);
 		}
-
-		// Selection
-		if let Some(selection) = self.selection {
-			let selection_rect = Rect::new(
-				self.rect.left() + 5 + text_drawer.text_size(&self.style.text_style, &self.content[..selection.0]).0 as i32,
-				self.rect.top() + 5,
-				text_drawer.text_size(&self.style.text_style, &self.content[selection.0..selection.1]).0 as u32,
-				self.rect.height() - 10,
-			);
-			let mut selection_color = Colors::LIGHT_BLUE;
-			selection_color.a = 100;
-			canvas.set_blend_mode(BlendMode::Mod);
-			fill_rect(canvas, selection_rect, selection_color);
-			canvas.set_blend_mode(BlendMode::None);
-		}
-		 */
 	}
 	
 	fn collide_point(&self, point: Point2<f64>, camera: &Camera) -> bool {
