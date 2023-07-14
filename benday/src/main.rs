@@ -45,6 +45,9 @@ pub struct MyApp {
 impl App for MyApp {
 	fn update(&mut self, delta_sec: f64, input: &Input, widgets: &mut Widgets) -> bool {
 		let mut changed = false;
+		if let Some(new_resolution) = input.window_resized{
+			self.camera.resize(new_resolution)
+		}
 		
 		match &self.app_state {
 			AppState::Idle { selected_element, hovered_element } => {

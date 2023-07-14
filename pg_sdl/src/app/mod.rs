@@ -24,10 +24,7 @@ pub struct PgSdl {
 }
 
 impl PgSdl {
-	pub fn init(
-		window_title: &str, window_width: u32, window_height: u32, fps: Option<u32>, draw_fps: bool,
-		background_color: Color,
-	) -> Self {
+	pub fn init(window_title: &str, window_width: u32, window_height: u32, fps: Option<u32>, draw_fps: bool, background_color: Color, ) -> Self {
 		let sdl_context = sdl2::init().expect("SDL2 could not be initialized");
 		
 		let video_subsystem = sdl_context.video().expect("SDL video subsystem could not be initialized");

@@ -126,9 +126,8 @@ impl Camera {
 		}
 	}
 
-	fn resize(&mut self, new_resolution: Vector2<u32>) {
-		// self.move((self.resolution - new_size) / self.scale / 2);
-		self.translate((self.resolution - new_resolution).cast() / 2.0);
+	pub fn resize(&mut self, new_resolution: Vector2<u32>) {
+		self.translate((new_resolution.cast() - self.resolution.cast()) * 0.5);
 		self.resolution = new_resolution;
 	}
 

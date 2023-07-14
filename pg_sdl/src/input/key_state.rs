@@ -42,7 +42,7 @@ impl ChadKeyState {
 					Self::Pressed
 				}
 			}
-			// TODO spam click un switch fait crash l'app
+			Self::Released => Self::DoublePressed,
 			_ => panic!("Cannot press a key that is not up or released ({:?})", self),
 		};
 	}
