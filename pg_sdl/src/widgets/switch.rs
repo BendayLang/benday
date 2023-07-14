@@ -72,7 +72,7 @@ impl Switch {
 }
 
 impl Widget for Switch {
-	fn update(&mut self, input: &Input, _delta: f64, _text_drawer: &TextDrawer) -> bool {
+	fn update(&mut self, input: &Input, _delta: f64, _text_drawer: &TextDrawer, camera: Option<&Camera>) -> bool {
 		let mut changed = false;
 		self.state.update();
 
@@ -98,7 +98,7 @@ impl Widget for Switch {
 		changed
 	}
 
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer) {
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>) {
 		let b: f32 = 0.7;
 
 		let color = {

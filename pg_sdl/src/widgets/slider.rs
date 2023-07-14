@@ -119,7 +119,7 @@ impl Slider {
 }
 
 impl Widget for Slider {
-	fn update(&mut self, input: &Input, _delta: f64, _text_drawer: &TextDrawer) -> bool {
+	fn update(&mut self, input: &Input, _delta: f64, _text_drawer: &TextDrawer, camera: Option<&Camera>) -> bool {
 		let mut changed = false;
 		self.state.update();
 
@@ -162,7 +162,7 @@ impl Widget for Slider {
 		changed
 	}
 
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer) {
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>) {
 		let b: f32 = 0.7;
 
 		// Back bar
@@ -199,26 +199,19 @@ impl Widget for Slider {
 			),
 		};
 
-		let color = if self.hovered | self.state.is_pressed() | self.state.is_down() {
-			self.hovered_back_color
-		} else {
-			self.back_color
-		};
+		let color =
+			if self.hovered | self.state.is_pressed() | self.state.is_down() { self.hovered_back_color } else { self.back_color };
 		fill_rounded_rect(canvas, back_rect, color, self.corner_radius);
 		draw_rounded_rect(canvas, back_rect, Colors::BLACK, self.corner_radius);
-		let color =
-			if self.hovered | self.state.is_pressed() | self.state.is_down() { self.hovered_color } else { self.color };
+		let color = if self.hovered | self.state.is_pressed() | self.state.is_down() { self.hovered_color } else { self.color };
 		fill_rounded_rect(canvas, rect, color, self.corner_radius);
 		draw_rounded_rect(canvas, rect, Colors::BLACK, self.corner_radius);
 
 		// Pad
 		let rect = match self.orientation {
-			Orientation::Horizontal => rect!(
-				self.rect.left() + self.thumb_position() as i32,
-				self.rect.top(),
-				self.thickness(),
-				self.thickness()
-			),
+			Orientation::Horizontal => {
+				rect!(self.rect.left() + self.thumb_position() as i32, self.rect.top(), self.thickness(), self.thickness())
+			}
 			Orientation::Vertical => rect!(
 				self.rect.left(),
 				self.rect.bottom() - self.thumb_position() as i32 - self.thickness() as i32,

@@ -45,7 +45,7 @@ impl Button {
 }
 
 impl Widget for Button {
-	fn update(&mut self, input: &Input, _delta: f64, _text_drawer: &TextDrawer) -> bool {
+	fn update(&mut self, input: &Input, _delta: f64, _text_drawer: &TextDrawer, camera: Option<&Camera>) -> bool {
 		let mut changed = false;
 		self.state.update();
 
@@ -67,7 +67,7 @@ impl Widget for Button {
 		changed
 	}
 
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer) {
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>) {
 		let color = if self.state.is_pressed() | self.state.is_down() {
 			self.pushed_color
 		} else if self.hovered {

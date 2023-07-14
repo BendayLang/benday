@@ -3,6 +3,8 @@ pub mod slider;
 pub mod switch;
 pub mod text_box;
 
+use crate::camera;
+use crate::camera::Camera;
 use crate::input::Input;
 use crate::text::TextDrawer;
 use as_any::{AsAny, Downcast};
@@ -26,9 +28,9 @@ pub enum Orientation {
 /// A widget is a UI object that can be interacted with to take inputs from the user.
 pub trait Widget: AsAny {
 	/// Update the widget based on the inputs
-	fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &TextDrawer) -> bool;
+	fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &TextDrawer, camera: Option<&Camera>) -> bool;
 	/// Draw the widget on the canvas
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer);
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>);
 }
 
 pub struct Widgets(HashMap<String, Box<dyn Widget>>);
@@ -50,17 +52,17 @@ impl Widgets {
 		self.0.get_mut(name).and_then(|w| w.as_mut().downcast_mut::<T>())
 	}
 
-	pub fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &mut TextDrawer) -> bool {
+	pub fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &mut TextDrawer, camera: Option<&Camera>) -> bool {
 		let mut changed = false;
 		for widget in self.0.values_mut() {
-			changed |= widget.update(input, delta_sec, text_drawer);
+			changed |= widget.update(input, delta_sec, text_drawer, camera);
 		}
 		changed
 	}
 
-	pub fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer) {
+	pub fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>) {
 		for widget in self.0.values() {
-			widget.draw(canvas, text_drawer);
+			widget.draw(canvas, text_drawer, camera);
 		}
 	}
 

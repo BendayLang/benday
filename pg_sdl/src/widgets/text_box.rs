@@ -76,14 +76,14 @@ impl TextBox {
 		}
 		return None;
 	}
-	
-	fn is_carrot_visible(&self) -> bool{
+
+	fn is_carrot_visible(&self) -> bool {
 		self.carrot_timer_sec < Self::BLINKING_TIME_SEC
 	}
 }
 
 impl Widget for TextBox {
-	fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &TextDrawer) -> bool {
+	fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &TextDrawer, camera: Option<&Camera>) -> bool {
 		let mut changed = false;
 		self.state.update();
 
@@ -249,10 +249,9 @@ impl Widget for TextBox {
 		changed
 	}
 
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer) {
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>) {
 		// Box
-		let background_color =
-			if self.hovered { self.style.background_hovered_color } else { self.style.background_color };
+		let background_color = if self.hovered { self.style.background_hovered_color } else { self.style.background_color };
 		if let Some(corner_radius) = self.style.corner_radius {
 			fill_rounded_rect(canvas, self.rect, background_color, corner_radius);
 			draw_rounded_rect(canvas, self.rect, self.style.contour_color, corner_radius);
@@ -262,8 +261,7 @@ impl Widget for TextBox {
 		}
 
 		if self.is_focused {
-			let rect =
-				Rect::new(self.rect.left() + 1, self.rect.top() + 1, self.rect.width() - 2, self.rect.height() - 2);
+			let rect = Rect::new(self.rect.left() + 1, self.rect.top() + 1, self.rect.width() - 2, self.rect.height() - 2);
 			if let Some(corner_radius) = self.style.corner_radius {
 				draw_rounded_rect(canvas, rect, self.style.contour_focused_color, corner_radius - 1);
 			} else {
@@ -298,8 +296,7 @@ impl Widget for TextBox {
 		// Selection
 		if let Some(selection) = self.selection {
 			let selection_rect = Rect::new(
-				self.rect.left()
-					+ 5 + text_drawer.text_size(&self.style.text_style, &self.content[..selection.0]).0 as i32,
+				self.rect.left() + 5 + text_drawer.text_size(&self.style.text_style, &self.content[..selection.0]).0 as i32,
 				self.rect.top() + 5,
 				text_drawer.text_size(&self.style.text_style, &self.content[selection.0..selection.1]).0 as u32,
 				self.rect.height() - 10,
