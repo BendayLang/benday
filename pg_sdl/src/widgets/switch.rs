@@ -1,15 +1,15 @@
-use nalgebra::{Point2, Vector2};
 use crate::input::{Input, KeyState};
-use crate::widgets::{HOVER, Orientation, PUSH, Widget};
+use crate::widgets::{Orientation, Widget, HOVER, PUSH};
+use nalgebra::{Point2, Vector2};
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::Canvas;
-use sdl2::video::Window;
 use sdl2::ttf::FontStyle;
+use sdl2::video::Window;
 
-use crate::primitives::{draw_rounded_rect, fill_rounded_rect};
 use crate::camera::Camera;
-use crate::color::{Colors, darker};
+use crate::color::{darker, Colors};
+use crate::primitives::{draw_rounded_rect, fill_rounded_rect};
 use crate::text::TextDrawer;
 
 /// A switch is a widget that can be toggled __on__ or __off__
@@ -23,16 +23,24 @@ pub struct Switch {
 	thumb_color: Color,
 	hovered_thumb_color: Color,
 	orientation: Orientation,
-	corner_radius: u16,
+	corner_radius: f64,
 	hovered: bool,
 	pub state: KeyState,
 	switched: bool,
-	has_camera: bool
+	has_camera: bool,
 }
 
 impl Switch {
-	pub fn new(position: Point2<f64>, size: Vector2<f64>, on_color: Color, off_color: Color, corner_radius: u16, has_camera: bool) -> Self {
-		let orientation = { if size.x > size.y { Orientation::Horizontal } else { Orientation::Vertical } };
+	pub fn new(
+		position: Point2<f64>, size: Vector2<f64>, on_color: Color, off_color: Color, corner_radius: f64, has_camera: bool,
+	) -> Self {
+		let orientation = {
+			if size.x > size.y {
+				Orientation::Horizontal
+			} else {
+				Orientation::Vertical
+			}
+		};
 		let thumb_color = Colors::LIGHT_GREY;
 		Self {
 			position,
@@ -93,7 +101,7 @@ impl Widget for Switch {
 	}
 
 	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, selected: bool, hovered: bool) {
-		let b: f32 = 0.7;
+		let b = 0.7;
 
 		let color = {
 			if self.switched {
@@ -110,44 +118,38 @@ impl Widget for Switch {
 				}
 			}
 		};
-		/* TODO
-		fill_rounded_rect(canvas, self.rect, color, self.corner_radius);
-		draw_rounded_rect(canvas, self.rect, Colors::BLACK, self.corner_radius);
+		let camera = if self.has_camera { Some(camera) } else { None };
+
+		fill_rounded_rect(canvas, camera, color, self.position, self.size, self.corner_radius);
+		draw_rounded_rect(canvas, camera, Colors::BLACK, self.position, self.size, self.corner_radius);
 
 		let thickness = match self.orientation {
 			Orientation::Horizontal => self.size.y,
 			Orientation::Vertical => self.size.x,
 		};
-		let margin = (thickness as f32 * (1.0 - b) / 2.0) as u32;
-		let dot_width = thickness - 2 * margin; // (thickness as f32 * b) as u32;
+		let margin = thickness * (1.0 - b) / 2.0;
+		let dot_width = thickness - 2.0 * margin; // (thickness * b) as u32;
 
 		// Pad
-		let thumb_rect = match self.orientation {
-			Orientation::Horizontal => {
-				Rect::new(
-					margin as i32 + self.position.x + self.thumb_position() as i32,
-					margin as i32 + self.rect.top(),
-					dot_width,
-					dot_width
-				)
-			}
-			Orientation::Vertical => Rect::new(
-				margin as i32 + self.position.x,
-				margin as i32 + self.position.y - self.thumb_position() as i32 - thickness as i32,
-				dot_width,
-				dot_width
+		let (position, size): (Point2<f64>, Vector2<f64>) = match self.orientation {
+			Orientation::Horizontal => (
+				Point2::new(margin + self.position.x + self.thumb_position(), margin + todo!("top") as f64),
+				Vector2::new(dot_width, dot_width),
+			),
+			Orientation::Vertical => (
+				Point2::new(margin + self.position.x, margin + self.position.y - self.thumb_position() - thickness),
+				Vector2::new(dot_width, dot_width),
 			),
 		};
 
-		let radius = (self.corner_radius as f32 * b) as u16;
+		let radius = self.corner_radius * b;
 		let color = if self.hovered { self.hovered_thumb_color } else { self.thumb_color };
-		fill_rounded_rect(canvas, thumb_rect, color, radius);
-		draw_rounded_rect(canvas, thumb_rect, Colors::BLACK, radius);
-		 */
+		fill_rounded_rect(canvas, camera, color, position, size, radius);
+		draw_rounded_rect(canvas, camera, Colors::BLACK, position, size, radius);
 	}
-	
+
 	fn collide_point(&self, point: Point2<f64>, camera: &Camera) -> bool {
-		let point = if self.has_camera{ camera.transform * point } else { point };
+		let point = if self.has_camera { camera.transform * point } else { point };
 		self.position.x < point.x
 			&& point.x < self.position.x + self.size.x
 			&& self.position.y < point.y
