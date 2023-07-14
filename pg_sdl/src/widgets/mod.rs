@@ -2,23 +2,21 @@ pub mod button;
 pub mod slider;
 pub mod switch;
 pub mod text_box;
-
 use crate::camera;
 use crate::camera::Camera;
+use crate::color::Colors;
 use crate::input::Input;
 use crate::text::TextDrawer;
 use as_any::{AsAny, Downcast};
-use sdl2::render::Canvas;
-use sdl2::video::Window;
-use std::collections::HashMap;
+pub use button::Button;
 use nalgebra::{Point2, Vector2};
 use sdl2::pixels::Color;
-
-pub use button::Button;
+use sdl2::render::Canvas;
+use sdl2::video::Window;
 pub use slider::Slider;
 pub use slider::SliderType;
+use std::collections::HashMap;
 pub use text_box::{TextBox, TextBoxStyle};
-use crate::color::Colors;
 
 const HOVER: f32 = 0.94;
 const PUSH: f32 = 0.80;
@@ -48,11 +46,7 @@ pub struct WidgetsManager {
 
 impl WidgetsManager {
 	pub fn new() -> Self {
-		WidgetsManager { 
-			widgets: HashMap::new(),
-			selected_widget: None,
-			hovered_widget: None,
-		}
+		WidgetsManager { widgets: HashMap::new(), selected_widget: None, hovered_widget: None }
 	}
 
 	pub fn add(&mut self, name: &str, widget: Box<dyn Widget>) {
@@ -69,35 +63,34 @@ impl WidgetsManager {
 
 	pub fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &mut TextDrawer, camera: &Camera) -> bool {
 		let mut changed = false;
-		
+
 		// Update witch widget is selected (Mouse click)
 		if input.mouse.left_button.is_pressed() {
-			self.selected_widget = if let Some(name) = &self.hovered_widget {
-				Some(name.clone())
-			} else { None };
+			self.selected_widget = if let Some(name) = &self.hovered_widget { Some(name.clone()) } else { None };
 			changed = true;
 		}
-		
+
 		// Update witch widget is hovered (Mouse movement)
 		if !input.mouse.delta.is_empty() {
 			let mut new_hovered_widget = None;
 			let mouse_position = input.mouse.position.cast();
-			for (name, widget) in &self.widgets{
+			for (name, widget) in &self.widgets {
 				if widget.collide_point(mouse_position, camera) {
 					new_hovered_widget = Some(name.clone());
 					break;
 				}
 			}
-			
+
 			if new_hovered_widget != self.hovered_widget {
 				self.hovered_widget = new_hovered_widget;
 				changed = true;
 			}
 		}
 		// Update the selected widget
-		if let Some(selected_widget) = &self.selected_widget{
+		if let Some(selected_widget) = &self.selected_widget {
 			changed |= self.widgets.get_mut(selected_widget).unwrap().update(input, delta_sec, text_drawer, camera);
 		}
+
 		changed
 	}
 
@@ -108,8 +101,10 @@ impl WidgetsManager {
 			widget.draw(canvas, text_drawer, camera, selected, hovered);
 		}
 	}
-	
-	pub fn is_widget_selected(&self) -> bool { self.selected_widget.is_some() }
+
+	pub fn is_widget_selected(&self) -> bool {
+		self.selected_widget.is_some()
+	}
 
 	// TODO: remove this and replace with a macro that right all the code for us
 	// and for every widget type

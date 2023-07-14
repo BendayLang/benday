@@ -7,13 +7,13 @@ use nalgebra::{Point2, Vector2};
 use pg_sdl::camera::Camera;
 use pg_sdl::color::Colors;
 use pg_sdl::input::Input;
+use pg_sdl::primitives::{draw_rounded_rect, draw_text, fill_rounded_rect};
 use pg_sdl::style::Align;
+use pg_sdl::text::TextDrawer;
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
 use std::collections::HashMap;
-use pg_sdl::primitives::{draw_rounded_rect, fill_rounded_rect};
-use pg_sdl::text::TextDrawer;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub enum BlocElement {
@@ -382,7 +382,7 @@ impl Bloc {
 			}
 		}
 		let text = format!("{}", self.id);
-		camera.draw_text(canvas, text_drawer, Colors::BLACK, self.position, 15.0, text, Align::TopLeft);
+		draw_text(canvas, Some(camera), text_drawer, Colors::BLACK, self.position, 15.0, text, Align::TopLeft);
 	}
 
 	pub fn draw_container_hover(&self, canvas: &mut Canvas<Window>, camera: &Camera, bloc_container: &BlocContainer) {

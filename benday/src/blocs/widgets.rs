@@ -4,12 +4,12 @@ use nalgebra::{Point2, Vector2};
 use pg_sdl::camera::Camera;
 use pg_sdl::color::{paler, Colors};
 use pg_sdl::input::{Input, Shortcut};
+use pg_sdl::primitives::{draw_rounded_rect, draw_text, fill_rounded_rect};
 use pg_sdl::style::Align;
 use pg_sdl::text::{TextDrawer, TextStyle};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
-use pg_sdl::primitives::{draw_rounded_rect, fill_rounded_rect};
 
 pub struct BaseWidgetS {
 	pub position: Point2<f64>,
@@ -222,8 +222,9 @@ impl WidgetS for TextBoxS {
 		fill_rounded_rect(canvas, Some(camera), color, self.base_widget.position, self.base_widget.size, Slot::RADIUS);
 		let text_position = self.base_widget.position + Vector2::new(5.0, self.base_widget.size.y * 0.5);
 		if self.content.is_empty() {
-			camera.draw_text(
+			draw_text(
 				canvas,
+				Some(camera),
 				text_drawer,
 				Colors::GREY,
 				text_position,
@@ -232,8 +233,9 @@ impl WidgetS for TextBoxS {
 				Align::Left,
 			);
 		} else {
-			camera.draw_text(
+			draw_text(
 				canvas,
+				Some(camera),
 				text_drawer,
 				Colors::BLACK,
 				text_position,
@@ -243,12 +245,26 @@ impl WidgetS for TextBoxS {
 			);
 		}
 		if selected {
-			draw_rounded_rect(canvas, Some(camera), Colors::BLACK, self.base_widget.position, self.base_widget.size, Slot::RADIUS);
+			draw_rounded_rect(
+				canvas,
+				Some(camera),
+				Colors::BLACK,
+				self.base_widget.position,
+				self.base_widget.size,
+				Slot::RADIUS,
+			);
 		}
 		if hovered {
 			let hovered_color = Color::from((0, 0, 0, Bloc::HOVER_ALPHA));
 			canvas.set_blend_mode(BlendMode::Mod);
-			fill_rounded_rect(canvas, Some(camera), hovered_color, self.base_widget.position, self.base_widget.size, Slot::RADIUS);
+			fill_rounded_rect(
+				canvas,
+				Some(camera),
+				hovered_color,
+				self.base_widget.position,
+				self.base_widget.size,
+				Slot::RADIUS,
+			);
 			canvas.set_blend_mode(BlendMode::None);
 		}
 	}

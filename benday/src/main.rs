@@ -11,11 +11,11 @@ use pg_sdl::input::Input;
 use pg_sdl::style::Align;
 use pg_sdl::text::{TextDrawer, TextStyle};
 use pg_sdl::widgets::{Button, TextBox, WidgetsManager};
+use sdl2::rect::Point;
 use sdl2::render::Canvas;
 use sdl2::ttf::FontStyle;
 use sdl2::video::{Window, WindowContext};
 use std::collections::HashMap;
-use sdl2::rect::Point;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 struct Element {
@@ -103,8 +103,7 @@ impl App for MyApp {
 								let delta = self.blocs.get(&bloc_id).unwrap().get_position().clone()
 									- camera.transform.inverse() * input.mouse.position.cast();
 
-								self.app_state =
-									AppState::BlocMoving { moving_bloc_id: bloc_id, delta, hovered_container: None };
+								self.app_state = AppState::BlocMoving { moving_bloc_id: bloc_id, delta, hovered_container: None };
 							}
 							_ => {
 								let selected_element = Some(Element { bloc_id, bloc_element });
@@ -192,11 +191,7 @@ impl App for MyApp {
 						}
 					});
 					if new_hovered_container != hovered_container {
-						self.app_state = AppState::BlocMoving {
-							moving_bloc_id,
-							delta,
-							hovered_container: new_hovered_container,
-						};
+						self.app_state = AppState::BlocMoving { moving_bloc_id, delta, hovered_container: new_hovered_container };
 					}
 					changed = true;
 				}
@@ -255,7 +250,7 @@ impl App for MyApp {
 		if let AppState::BlocMoving { hovered_container, .. } = &self.app_state {
 			if let Some(Container { bloc_container, .. }) = hovered_container {
 				let text = format!("{:?}", bloc_container);
-				text_drawer.draw(canvas, Point::new(100, 50), &TextStyle::default(), &text, Align::TopLeft);
+				text_drawer.draw(canvas, Point2::new(100., 50.), &TextStyle::default(), &text, Align::TopLeft);
 			}
 		}
 	}
@@ -285,8 +280,10 @@ fn main() {
 			false,
 		)),
 	);
-	app.add_widget("test", Box::new(TextBox::new(
-		Point2::new(400.0, 100.0), Vector2::new(100.0, 30.0), None, Some("bob".to_string()), false)));
+	app.add_widget(
+		"test",
+		Box::new(TextBox::new(Point2::new(400.0, 100.0), Vector2::new(100.0, 30.0), None, Some("bob".to_string()), false)),
+	);
 	app.change_mouse_cursor();
 
 	app.run(my_app);
