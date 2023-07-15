@@ -44,19 +44,21 @@ impl Default for ButtonStyle {
 pub struct Button {
 	position: Point2<f64>,
 	size: Vector2<f64>,
-	style: ButtonStyle,
 	text: String,
+	font_size: f64,
+	style: ButtonStyle,
 	pub state: KeyState,
 	has_camera: bool,
 }
 
 impl Button {
-	pub fn new(position: Point2<f64>, size: Vector2<f64>, style: ButtonStyle, text: String, has_camera: bool) -> Self {
+	pub fn new(position: Point2<f64>, size: Vector2<f64>, text: String, font_size: f64, style: ButtonStyle, has_camera: bool)	-> Self {
 		Self {
 			position,
 			size,
-			style,
 			text,
+			font_size,
+			style,
 			state: KeyState::new(),
 			has_camera,
 		}
@@ -87,7 +89,7 @@ impl Widget for Button {
 		} else if hovered { self.style.hovered_color
 		} else { self.style.color };
 		let camera = if self.has_camera { Some(camera) } else { None };
-		
+		/*
 		if let Some(corner_radius) = self.style.corner_radius {
 			fill_rounded_rect(canvas, camera, color, self.position, self.size, corner_radius);
 			draw_rounded_rect(canvas, camera, Colors::BLACK, self.position, self.size, corner_radius);
@@ -105,9 +107,10 @@ impl Widget for Button {
 				draw_rect(canvas, camera, self.style.selected_color, position, size);
 			}
 		}
+		 */
 
-		draw_text(canvas, camera, text_drawer, self.style.text_style.color, self.position + self.size * 0.5,
-		          self.style.text_style.font_size as f64, self.text.clone(), Align::Center);
+		draw_text(canvas, camera, text_drawer, self.position + self.size * 0.5, self.text.clone(),
+		          self.font_size, &self.style.text_style, Align::Center);
 	}
 	
 	fn collide_point(&self, point: Point2<f64>, camera: &Camera) -> bool {

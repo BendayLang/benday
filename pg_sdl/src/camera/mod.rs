@@ -11,6 +11,7 @@ use sdl2::rect::{Point, Rect};
 use sdl2::render::Canvas;
 use sdl2::ttf::FontStyle;
 use sdl2::video::Window;
+use crate::widgets::MyRect;
 
 pub struct Camera {
 	pub transform: Similarity2<f64>,
@@ -50,9 +51,9 @@ impl Camera {
 		self.transform.isometry.translation.vector
 	}
 
-	pub fn is_in_scope(&self, rect: Rect) -> bool {
-		let camera_scope = Rect::new(0, 0, self.resolution.x, self.resolution.y);
-		camera_scope.has_intersection(rect)
+	pub fn is_in_scope(&self, rect: &MyRect<f64>) -> bool {
+		let camera_scope = MyRect::from(Point2::origin(), self.resolution.cast());
+		camera_scope.collide_rect(rect)
 	}
 
 	/// Translates and scales the camera from the inputs
@@ -240,9 +241,9 @@ impl Camera {
 					VAlign::Bottom => (self.resolution.y as i16 - 1 - n, self.resolution.y as i16 - 1 + n),
 				};
 
-				let font_size = 16;
+				let font_size = 16.;
 				let font_style = if depth == 1 { FontStyle::NORMAL } else { FontStyle::BOLD };
-				let text_style = TextStyle::new(font_size, None, axes_color, font_style);
+				let text_style = TextStyle::new(None, axes_color, font_style);
 
 				(start.x..end.x).for_each(|x_th| {
 					if (x_th % 5 != 0) | (depth == max_depth) {
@@ -251,7 +252,7 @@ impl Camera {
 
 						let position = Point2::new(x as f64, (y1 as f64 + y2 as f64) / 2.);
 						let text = format!("{}", x_th as f64 * unit);
-						text_drawer.draw(canvas, position, &text_style, &text, alignment);
+						text_drawer.draw(canvas, position, &text, font_size, &text_style, alignment);
 					}
 				});
 				(start.y..end.y).for_each(|y_th| {
@@ -261,7 +262,7 @@ impl Camera {
 
 						let position = Point2::new((x1 as f64 + x2 as f64) / 2., y as f64);
 						let text = format!("{}", y_th as f64 * unit);
-						text_drawer.draw(canvas, position, &text_style, &text, alignment);
+						text_drawer.draw(canvas, position, &text, font_size, &text_style, alignment);
 					}
 				});
 			});

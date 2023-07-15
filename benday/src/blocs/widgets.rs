@@ -67,6 +67,7 @@ impl TextBoxS {
 	}
 
 	fn get_carrot_position(&self, mouse_position: Point2<i32>, text_drawer: &mut TextDrawer, camera: &Camera) -> Option<usize> {
+		/*
 		let mouse_x = mouse_position.x - self.base_widget.position.x as i32;
 		let mut x: u32 = 0;
 		for (i, c) in self.content.chars().enumerate() {
@@ -77,6 +78,7 @@ impl TextBoxS {
 				return Some(i);
 			}
 		}
+		 */
 		return None;
 	}
 }
@@ -221,6 +223,7 @@ impl WidgetS for TextBoxS {
 		let color = if selected { self.default_color } else { self.color };
 		fill_rounded_rect(canvas, Some(camera), color, self.base_widget.position, self.base_widget.size, Slot::RADIUS);
 		let text_position = self.base_widget.position + Vector2::new(5.0, self.base_widget.size.y * 0.5);
+		/*
 		if self.content.is_empty() {
 			draw_text(
 				canvas,
@@ -267,6 +270,7 @@ impl WidgetS for TextBoxS {
 			);
 			canvas.set_blend_mode(BlendMode::None);
 		}
+		 */
 	}
 
 	fn get_base_widget(&self) -> &BaseWidgetS {

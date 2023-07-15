@@ -119,7 +119,7 @@ impl Widget for Switch {
 			}
 		};
 		let camera = if self.has_camera { Some(camera) } else { None };
-
+		/*
 		fill_rounded_rect(canvas, camera, color, self.position, self.size, self.corner_radius);
 		draw_rounded_rect(canvas, camera, Colors::BLACK, self.position, self.size, self.corner_radius);
 
@@ -146,6 +146,7 @@ impl Widget for Switch {
 		let color = if self.hovered { self.hovered_thumb_color } else { self.thumb_color };
 		fill_rounded_rect(canvas, camera, color, position, size, radius);
 		draw_rounded_rect(canvas, camera, Colors::BLACK, position, size, radius);
+		 */
 	}
 
 	fn collide_point(&self, point: Point2<f64>, camera: &Camera) -> bool {

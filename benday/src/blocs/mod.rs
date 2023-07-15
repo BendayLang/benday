@@ -9,7 +9,7 @@ use pg_sdl::color::Colors;
 use pg_sdl::input::Input;
 use pg_sdl::primitives::{draw_rounded_rect, draw_text, fill_rounded_rect};
 use pg_sdl::style::Align;
-use pg_sdl::text::TextDrawer;
+use pg_sdl::text::{TextDrawer, TextStyle};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
@@ -382,7 +382,7 @@ impl Bloc {
 			}
 		}
 		let text = format!("{}", self.id);
-		draw_text(canvas, Some(camera), text_drawer, Colors::BLACK, self.position, 15.0, text, Align::TopLeft);
+		draw_text(canvas, Some(camera), text_drawer, self.position, text, 15.0, &TextStyle::default(), Align::TopLeft);
 	}
 
 	pub fn draw_container_hover(&self, canvas: &mut Canvas<Window>, camera: &Camera, bloc_container: &BlocContainer) {

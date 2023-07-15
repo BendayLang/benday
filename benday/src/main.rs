@@ -10,12 +10,13 @@ use pg_sdl::color::{hsv_color, Colors};
 use pg_sdl::input::Input;
 use pg_sdl::style::Align;
 use pg_sdl::text::{TextDrawer, TextStyle};
-use pg_sdl::widgets::{Button, TextBox, WidgetsManager};
+use pg_sdl::widgets::{Button, Slider, SliderType, TextInput, TextInputStyle, WidgetsManager};
 use sdl2::rect::Point;
 use sdl2::render::Canvas;
 use sdl2::ttf::FontStyle;
 use sdl2::video::{Window, WindowContext};
 use std::collections::HashMap;
+use pg_sdl::primitives::draw_rect;
 use pg_sdl::widgets::button::ButtonStyle;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
@@ -251,7 +252,7 @@ impl App for MyApp {
 		if let AppState::BlocMoving { hovered_container, .. } = &self.app_state {
 			if let Some(Container { bloc_container, .. }) = hovered_container {
 				let text = format!("{:?}", bloc_container);
-				text_drawer.draw(canvas, Point2::new(100., 50.), &TextStyle::default(), &text, Align::TopLeft);
+				text_drawer.draw(canvas, Point2::new(100., 50.), &text, 20.0, &TextStyle::default(), Align::TopLeft);
 			}
 		}
 	}
@@ -274,16 +275,50 @@ fn main() {
 		Box::new(Button::new(
 			Point2::new(100.0, 100.0),
 			Vector2::new(200.0, 100.0),
-			ButtonStyle::default(),
 			"New bloc".to_string(),
+			22.0,
+			ButtonStyle::default(),
 			false,
 		)),
 	);
 	app.add_widget(
 		"test",
-		Box::new(TextBox::new(Point2::new(400.0, 100.0), Vector2::new(100.0, 30.0), None, Some("bob".to_string()), false)),
+		Box::new(TextInput::new(
+			Point2::new(400.0, 100.0),
+			Vector2::new(120.0, 28.0),
+			"placeholder".to_string(),
+			15.0,
+			TextInputStyle::default(),
+			false,
+		)),
 	);
-	app.change_mouse_cursor();
+	app.add_widget(
+		"slider",
+		Box::new(Slider::new(
+			Point2::new(100.0, 300.0),
+			Vector2::new(200.0, 40.0),
+			Colors::ORANGE,
+			SliderType::Discrete {
+				snap: 10,
+				default_value: 5,
+				display: Some(Box::new(|value| format!("{}", value))),
+			},
+			false,
+		)),
+	);
+	app.add_widget(
+		"slider2",
+		Box::new(Slider::new(
+			Point2::new(320.0, 300.0),
+			Vector2::new(30.0, 200.0),
+			Colors::LIGHT_GREEN,
+			SliderType::Continuous {
+				default_value: 0.2,
+				display: Some(Box::new(|value| format!("{}", value))),
+			},
+			false,
+		)),
+	);
 
 	app.run(my_app);
 }
@@ -312,15 +347,3 @@ fn update_layout_and_positions(bloc_id: &u32, blocs: &mut HashMap<u32, Bloc>) {
 		blocs.insert(*child_id, bloc);
 	});
 }
-
-/*
-// Update layout of blocs
-self.blocs.iter().for_each(|(id, bloc)| {
-	if bloc.is_root {
-		let recursive_childs = bloc.get_recursive_childs(&self.blocs);
-		recursive_childs.iter().for_each(|child_id| {
-			self.blocs.get_mut(child_id).unwrap().update_size_and_position(&self.blocs);
-		});
-	}
-});
-*/

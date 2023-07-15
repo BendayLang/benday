@@ -8,6 +8,7 @@ use sdl2::gfx::primitives::DrawRenderer;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::{render::Canvas, video::Window};
+use crate::widgets::MyRect;
 
 /// Draws a one pixel wide line
 pub fn draw_line(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, start: Point2<f64>, end: Point2<f64>) {
@@ -21,83 +22,68 @@ pub fn draw_line(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Co
 }
 
 /// Draws the contour of a rectangle as seen by the camera
-pub fn draw_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, position: Point2<f64>, size: Vector2<f64>) {
+pub fn draw_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, rect: MyRect<f64>) {
 	if let Some(camera) = camera {
-		let position = camera.transform * position;
-		let size = camera.transform * size;
-		let rect = Rect::new(position.x as i32, position.y as i32, size.x as u32, size.y as u32);
-		if camera.is_in_scope(rect) {
+		let rect = camera.transform * rect;
+		if camera.is_in_scope(&rect) {
 			canvas.set_draw_color(color);
-			canvas.draw_rect(rect).unwrap();
+			canvas.draw_rect(rect.into()).unwrap();
 		};
 	} else {
-		let rect = Rect::new(position.x as i32, position.y as i32, size.x as u32, size.y as u32);
 		canvas.set_draw_color(color);
-		canvas.draw_rect(rect).unwrap();
+		canvas.draw_rect(rect.into()).unwrap();
 	}
 }
 /// Draws a filled rectangle as seen by the camera
-pub fn fill_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, position: Point2<f64>, size: Vector2<f64>) {
+pub fn fill_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, rect: MyRect<f64>) {
 	if let Some(camera) = camera {
-		let position = camera.transform * position;
-		let size = camera.transform * size;
-		let rect = Rect::new(position.x as i32, position.y as i32, size.x as u32, size.y as u32);
-		if camera.is_in_scope(rect) {
+		let rect = camera.transform * rect;
+		if camera.is_in_scope(&rect) {
 			canvas.set_draw_color(color);
-			canvas.fill_rect(rect).unwrap();
+			canvas.fill_rect::<Rect>(rect.into()).unwrap();
 		};
 	} else {
-		let rect = Rect::new(position.x as i32, position.y as i32, size.x as u32, size.y as u32);
 		canvas.set_draw_color(color);
-		canvas.fill_rect(rect).unwrap();
+		canvas.fill_rect::<Rect>(rect.into()).unwrap();
 	}
 }
 
 /// Draws the contour of a rectangle as seen by the camera
-pub fn draw_rounded_rect(
-	canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, position: Point2<f64>, size: Vector2<f64>, radius: f64,
-) {
+pub fn draw_rounded_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, rect: MyRect<f64>, radius: f64) {
 	if let Some(camera) = camera {
-		let position = camera.transform * position;
-		let size = camera.transform * size;
-		let radius = (camera.scale() * radius) as u16;
-		let rect = Rect::new(position.x as i32, position.y as i32, size.x as u32, size.y as u32);
-		if camera.is_in_scope(rect) {
-			let (x1, x2) = (rect.left(), rect.right() - 1);
-			let (y1, y2) = (rect.top(), rect.bottom() - 1);
-			DrawRenderer::rounded_rectangle(canvas, x1 as i16, y1 as i16, x2 as i16, y2 as i16, radius as i16, color).unwrap();
+		let rect = camera.transform * rect;
+		let radius = (camera.scale() * radius) as i16;
+		if camera.is_in_scope(&rect) {
+			let (x1, x2) = (rect.left() as i16, rect.right() as i16 - 1);
+			let (y1, y2) = (rect.top() as i16, rect.bottom() as i16 - 1);
+			DrawRenderer::rounded_rectangle(canvas, x1, y1, x2, y2, radius, color).unwrap();
 		};
 	} else {
-		let (x1, x2) = (position.x as i16, (position.x + size.x) as i16 - 1);
-		let (y1, y2) = (position.y as i16, (position.y + size.y) as i16 - 1);
+		let (x1, x2) = (rect.left() as i16, rect.right() as i16 - 1);
+		let (y1, y2) = (rect.top() as i16, rect.bottom() as i16 - 1);
 		DrawRenderer::rounded_rectangle(canvas, x1, y1, x2, y2, radius as i16, color).unwrap();
 	}
 }
 /// Draws a filled rectangle as seen by the camera
-pub fn fill_rounded_rect(
-	canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, position: Point2<f64>, size: Vector2<f64>, radius: f64,
-) {
+pub fn fill_rounded_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, rect: MyRect<f64>, radius: f64) {
 	if let Some(camera) = camera {
-		let position = camera.transform * position;
-		let size = camera.transform * size;
-		let radius = (camera.scale() * radius) as u16;
-		let rect = Rect::new(position.x as i32, position.y as i32, size.x as u32, size.y as u32);
-		if camera.is_in_scope(rect) {
-			let (x1, x2) = (rect.left(), rect.right() - 1);
-			let (y1, y2) = (rect.top(), rect.bottom() - 1);
-			DrawRenderer::rounded_box(canvas, x1 as i16, y1 as i16, x2 as i16, y2 as i16, radius as i16, color).unwrap();
+		let rect = camera.transform * rect;
+		let radius = (camera.scale() * radius) as i16;
+		if camera.is_in_scope(&rect) {
+			let (x1, x2) = (rect.left() as i16, rect.right() as i16 - 1);
+			let (y1, y2) = (rect.top() as i16, rect.bottom() as i16 - 1);
+			DrawRenderer::rounded_box(canvas, x1, y1, x2, y2, radius, color).unwrap();
 		};
 	} else {
-		let (x1, x2) = (position.x as i16, (position.x + size.x) as i16 - 1);
-		let (y1, y2) = (position.y as i16, (position.y + size.y) as i16 - 1);
+		let (x1, x2) = (rect.left() as i16, rect.right() as i16 - 1);
+		let (y1, y2) = (rect.top() as i16, rect.bottom() as i16 - 1);
 		DrawRenderer::rounded_box(canvas, x1, y1, x2, y2, radius as i16, color).unwrap();
 	}
 }
 
+/*
 /// Draws the contour of an ellipse as seen by the camera
-pub fn draw_ellipse(
-	canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, position: Point2<f64>, radii: Vector2<f64>,
-) {
+pub fn draw_ellipse(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, position: Point2<f64>, radii: Vector2<f64>, ) {
 	if let Some(camera) = camera {
 		let position = camera.transform * position;
 		let radii = camera.transform * radii;
@@ -113,9 +99,7 @@ pub fn draw_ellipse(
 	}
 }
 /// Draws a filled ellipse as seen by the camera
-pub fn fill_ellipse(
-	canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, position: Point2<f64>, radii: Vector2<f64>,
-) {
+pub fn fill_ellipse(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, position: Point2<f64>, radii: Vector2<f64>, ) {
 	if let Some(camera) = camera {
 		let position = camera.transform * position;
 		let radii = camera.transform * radii;
@@ -132,14 +116,15 @@ pub fn fill_ellipse(
 			.unwrap();
 	}
 }
+*/
 
 /// Draws the contour of a circle as seen by the camera
 pub fn draw_circle(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, position: Point2<f64>, radius: f64) {
 	if let Some(camera) = camera {
 		let position = camera.transform * position;
 		let radius = camera.scale() * radius;
-		let rect = Rect::new((position.x - radius) as i32, (position.y - radius) as i32, 2 * radius as u32, 2 * radius as u32);
-		if camera.is_in_scope(rect) {
+		let rect = MyRect::new(position.x - radius, position.y - radius, 2.0 * radius, 2.0 * radius);
+		if camera.is_in_scope(&rect) {
 			DrawRenderer::circle(canvas, position.x as i16, position.y as i16, radius as i16, color).unwrap()
 		};
 	} else {
@@ -152,8 +137,8 @@ pub fn fill_circle(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: 
 	if let Some(camera) = camera {
 		let position = camera.transform * position;
 		let radius = camera.scale() * radius;
-		let rect = Rect::new((position.x - radius) as i32, (position.y - radius) as i32, 2 * radius as u32, 2 * radius as u32);
-		if camera.is_in_scope(rect) {
+		let rect = MyRect::new(position.x - radius, position.y - radius, 2.0 * radius, 2.0 * radius);
+		if camera.is_in_scope(&rect) {
 			DrawRenderer::filled_circle(canvas, position.x as i16, position.y as i16, radius as i16, color).unwrap()
 		};
 	} else {
@@ -162,6 +147,7 @@ pub fn fill_circle(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: 
 	}
 }
 
+/*
 /// Draws the contour of a polygon from its vertices as seen by the camera
 pub fn draw_polygon(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, vertices: &Vec<Point2<f64>>) {
 	if let Some(camera) = camera {
@@ -243,29 +229,25 @@ pub fn draw_arrow(
 	DrawRenderer::filled_polygon(canvas, &points_x, &points_y, color).unwrap();
 	DrawRenderer::polygon(canvas, &points_x, &points_y, Colors::BLACK).unwrap();
 }
+*/
 
-/// Draws text as seen by the camera
+/// Draws text
 pub fn draw_text(
-	canvas: &mut Canvas<Window>, camera: Option<&Camera>, text_drawer: &TextDrawer, color: Color, position: Point2<f64>,
-	font_size: f64, text: String, align: Align,
+	canvas: &mut Canvas<Window>, camera: Option<&Camera>, text_drawer: &TextDrawer, position: Point2<f64>,
+	text: String, font_size: f64, style: &TextStyle, align: Align,
 ) {
 	if text.is_empty() {
 		return;
 	}
 	if let Some(camera) = camera {
 		let position = camera.transform * position;
-		let position = nalgebra::Point2::new(position.x as f64, position.y as f64);
-		let text_style = &TextStyle { font_size: (camera.scale() * font_size) as u16, color, ..Default::default() };
-		let (width, height) = text_drawer.text_size(text_style, &text);
-		let rect = Rect::new(position.x as i32, position.y as i32, width, height);
-		if camera.is_in_scope(rect) {
-			text_drawer.draw(canvas, position, text_style, &text, align);
+		let font_size = camera.scale() * font_size;
+		let size = text_drawer.text_size(&text, style, font_size);
+		let rect = MyRect::from(position, size.cast());
+		if camera.is_in_scope(&rect) {
+			text_drawer.draw(canvas, position, &text, font_size, style, align);
 		}
 	} else {
-		let position = nalgebra::Point2::new(position.x as f64, position.y as f64);
-		let text_style = &TextStyle { font_size: font_size as u16, color, ..Default::default() };
-		let (width, height) = text_drawer.text_size(text_style, &text);
-		let rect = Rect::new(position.x as i32, position.y as i32, width, height);
-		text_drawer.draw(canvas, position, text_style, &text, align);
+		text_drawer.draw(canvas, position, &text, font_size, style, align);
 	}
 }
