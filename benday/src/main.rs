@@ -11,17 +11,15 @@ use pg_sdl::color::{hsv_color, Colors};
 use pg_sdl::input::Input;
 use pg_sdl::style::Align;
 use pg_sdl::text::{TextDrawer, TextStyle};
-use pg_sdl::widgets::{Button, Slider, SliderType, TextInput, TextInputStyle, WidgetsManager};
-use sdl2::rect::Point;
 use sdl2::render::Canvas;
-use sdl2::ttf::FontStyle;
-use sdl2::video::{Window, WindowContext};
+use sdl2::video::Window;
 use std::collections::HashMap;
-use sdl2::pixels::Color;
-use pg_sdl::primitives::{draw_rect, draw_text};
-use pg_sdl::widgets::button::ButtonStyle;
-use pg_sdl::widgets::slider::SliderStyle;
-use pg_sdl::widgets::switch::{Switch, SwitchStyle};
+use pg_sdl::primitives::draw_text;
+use pg_sdl::widgets::{
+	WidgetsManager,
+	button::{Button, ButtonStyle},
+	text_input::{TextInput, TextInputStyle}
+};
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 struct Element {
@@ -57,7 +55,7 @@ impl App for MyApp {
 				changed |= camera.update(input, widgets_manager.is_widget_focused() || selected_element.is_some());
 
 				// Add new bloc
-				if widgets_manager.get_button(0).is_pressed() {
+				if widgets_manager.get::<Button>(0).unwrap().is_pressed() {
 					let id = self.id_counter;
 					let new_bloc = Bloc::new_bloc(
 						id,
@@ -141,7 +139,11 @@ impl App for MyApp {
 				}
 
 				// Update the selected element
-				// if let Some(Element { bloc_id, bloc_element }) = selected_element { self.blocs.get_mut(bloc_id).unwrap().update_element(bloc_element, input, delta_sec, text_drawer,&camera); }
+				/*
+				if let Some(Element { bloc_id, bloc_element }) = selected_element {
+					self.blocs.get_mut(&bloc_id).unwrap().update_element(&bloc_element, input, delta_sec, text_drawer, &camera);
+				}
+				 */
 			}
 			AppState::BlocMoving { moving_bloc_id, delta, hovered_container } => {
 				// Release the bloc
@@ -186,7 +188,7 @@ impl App for MyApp {
 								.blocs
 								.get(&bloc_id)
 								.unwrap()
-								.collide_container(*moving_bloc.get_position(), *moving_bloc.get_size())
+								.collide_container(*moving_bloc.get_rect())
 							{
 								if new_ratio >= ratio {
 									new_hovered_container =
@@ -278,9 +280,17 @@ fn main() {
 		Box::new(Button::new(
 			Rect::new(100., 100., 200., 100.),
 			"New bloc".to_string(),
-			22.,
 			ButtonStyle::default(),
 			false,
+		)),
+	);
+	/*
+	app.add_widget(
+		Box::new(Button::new(
+			Rect::new(-200., 100., 80., 30.),
+			"button".to_string(),
+			ButtonStyle::new(Colors::LIGHT_YELLOW, None, 10.),
+			true,
 		)),
 	);
 	app.add_widget(
@@ -336,6 +346,7 @@ fn main() {
 			true,
 		)),
 	);
+	 */
 
 	app.run(my_app);
 }

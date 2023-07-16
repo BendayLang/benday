@@ -13,7 +13,6 @@ use sdl2::ttf::FontStyle;
 use sdl2::{pixels::Color, render::Canvas, video::Window};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use sdl2::render::BlendMode;
 
 
 pub trait App {
@@ -50,7 +49,7 @@ impl PgSdl {
 			.build()
 			.expect("Window could not be created");
 		
-		let mut canvas = window.into_canvas().build().expect("Canvas could not be created");
+		let canvas = window.into_canvas().build().expect("Canvas could not be created");
 		
 		// TODO mettre ca en paramettre ?
 		let resolution = Vector2::new(window_width, window_height);
@@ -69,10 +68,7 @@ impl PgSdl {
 		}
 	}
 	
-	fn update<U>(&mut self, user_app: &mut U, delta_sec: f64) -> bool
-	             where
-		             U: App,
-	{
+	fn update<U>(&mut self, user_app: &mut U, delta_sec: f64) -> bool where U: App, {
 		let mut change = false;
 		if let Some(new_resolution) = self.input.window_resized {
 			self.camera.resize(new_resolution);
@@ -83,10 +79,7 @@ impl PgSdl {
 		change
 	}
 	
-	fn draw<U>(&mut self, user_app: &U)
-	           where
-		           U: App,
-	{
+	fn draw<U>(&mut self, user_app: &U) where U: App, {
 		self.canvas.set_draw_color(self.background_color);
 		self.canvas.clear();
 		user_app.draw(&mut self.canvas, &mut self.text_drawer, &self.camera);

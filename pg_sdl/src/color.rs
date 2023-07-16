@@ -148,3 +148,9 @@ pub fn paler(color: Color, saturation_change: f32) -> Color {
 
 	color
 }
+
+pub fn with_alpha(color: Color, alpha: u8) -> Color {
+	let mut new_color = color.clone();
+	new_color.a = alpha;
+	new_color
+}

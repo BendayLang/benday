@@ -9,11 +9,13 @@ use crate::{
 	text::TextStyle,
 };
 use sdl2::pixels::Color;
-use sdl2::render::Canvas;
+use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
 use crate::camera::Camera;
+use crate::color::with_alpha;
 use crate::style::Align;
 use crate::custom_rect::Rect;
+use crate::widgets::{FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA};
 
 
 pub struct ButtonStyle {
@@ -43,12 +45,12 @@ impl Default for ButtonStyle {
 }
 
 impl ButtonStyle {
-	fn new(color: Color, corner_radius: Option<f64>, font_size: f64) -> Self {
+	pub fn new(color: Color, corner_radius: Option<f64>, font_size: f64) -> Self {
 		Self {
 			color,
 			hovered_color: darker(color, HOVER),
 			pushed_color: darker(color, PUSH),
-			focused_color: Colors::DARK_BLUE,
+			focused_color: Colors::BLUE,
 			border_color: Colors::BLACK,
 			corner_radius,
 			font_size,
@@ -61,19 +63,19 @@ impl ButtonStyle {
 pub struct Button {
 	rect: Rect,
 	state: KeyState,
+	style: ButtonStyle,
 	has_camera: bool,
 	text: String,
-	style: ButtonStyle,
 }
 
 impl Button {
-	pub fn new(rect: Rect, text: String, font_size: f64, style: ButtonStyle, has_camera: bool) -> Self {
+	pub fn new(rect: Rect, text: String, style: ButtonStyle, has_camera: bool) -> Self {
 		Self {
 			rect,
-			text,
-			style,
 			state: KeyState::new(),
+			style,
 			has_camera,
+			text,
 		}
 	}
 	pub fn set_text(&mut self, new_text: String) {
@@ -105,9 +107,20 @@ impl Widget for Button {
 			self.style.pushed_color } else if hovered { self.style.hovered_color } else { self.style.color };
 		let border_color = if focused { self.style.focused_color } else { self.style.border_color };
 		if let Some(corner_radius) = self.style.corner_radius {
+			if focused {
+				canvas.set_blend_mode(BlendMode::Blend);
+				fill_rounded_rect(canvas, camera, with_alpha(border_color, FOCUS_HALO_ALPHA),
+				                  self.rect.enlarged(FOCUS_HALO_DELTA), FOCUS_HALO_DELTA + corner_radius);
+			}
 			fill_rounded_rect(canvas, camera, color, self.rect, corner_radius);
 			draw_rounded_rect(canvas, camera, border_color, self.rect, corner_radius);
+			
 		} else {
+			if focused {
+				canvas.set_blend_mode(BlendMode::Blend);
+				fill_rounded_rect(canvas, camera, with_alpha(border_color, FOCUS_HALO_ALPHA),
+				                  self.rect.enlarged(FOCUS_HALO_DELTA), FOCUS_HALO_DELTA);
+			}
 			fill_rect(canvas, camera, color, self.rect);
 			draw_rect(canvas, camera, border_color, self.rect);
 		};
@@ -116,8 +129,8 @@ impl Widget for Button {
 		          self.style.font_size, &self.style.text_style, Align::Center);
 	}
 	
-	fn collide_point(&self, point: Point2<f64>, camera: &Camera) -> bool {
-		let point = if self.has_camera{ camera.transform.inverse() * point } else { point };
-		self.rect.collide_point(point)
-	}
+	fn get_rect(&self) -> Rect { self.rect }
+	fn get_rect_mut(&mut self) -> &mut Rect { &mut self.rect }
+	
+	fn has_camera(&self) -> bool { self.has_camera }
 }

@@ -1,12 +1,10 @@
 pub mod containers;
-mod widgets;
 
 use crate::blocs::containers::{Sequence, Slot};
 use crate::Container;
 use nalgebra::{Point2, Vector2};
 use pg_sdl::camera::Camera;
 use pg_sdl::color::Colors;
-use pg_sdl::input::Input;
 use pg_sdl::primitives::{draw_rounded_rect, draw_text, fill_rounded_rect};
 use pg_sdl::style::Align;
 use pg_sdl::text::{TextDrawer, TextStyle};
@@ -14,6 +12,7 @@ use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
 use std::collections::HashMap;
+use pg_sdl::custom_rect::Rect;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub enum BlocElement {
@@ -51,8 +50,7 @@ pub enum BlocType {
 pub struct Bloc {
 	id: u32,
 	color: Color,
-	position: Point2<f64>,
-	size: Vector2<f64>,
+	rect: Rect,
 	slots: Vec<Slot>,
 	slots_positions: Box<dyn Fn(&Self, usize) -> Vector2<f64>>,
 	sequences: Vec<Sequence>,
@@ -134,8 +132,7 @@ impl Bloc {
 		let mut bloc = Self {
 			id,
 			color,
-			position,
-			size: Vector2::zeros(),
+			rect: Rect::from(position, Vector2::zeros()),
 			slots,
 			slots_positions,
 			sequences,
@@ -147,21 +144,15 @@ impl Bloc {
 
 		(0..bloc.slots.len()).for_each(|slot_id| {
 			let slot_position = (*bloc.slots_positions)(&bloc, slot_id);
-			bloc.slots[slot_id].set_position(slot_position);
+			bloc.slots[slot_id].set_position(Point2::from(slot_position));
 		});
 		(0..bloc.sequences.len()).for_each(|sequence_id| {
 			let sequence_position = (*bloc.sequences_positions)(&bloc, sequence_id);
-			bloc.sequences[sequence_id].set_position(sequence_position);
+			bloc.sequences[sequence_id].set_position(Point2::from(sequence_position));
 		});
-		bloc.size = (*bloc.get_size)(&bloc);
+		bloc.rect.size = (*bloc.get_size)(&bloc);
 		bloc
 	}
-
-	/*
-	pub fn repr(&self, blocs: &HashMap<u32, Bloc>) -> String {
-		format!("Bloc( {} )", self.slots.get(0).unwrap().repr(blocs))
-	}
-	 */
 
 	pub fn set_parent(&mut self, parent: Option<Container>) {
 		self.parent = parent
@@ -172,20 +163,24 @@ impl Bloc {
 	}
 
 	pub fn set_position(&mut self, position: Point2<f64>) {
-		self.position = position
+		self.rect.position = position
 	}
 
 	pub fn get_position(&self) -> &Point2<f64> {
-		&self.position
+		&self.rect.position
 	}
 
 	pub fn translate(&mut self, delta: Vector2<f64>) {
-		self.position += delta;
+		self.rect.position += delta;
 		self.slots.iter_mut().for_each(|slot| slot.translate(delta));
 	}
 
 	pub fn get_size(&self) -> &Vector2<f64> {
-		&self.size
+		&self.rect.size
+	}
+	
+	pub fn get_rect(&self) -> &Rect {
+		&self.rect
 	}
 
 	/// Returns a vec of the bloc's childs ids from leaf to root (including itself)
@@ -206,35 +201,35 @@ impl Bloc {
 		self.slots.iter_mut().for_each(|slot| slot.update_size(blocs));
 		(0..self.slots.len()).for_each(|slot_id| {
 			let slot_position = (*self.slots_positions)(&self, slot_id);
-			self.slots[slot_id].set_position(slot_position);
+			self.slots[slot_id].set_position(Point2::from(slot_position));
 		});
 		self.sequences.iter_mut().for_each(|sequence| sequence.update_size(blocs));
 		(0..self.sequences.len()).for_each(|sequence_id| {
 			let sequence_position = (*self.sequences_positions)(&self, sequence_id);
-			self.sequences[sequence_id].set_position(sequence_position);
+			self.sequences[sequence_id].set_position(Point2::from(sequence_position));
 		});
-		self.size = (*self.get_size)(&self);
+		self.rect.size = (*self.get_size)(&self);
 	}
 
 	/// Met à jour la position de ses enfants
 	pub fn update_child_position(&mut self, blocs: &mut HashMap<u32, Bloc>) {
-		self.slots.iter_mut().for_each(|slot| slot.update_child_position(self.position, blocs));
-		self.sequences.iter().for_each(|sequences| sequences.update_child_position(self.position, blocs))
+		self.slots.iter_mut().for_each(|slot| slot.update_child_position(self.rect.position, blocs));
+		self.sequences.iter().for_each(|sequences| sequences.update_child_position(self.rect.position, blocs))
 	}
 
 	pub fn collide_element(&self, point: Point2<f64>) -> Option<BlocElement> {
-		if !self.collide_point(point) {
+		if !self.rect.collide_point(point) {
 			return None;
 		}
 
 		for (slot_id, slot) in self.slots.iter().enumerate() {
-			if slot.collide_point(point - self.position.coords) {
+			if slot.get_rect().collide_point(point - self.rect.position.coords) {
 				return Some(BlocElement::Slot(slot_id));
 			}
 		}
 
 		for (sequence_id, sequence) in self.sequences.iter().enumerate() {
-			if sequence.collide_point(point - self.position.coords) {
+			if sequence.get_rect().collide_point(point - self.rect.position.coords) {
 				return Some(BlocElement::Sequence(sequence_id));
 			}
 		}
@@ -242,25 +237,16 @@ impl Bloc {
 		Some(BlocElement::Body)
 	}
 
-	pub fn update_element(
-		&mut self, bloc_element: &BlocElement, input: &Input, delta_sec: f64, text_drawer: &mut TextDrawer, camera: &Camera,
-	) -> bool {
-		match bloc_element {
-			BlocElement::Slot(slot_id) => self.slots[*slot_id].update_text_box(input, delta_sec, text_drawer, camera),
-			BlocElement::CustomButton(_) => false,
-			_ => false,
-		}
-	}
-	pub fn collide_container(&self, position: Point2<f64>, size: Vector2<f64>) -> Option<(BlocContainer, f64)> {
-		if !self.collide_rect(position, size) {
+	pub fn collide_container(&self, rect: Rect) -> Option<(BlocContainer, f64)> {
+		if !self.rect.collide_rect(rect) {
 			return None;
 		}
 
 		let (mut bloc_container, mut ratio) = (None, 0.0);
 
 		self.slots.iter().enumerate().for_each(|(slot_id, slot)| {
-			if slot.collide_rect(position - self.position.coords, size) && !slot.has_child() {
-				let new_ratio = slot.get_ratio(position - self.position.coords, size);
+			if slot.get_rect().collide_rect(rect.translated(-self.rect.position.coords)) && !slot.has_child() {
+				let new_ratio = slot.get_ratio(rect.translated(-self.rect.position.coords));
 				if new_ratio > ratio {
 					bloc_container = Some(BlocContainer::Slot { slot_id });
 					ratio = new_ratio;
@@ -269,8 +255,8 @@ impl Bloc {
 		});
 
 		self.sequences.iter().enumerate().for_each(|(sequence_id, sequence)| {
-			if sequence.collide_rect(position - self.position.coords, size) {
-				let (place, new_ratio) = sequence.get_place_ratio(position - self.position.coords, size);
+			if sequence.get_rect().collide_rect(rect.translated(-self.rect.position.coords)) {
+				let (place, new_ratio) = sequence.get_place_ratio(rect.translated(-self.rect.position.coords));
 				if new_ratio > ratio {
 					bloc_container = Some(BlocContainer::Sequence { sequence_id, place });
 					ratio = new_ratio;
@@ -306,38 +292,25 @@ impl Bloc {
 		}
 	}
 
-	pub fn collide_point(&self, point: Point2<f64>) -> bool {
-		self.position.x < point.x
-			&& point.x < self.position.x + self.size.x
-			&& self.position.y < point.y
-			&& point.y < self.position.y + self.size.y
-	}
-
-	pub fn collide_rect(&self, position: Point2<f64>, size: Vector2<f64>) -> bool {
-		self.position.x < position.x + size.x
-			&& position.x < self.position.x + self.size.x
-			&& self.position.y < position.y + size.y
-			&& position.y < self.position.y + self.size.y
-	}
-
 	pub fn draw(
 		&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, moving: bool,
 		selected: Option<&BlocElement>, hovered: Option<&BlocElement>,
 	) {
-		/*
+		
 		// SHADOW
 		if moving {
 			let shadow_color = Color::from((0, 0, 0, 50));
 			canvas.set_blend_mode(BlendMode::Mod);
-			fill_rounded_rect(canvas, Some(camera), shadow_color, self.position + Self::SHADOW, self.size, Self::RADIUS);
+			fill_rounded_rect(canvas, Some(camera), shadow_color, self.rect.translated(Self::SHADOW), Self::RADIUS);
 			canvas.set_blend_mode(BlendMode::None);
 		};
 		// BODY
-		fill_rounded_rect(canvas, Some(camera), self.color, self.position, self.size, Self::RADIUS);
+		fill_rounded_rect(canvas, Some(camera), self.color, self.rect, Self::RADIUS);
 		if selected.is_some() || hovered.is_some() {
 			// TOP BOX
-			let position = Vector2::new((self.size.x - Self::TOP_BOX_SIZE.x) * 0.5, -Self::TOP_BOX_SIZE.y);
-			fill_rounded_rect(canvas, Some(camera), self.color, self.position + position, Self::TOP_BOX_SIZE, Self::RADIUS);
+			let position = Vector2::new((self.rect.size.x - Self::TOP_BOX_SIZE.x) * 0.5, -Self::TOP_BOX_SIZE.y);
+			fill_rounded_rect(canvas, Some(camera), self.color,
+			                  Rect::from(self.rect.position + position, Self::TOP_BOX_SIZE), Self::RADIUS);
 		}
 		// HOVERED
 		if let Some(element) = hovered {
@@ -345,7 +318,7 @@ impl Bloc {
 				BlocElement::Body => {
 					let hovered_color = Color::from((0, 0, 0, Bloc::HOVER_ALPHA));
 					canvas.set_blend_mode(BlendMode::Mod);
-					fill_rounded_rect(canvas, Some(camera), hovered_color, self.position, self.size, Self::RADIUS);
+					fill_rounded_rect(canvas, Some(camera), hovered_color, self.rect, Self::RADIUS);
 					canvas.set_blend_mode(BlendMode::None);
 				}
 				_ => (),
@@ -371,29 +344,28 @@ impl Bloc {
 			} else {
 				false
 			};
-			sequence.draw(canvas, camera, self.position, selected, hovered);
+			sequence.draw(canvas, camera, self.rect.position, selected, hovered);
 		});
 		// SELECTED
 		if let Some(element) = selected {
 			match element {
 				BlocElement::Body => {
-					draw_rounded_rect(canvas, Some(camera), Colors::BLACK, self.position, self.size, Self::RADIUS);
+					draw_rounded_rect(canvas, Some(camera), Colors::BLACK, self.rect, Self::RADIUS);
 				}
 				_ => (),
 			}
 		}
-		let text = format!("{}", self.id);
-		draw_text(canvas, Some(camera), text_drawer, self.position, text, 15.0, &TextStyle::default(), Align::TopLeft);
-		 */
+		let text = &format!("{}", self.id);
+		draw_text(canvas, Some(camera), text_drawer, self.rect.position, text, 15.0, &TextStyle::default(), Align::TopLeft);
 	}
 
 	pub fn draw_container_hover(&self, canvas: &mut Canvas<Window>, camera: &Camera, bloc_container: &BlocContainer) {
 		match bloc_container {
 			BlocContainer::Slot { slot_id } => {
-				self.slots[*slot_id].draw_hover(canvas, camera, self.position);
+				self.slots[*slot_id].draw_hover(canvas, camera, self.rect.position);
 			}
 			BlocContainer::Sequence { sequence_id, place } => {
-				self.sequences[*sequence_id].draw_hover(canvas, camera, self.position, *place);
+				self.sequences[*sequence_id].draw_hover(canvas, camera, self.rect.position, *place);
 			}
 		}
 	}

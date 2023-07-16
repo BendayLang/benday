@@ -42,6 +42,16 @@ impl Rect {
 	pub fn mid_bottom(&self) -> Point2<f64> { self.position + Vector2::new(self.size.x * 0.5, 0.) }
 	pub fn bottom_right(&self) -> Point2<f64> { self.position + Vector2::new(self.size.x, 0.) }
 	
+	/// Returns a new rect with the same size translated by delta
+	pub fn translated(&self, delta: Vector2<f64>) -> Self {
+		Self::from(self.position + delta, self.size)
+	}
+	/// Returns a new rect with the same center enlarged in every side by delta
+	pub fn enlarged(&self, delta: f64) -> Self {
+		let extension = Vector2::new(delta, delta);
+		Self::from(self.position - extension, self.size + 2. * extension)
+	}
+	
 	pub fn collide_point(&self, point: Point2<f64>) -> bool {
 		self.left() < point.x && point.x < self.right() && self.bottom() < point.y && point.y < self.top()
 	}

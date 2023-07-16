@@ -1,15 +1,15 @@
 use std::f64::consts::PI;
 use crate::input::{Input, KeyState};
 use crate::camera::Camera;
-use crate::color::{darker, Colors};
+use crate::color::{darker, Colors, with_alpha};
 use crate::primitives::{draw_circle, draw_polygon, draw_rounded_rect, fill_circle, fill_polygon, fill_rounded_rect};
 use crate::text::TextDrawer;
-use crate::widgets::{Orientation, Widget, HOVER, PUSH};
+use crate::widgets::{Orientation, Widget, HOVER, PUSH, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA};
 use crate::custom_rect::Rect;
 
 use nalgebra::{Point2, Vector2};
 use sdl2::pixels::Color;
-use sdl2::render::Canvas;
+use sdl2::render::{BlendMode, Canvas};
 use sdl2::ttf::FontStyle;
 use sdl2::video::Window;
 use crate::vector2::Vector2Plus;
@@ -152,7 +152,6 @@ impl Widget for Switch {
 				vertices
 			}
 		};
-		
 		fill_polygon(canvas, camera, color, &vertices);
 		draw_polygon(canvas, camera, self.style.border_color, &vertices);
 
@@ -163,13 +162,16 @@ impl Widget for Switch {
 			Orientation::Horizontal => self.rect.mid_left() + Vector2::new(radius + self.thumb_position(), 0.),
 			Orientation::Vertical => self.rect.mid_top() - Vector2::new(0., radius + self.thumb_position()),
 		};
-		
+		if focused {
+			canvas.set_blend_mode(BlendMode::Blend);
+			fill_circle(canvas, camera, with_alpha(border_color, FOCUS_HALO_ALPHA), dot_position, FOCUS_HALO_DELTA + b * radius);
+		}
 		fill_circle(canvas, camera, thumb_color, dot_position, b * radius);
 		draw_circle(canvas, camera, border_color, dot_position, b * radius);
 	}
 
-	fn collide_point(&self, point: Point2<f64>, camera: &Camera) -> bool {
-		let point = if self.has_camera { camera.transform.inverse() * point } else { point };
-		self.rect.collide_point(point)
-	}
+	fn get_rect(&self) -> Rect { self.rect }
+	fn get_rect_mut(&mut self) -> &mut Rect { &mut self.rect }
+	
+	fn has_camera(&self) -> bool { self.has_camera }
 }

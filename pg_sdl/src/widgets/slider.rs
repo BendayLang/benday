@@ -1,15 +1,15 @@
 use std::f64::consts::{PI, TAU};
 use crate::input::{Input, KeyState};
-use crate::widgets::{Widget, HOVER, PUSH, Orientation};
+use crate::widgets::{Widget, HOVER, PUSH, Orientation, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA};
 use crate::custom_rect::Rect;
 use nalgebra::{Point2, Vector2};
 use crate::vector2::Vector2Plus;
 use sdl2::pixels::Color;
-use sdl2::render::Canvas;
+use sdl2::render::{BlendMode, Canvas};
 use sdl2::ttf::FontStyle;
 
 use crate::camera::Camera;
-use crate::color::{darker, paler, Colors};
+use crate::color::{darker, paler, Colors, with_alpha};
 use crate::primitives::{draw_circle, draw_polygon, draw_rect, draw_rounded_rect, draw_text, fill_circle, fill_polygon, fill_rect, fill_rounded_rect};
 use crate::style::Align;
 use crate::text::{TextDrawer, TextStyle};
@@ -249,11 +249,11 @@ impl Widget for Slider {
 				(empty_track, filled_track, vec![thumb_top, thumb_bottom])
 			},
 			Orientation::Vertical => {
-				let mut empty_track: Vec<Point2<f64>> = (0..=faces_nb).map(|i| {
+				let empty_track: Vec<Point2<f64>> = (0..=faces_nb).map(|i| {
 					let angle = PI * (i as f64 / faces_nb as f64 + 1.0);
 					self.rect.mid_bottom() + Vector2::new(0., thumb_radius) + Vector2::new_polar(bar_radius, angle)
 				}).collect();
-				let mut filled_track: Vec<Point2<f64>> = (0..=faces_nb).map(|i| {
+				let filled_track: Vec<Point2<f64>> = (0..=faces_nb).map(|i| {
 					let angle = PI * (i as f64 / faces_nb as f64);
 					self.rect.mid_top() - Vector2::new(0., thumb_radius) + Vector2::new_polar(bar_radius, angle)
 				}).collect();
@@ -278,6 +278,10 @@ impl Widget for Slider {
 			Orientation::Vertical => Vector2::new(thumb_radius, thumb_position),
 		};
 		
+		if focused {
+			canvas.set_blend_mode(BlendMode::Blend);
+			fill_circle(canvas, camera, with_alpha(border_color, FOCUS_HALO_ALPHA), thumb_position, FOCUS_HALO_DELTA + thumb_radius);
+		}
 		fill_circle(canvas, camera, thumb_color, thumb_position, thumb_radius);
 		draw_circle(canvas, camera, border_color, thumb_position, thumb_radius);
 		
@@ -303,8 +307,8 @@ impl Widget for Slider {
 		}
 	}
 	
-	fn collide_point(&self, point: Point2<f64>, camera: &Camera) -> bool {
-		let point = if self.has_camera { camera.transform.inverse() * point } else { point };
-		self.rect.collide_point(point)
-	}
+	fn get_rect(&self) -> Rect { self.rect }
+	fn get_rect_mut(&mut self) -> &mut Rect { &mut self.rect }
+	
+	fn has_camera(&self) -> bool { self.has_camera }
 }
