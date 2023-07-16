@@ -138,9 +138,9 @@ impl Slot {
 
 	pub fn draw_hover(&self, canvas: &mut Canvas<Window>, camera: &Camera, position: Point2<f64>) {
 		let hovered_color = Color::from((0, 0, 0, 50));
-		canvas.set_blend_mode(BlendMode::Mod);
-		fill_rounded_rect(canvas, Some(camera), hovered_color, position + self.position, self.size, Self::RADIUS);
-		canvas.set_blend_mode(BlendMode::None);
+		// canvas.set_blend_mode(BlendMode::Mod);
+		// fill_rounded_rect(canvas, Some(camera), hovered_color, position + self.position, self.size, Self::RADIUS);
+		// canvas.set_blend_mode(BlendMode::None);
 	}
 
 	// Retourne l’ASTNode de la séquence.
@@ -320,6 +320,7 @@ impl Sequence {
 
 	/// Affiche la séquence.
 	pub fn draw(&self, canvas: &mut Canvas<Window>, camera: &Camera, position: Point2<f64>, selected: bool, hovered: bool) {
+		/*
 		fill_rounded_rect(canvas, Some(camera), darker(self.color, 0.7), position + self.position, self.size, Self::RADIUS);
 		if selected {
 			draw_rounded_rect(canvas, Some(camera), Colors::BLACK, position + self.position, self.size, Self::RADIUS);
@@ -330,6 +331,7 @@ impl Sequence {
 			fill_rounded_rect(canvas, Some(camera), hovered_color, position + self.position, self.size, Self::RADIUS);
 			canvas.set_blend_mode(BlendMode::None);
 		}
+		 */
 	}
 
 	pub fn draw_hover(&self, canvas: &mut Canvas<Window>, camera: &Camera, position: Point2<f64>, place: usize) {
@@ -340,9 +342,9 @@ impl Sequence {
 		};
 
 		let hovered_color = Color::from((0, 0, 0, 50));
-		canvas.set_blend_mode(BlendMode::Mod);
-		fill_rounded_rect(canvas, Some(camera), hovered_color, position + self.position + place_position, size, radius);
-		canvas.set_blend_mode(BlendMode::None);
+		// canvas.set_blend_mode(BlendMode::Mod);
+		// fill_rounded_rect(canvas, Some(camera), hovered_color, position + self.position + place_position, size,radius);
+		// canvas.set_blend_mode(BlendMode::None);
 	}
 }
 

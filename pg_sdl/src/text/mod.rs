@@ -79,15 +79,13 @@ impl TextDrawer {
 		self.texture_creator.create_texture_from_surface(&surface).map_err(|e| e.to_string()).ok().unwrap()
 	}
 	
-	pub fn text_size(&self, text: &str, style: &TextStyle, font_size: f64) -> Vector2<u32> {
-		if text.is_empty() {
-			return Vector2::zeros();
-		}
-		let TextureQuery { width, height,  .. } = self.get_texture(text, style, font_size as u16).query();
+	pub fn text_size(&self, text: &str, font_size: f64, style: &TextStyle) -> Vector2<u32> {
+		if text.is_empty() { return Vector2::zeros(); }
+		let TextureQuery { width, height, .. } = self.get_texture(text, style, font_size as u16).query();
 		Vector2::new(width, height)
 	}
 	
-	pub fn draw(&self, canvas: &mut Canvas<Window>, position: Point2<f64>, text: &str, font_size: f64, style: &TextStyle, align: Align, ) {
+	pub fn draw(&self, canvas: &mut Canvas<Window>, position: Point2<f64>, text: &str, font_size: f64, style: &TextStyle, align: Align) {
 		let texture = self.get_texture(text, style, font_size as u16);
 		let TextureQuery { width, height, .. } = texture.query();
 		let size: Vector2<f64> = Vector2::new(width as f64, height as f64);

@@ -4,15 +4,17 @@ use crate::input::Input;
 use crate::primitives::{draw_text, fill_rounded_rect};
 use crate::style::Align;
 use crate::text::{TextDrawer, TextStyle};
-use crate::widgets::{MyRect, Widget, WidgetsManager};
+use crate::widgets::{Widget, WidgetsManager};
+use crate::custom_rect::Rect;
 use nalgebra::{Point2, Vector2};
 use ndarray::AssignElem;
 use sdl2::mouse::{Cursor, MouseUtil, SystemCursor};
-use sdl2::rect::{Point, Rect};
 use sdl2::ttf::FontStyle;
 use sdl2::{pixels::Color, render::Canvas, video::Window};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
+use sdl2::render::BlendMode;
+
 
 pub trait App {
 	fn update(&mut self, delta_sec: f64, input: &Input, widgets_manager: &mut WidgetsManager, camera: &mut Camera) -> bool;
@@ -48,7 +50,7 @@ impl PgSdl {
 			.build()
 			.expect("Window could not be created");
 		
-		let canvas = window.into_canvas().build().expect("Canvas could not be created");
+		let mut canvas = window.into_canvas().build().expect("Canvas could not be created");
 		
 		// TODO mettre ca en paramettre ?
 		let resolution = Vector2::new(window_width, window_height);
@@ -67,10 +69,18 @@ impl PgSdl {
 		}
 	}
 	
-	fn draw_fps(&mut self, delta_sec: f64) {
-		fill_rounded_rect(&mut self.canvas, None, Colors::WHITE, MyRect::new(10.0, 2.0, 120.0, 32.0), 5.0);
-		draw_text(&mut self.canvas, None, &self.text_drawer, Point2::new(65., 17.), format!("FPS: {0:.0}", 1.0 / delta_sec),
-		          24.0, &TextStyle::default(), Align::Center);
+	fn update<U>(&mut self, user_app: &mut U, delta_sec: f64) -> bool
+	             where
+		             U: App,
+	{
+		let mut change = false;
+		if let Some(new_resolution) = self.input.window_resized {
+			self.camera.resize(new_resolution);
+			change = true;
+		}
+		change |= self.widgets_manager.update(&self.input, delta_sec, &mut self.text_drawer, &self.camera);
+		change |= user_app.update(delta_sec, &self.input, &mut self.widgets_manager, &mut self.camera);
+		change
 	}
 	
 	fn draw<U>(&mut self, user_app: &U)
@@ -83,17 +93,10 @@ impl PgSdl {
 		self.widgets_manager.draw(&mut self.canvas, &self.text_drawer, &self.camera);
 	}
 	
-	fn update<U>(&mut self, user_app: &mut U, delta_sec: f64) -> bool
-	             where
-		             U: App,
-	{
-		if let Some(new_resolution) = self.input.window_resized {
-			self.camera.resize(new_resolution)
-		}
-		let mut change = false;
-		change |= self.widgets_manager.update(&self.input, delta_sec, &mut self.text_drawer, &self.camera);
-		change |= user_app.update(delta_sec, &self.input, &mut self.widgets_manager, &mut self.camera);
-		change
+	fn draw_fps(&mut self, delta_sec: f64) {
+		fill_rounded_rect(&mut self.canvas, None, Colors::WHITE, Rect::new(10.0, 2.0, 120.0, 32.0), 5.0);
+		draw_text(&mut self.canvas, None, &self.text_drawer, Point2::new(65., 17.), &format!("FPS: {0:.0}", 1.0 / delta_sec),
+		          24.0, &TextStyle::default(), Align::Center);
 	}
 	
 	pub fn run<U>(&mut self, user_app: &mut U)
@@ -141,15 +144,15 @@ impl PgSdl {
 		}
 	}
 	
-	pub fn add_widget(&mut self, name: &str, widget: Box<dyn Widget>) -> &mut Self {
-		self.widgets_manager.add(name, widget);
+	pub fn add_widget(&mut self, widget: Box<dyn Widget>) -> &mut Self {
+		self.widgets_manager.add(widget);
 		self
 	}
 	
-	pub fn add_widgets(&mut self, widgets: HashMap<&str, Box<dyn Widget>>) {
-		for (name, widget) in widgets {
-			self.widgets_manager.add(name, widget);
-		}
+	pub fn add_widgets(&mut self, widgets: Vec<Box<dyn Widget>>) {
+		widgets.into_iter().for_each(|widget| {
+			self.widgets_manager.add(widget);
+		});
 	}
 	
 	pub fn change_mouse_cursor(&mut self) {

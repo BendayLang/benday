@@ -19,3 +19,4 @@ pub mod style;
 pub mod text;
 pub mod vector2;
 pub mod widgets;
+pub mod custom_rect;

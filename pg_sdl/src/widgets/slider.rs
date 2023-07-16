@@ -1,21 +1,58 @@
+use std::f64::consts::{PI, TAU};
 use crate::input::{Input, KeyState};
-use crate::widgets::{Widget, HOVER, PUSH};
+use crate::widgets::{Widget, HOVER, PUSH, Orientation};
+use crate::custom_rect::Rect;
 use nalgebra::{Point2, Vector2};
+use crate::vector2::Vector2Plus;
 use sdl2::pixels::Color;
-use sdl2::rect::Rect;
 use sdl2::render::Canvas;
 use sdl2::ttf::FontStyle;
 
 use crate::camera::Camera;
 use crate::color::{darker, paler, Colors};
-use crate::primitives::{draw_circle, draw_rounded_rect, fill_circle, fill_rounded_rect};
+use crate::primitives::{draw_circle, draw_polygon, draw_rect, draw_rounded_rect, draw_text, fill_circle, fill_polygon, fill_rect, fill_rounded_rect};
 use crate::style::Align;
 use crate::text::{TextDrawer, TextStyle};
 use sdl2::video::Window;
 
-pub enum Orientation {
-	Horizontal,
-	Vertical,
+
+pub struct SliderStyle {
+	filled_track_color: Color,
+	empty_track_color: Color,
+	thumb_color: Color,
+	thumb_hovered_color: Color,
+	thumb_pushed_color: Color,
+	focused_color: Color,
+	border_color: Color,
+}
+
+impl Default for SliderStyle {
+	fn default() -> Self {
+		Self {
+			filled_track_color: Colors::LIGHT_GREY,
+			empty_track_color: Colors::LIGHTER_GREY,
+			thumb_color: Colors::LIGHT_GREY,
+			thumb_hovered_color: darker(Colors::LIGHT_GREY, HOVER),
+			thumb_pushed_color: darker(Colors::LIGHT_GREY, PUSH),
+			focused_color: Colors::BLUE,
+			border_color: Colors::BLACK,
+		}
+	}
+}
+
+impl SliderStyle {
+	pub fn new(track_color: Color, thumb_color: Color) -> Self {
+		let empty_track_color = paler(track_color, 0.6);
+		Self {
+			filled_track_color: track_color,
+			empty_track_color,
+			thumb_color,
+			thumb_hovered_color: darker(thumb_color, HOVER),
+			thumb_pushed_color: darker(thumb_color, PUSH),
+			focused_color: Colors::BLUE,
+			border_color: Colors::BLACK,
+		}
+	}
 }
 
 /// A slider can be:
@@ -35,44 +72,24 @@ pub enum SliderType {
 ///
 /// It can be discrete or continuous
 pub struct Slider {
-	position: Point2<f64>,
-	size: Vector2<f64>,
-	color: Color,
-	hovered_color: Color,
-	back_color: Color,
-	hovered_back_color: Color,
-	thumb_color: Color,
-	hovered_thumb_color: Color,
-	pushed_thumb_color: Color,
-	orientation: Orientation,
-	pub state: KeyState,
+	rect: Rect,
+	state: KeyState,
+	has_camera: bool,
 	/// Internal value of the slider (0.0 - 1.0)
 	value: f32,
+	style: SliderStyle,
+	orientation: Orientation,
 	slider_type: SliderType,
-	has_camera: bool,
 }
 
 impl Slider {
-	pub fn new(position: Point2<f64>, size: Vector2<f64>, color: Color, slider_type: SliderType, has_camera: bool) -> Self {
-		let orientation = {
-			if size.x > size.y {
-				Orientation::Horizontal
-			} else {
-				Orientation::Vertical
-			}
-		};
-		let thumb_color = Colors::LIGHT_GREY;
-		let back_color = darker(paler(color, 0.5), 0.9);
+	const SPEED: f32 = 2.5;
+	
+	pub fn new(rect: Rect, style: SliderStyle, slider_type: SliderType, has_camera: bool) -> Self {
+		let orientation = if rect.width() > rect.height() { Orientation::Horizontal } else { Orientation::Vertical };
 		Self {
-			position,
-			size,
-			color,
-			hovered_color: darker(color, HOVER),
-			back_color,
-			hovered_back_color: darker(back_color, HOVER),
-			thumb_color,
-			hovered_thumb_color: darker(thumb_color, HOVER),
-			pushed_thumb_color: darker(thumb_color, PUSH),
+			rect,
+			style,
 			orientation,
 			state: KeyState::new(),
 			value: match slider_type {
@@ -84,7 +101,7 @@ impl Slider {
 		}
 	}
 	
-	/// Renvoie la valeur du slider comme un u32 si le slider est discret, sinon comme un f32
+	/// Renvoie la valeur du slider (u32 si le slider est discret, f32 s'il est continu).
 	pub fn get_value(&self) -> f32 {
 		match &self.slider_type {
 			SliderType::Discrete { snap, .. } => (self.value * *snap as f32).round(),
@@ -99,48 +116,91 @@ impl Slider {
 		};
 	}
 	
-	pub fn set_value(&mut self, value: f32) {
-		self.value = value;
-	}
-	
-	fn thumb_position(&self) -> f64 {
-		self.value as f64 * self.length()
-	}
+	fn thumb_position(&self) -> f64 { self.value as f64 * self.length() }
 	
 	fn length(&self) -> f64 {
 		match self.orientation {
-			Orientation::Horizontal => self.size.x - self.size.y,
-			Orientation::Vertical => self.size.y - self.size.x,
+			Orientation::Horizontal => self.rect.width() - self.rect.height(),
+			Orientation::Vertical => self.rect.height() - self.rect.width(),
 		}
 	}
 	
 	fn thickness(&self) -> f64 {
 		match self.orientation {
-			Orientation::Horizontal => self.size.y,
-			Orientation::Vertical => self.size.x,
+			Orientation::Horizontal => self.rect.height(),
+			Orientation::Vertical => self.rect.width(),
 		}
+	}
+	
+	fn scroll_with_keys(&mut self, delta_sec: f64, plus_key: KeyState, minus_key: KeyState) -> bool {
+		let mut changed = false;
+		if plus_key.is_pressed() && self.value != 1. {
+			match self.slider_type {
+				SliderType::Discrete { snap, .. } => {
+					self.value += 1. / snap as f32
+				},
+				SliderType::Continuous { .. } => {
+					self.value += delta_sec as f32 * Self::SPEED;
+				}
+			}
+			self.value = self.value.min(1.);
+			self.state.press();
+			changed = true;
+		} else if plus_key.is_released() {
+			self.state.release();
+			changed = true;
+		}
+		if minus_key.is_pressed() && self.value != 0. {
+			match self.slider_type {
+				SliderType::Discrete { snap, .. } => {
+					self.value -= 1. / snap as f32
+				},
+				SliderType::Continuous { .. } => {
+					self.value -= delta_sec as f32 * Self::SPEED;
+				}
+			}
+			self.value = self.value.max(0.);
+			self.state.press();
+			changed = true;
+		} else if minus_key.is_released() {
+			self.state.release();
+			changed = true;
+		}
+		changed
 	}
 }
 
 impl Widget for Slider {
-	fn update(&mut self, input: &Input, _delta: f64, _text_drawer: &TextDrawer, camera: &Camera) -> bool {
+	fn update(&mut self, input: &Input, delta_sec: f64, _text_drawer: &TextDrawer, camera: &Camera) -> bool {
 		let mut changed = false;
 		self.state.update();
 		
 		if input.mouse.left_button.is_pressed() {
 			self.state.press();
 			changed = true;
-		} else if self.state.is_down() && input.mouse.left_button.is_released() {
+		} else if input.mouse.left_button.is_released() {
 			self.state.release();
 			changed = true;
 		}
 		
-		if self.state.is_pressed() | self.state.is_down() {
+		match self.orientation {
+			Orientation::Horizontal => {
+				changed |= self.scroll_with_keys(delta_sec, input.keys_state.right, input.keys_state.left);
+			},
+			Orientation::Vertical => {
+				changed |= self.scroll_with_keys(delta_sec, input.keys_state.up, input.keys_state.down);
+			}
+		}
+		
+		if input.mouse.left_button.is_pressed() || input.mouse.left_button.is_down() {
 			let value = {
-				let point = input.mouse.position.cast::<f64>();
+				let mouse_position = if self.has_camera {
+					camera.transform.inverse() * input.mouse.position.cast()
+				} else { input.mouse.position.cast() };
+				
 				let thumb_position = match self.orientation {
-					Orientation::Horizontal => point.x - self.position.x,
-					Orientation::Vertical => self.position.y + self.size.y - point.y,
+					Orientation::Horizontal => mouse_position.x - self.rect.left(),
+					Orientation::Vertical => self.rect.bottom() + self.rect.height() - mouse_position.y,
 				} - self.thickness() * 0.5;
 				thumb_position.clamp(0.0, self.length()) as f32 / self.length() as f32
 			};
@@ -159,113 +219,92 @@ impl Widget for Slider {
 		changed
 	}
 	
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, selected: bool, hovered: bool) {
-		let b = 0.7;
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, focused: bool, hovered: bool) {
+		let thumb_radius = self.thickness() * 0.5;
+		let bar_radius = thumb_radius * 0.6;
+		let margin = thumb_radius - bar_radius;
+		let thumb_position = match self.orientation {
+			Orientation::Horizontal => self.thumb_position() + thumb_radius,
+			Orientation::Vertical => self.rect.height() - self.thumb_position() - thumb_radius,
+		};
+		let thumb_color = if self.state.is_pressed() || self.state.is_down() { self.style.thumb_pushed_color }
+		else if hovered { self.style.thumb_hovered_color } else { self.style.thumb_color };
+		let border_color = if focused { self.style.focused_color } else { self.style.border_color };
 		let camera = if self.has_camera { Some(camera) } else { None };
-		let margin = self.thickness() * (1.0 - b) * 0.5;
-		let half_width = self.thickness() * 0.5;
 		
-		// Background
-		/*
-		let radius = half_width * b - 1.0;
-		let (position, size) = match self.orientation {
-			Orientation::Horizontal => (
-				Point2::new(self.position.x + self.thumb_position() + half_width, self.position.y + margin),
-				Vector2::new(self.size.x - self.thumb_position() - half_width - margin, self.size.y * b)
-			),
-			Orientation::Vertical => (
-				Point2::new(self.position.x + margin, self.position.y + margin),
-				Vector2::new(self.size.x * b, self.size.y - self.thumb_position() - half_width - margin)
-			),
+		let faces_nb = 7;
+		let (mut empty_track, mut filled_track, track_center) = match self.orientation {
+			Orientation::Horizontal => {
+				let empty_track: Vec<Point2<f64>> = (0..=faces_nb).map(|i| {
+					let angle = PI * (i as f64 / faces_nb as f64 - 0.5);
+					self.rect.mid_right() - Vector2::new(thumb_radius, 0.) + Vector2::new_polar(bar_radius, angle)
+				}).collect();
+				let filled_track: Vec<Point2<f64>> = (0..=faces_nb).map(|i| {
+					let angle = PI * (i as f64 / faces_nb as f64 + 0.5);
+					self.rect.mid_left() + Vector2::new(thumb_radius, 0.) + Vector2::new_polar(bar_radius, angle)
+				}).collect();
+				
+				let thumb_top = self.rect.top_left() + Vector2::new(thumb_position, -margin);
+				let thumb_bottom = self.rect.bottom_left() + Vector2::new(thumb_position, margin);
+				(empty_track, filled_track, vec![thumb_top, thumb_bottom])
+			},
+			Orientation::Vertical => {
+				let mut empty_track: Vec<Point2<f64>> = (0..=faces_nb).map(|i| {
+					let angle = PI * (i as f64 / faces_nb as f64 + 1.0);
+					self.rect.mid_bottom() + Vector2::new(0., thumb_radius) + Vector2::new_polar(bar_radius, angle)
+				}).collect();
+				let mut filled_track: Vec<Point2<f64>> = (0..=faces_nb).map(|i| {
+					let angle = PI * (i as f64 / faces_nb as f64);
+					self.rect.mid_top() - Vector2::new(0., thumb_radius) + Vector2::new_polar(bar_radius, angle)
+				}).collect();
+				
+				let thumb_right = self.rect.bottom_right() + Vector2::new(-margin, thumb_position);
+				let thumb_left = self.rect.bottom_left() + Vector2::new(margin, thumb_position);
+				(empty_track, filled_track, vec![thumb_right, thumb_left])
+			}
 		};
-		let color = if hovered | self.state.is_pressed() | self.state.is_down() { self.hovered_back_color } else { self.back_color };
-		fill_rounded_rect(canvas, camera, color, position, size, radius);
-		draw_rounded_rect(canvas, camera, Colors::BLACK, position, size, radius);
-		if selected {
-			let one = Vector2::new(1.0, 1.0);
-			draw_rounded_rect(canvas, camera, Colors::BLUE, position + one, size - 2.0 * one, radius - 1.0);
-			draw_rounded_rect(canvas, camera, Colors::BLUE, position + one, size - 2.0 * one, radius - 2.0);
-		}
+		let mut full_track = empty_track.clone();
+		full_track.extend(filled_track.clone());
+		empty_track.extend(track_center.clone());
+		filled_track.extend(track_center.iter().rev());
 		
-		let (position, size): (Point2<f64>, Vector2<f64>) = match self.orientation {
-			Orientation::Horizontal => (
-				Point2::new(self.position.x + margin, self.position.y + margin),
-				Vector2::new(self.thumb_position() + half_width - margin, self.size.y * b),
-			),
-			Orientation::Vertical => (
-				Point2::new(self.position.x + margin, self.position.y + self.size.y - (self.thumb_position() + self
-					.thickness() * 0.5)),
-				Vector2::new(self.size.x * b, self.thumb_position() + half_width - margin),
-			),
-		};
+		fill_polygon(canvas, camera, self.style.empty_track_color, &empty_track);
+		fill_polygon(canvas, camera, self.style.filled_track_color, &filled_track);
+		draw_polygon(canvas, camera, self.style.border_color, &full_track);
 		
-		let color = if hovered | self.state.is_down() { self.hovered_color } else { self.color };
-		fill_rounded_rect(canvas, camera, color, position, size, radius);
-		draw_rounded_rect(canvas, camera, Colors::BLACK, position, size, radius);
-		if selected {
-			let one = Vector2::new(1.0, 1.0);
-			draw_rounded_rect(canvas, camera, Colors::BLUE, position + one, size - 2.0 * one, radius - 1.0);
-			draw_rounded_rect(canvas, camera, Colors::BLUE, position + one, size - 2.0 * one, radius - 2.0);
-		}
-		 */
-		
-		// Pad
-		let position = match self.orientation {
-			Orientation::Horizontal =>
-				Point2::new(self.position.x + self.thumb_position() + half_width,
-				            self.position.y + half_width),
-			Orientation::Vertical =>
-				Point2::new(self.position.x + half_width,
-				            self.position.y + self.size.y - self.thumb_position() - half_width),
+		// Thumb
+		let thumb_position = self.rect.bottom_left() + match self.orientation {
+			Orientation::Horizontal => Vector2::new(thumb_position, thumb_radius),
+			Orientation::Vertical => Vector2::new(thumb_radius, thumb_position),
 		};
 		
-		let color = if self.state.is_down() { self.pushed_thumb_color } else if hovered { self.hovered_thumb_color } else { self.thumb_color };
-		fill_circle(canvas, camera, color, position, half_width);
-		draw_circle(canvas, camera, Colors::BLACK, position, half_width);
+		fill_circle(canvas, camera, thumb_color, thumb_position, thumb_radius);
+		draw_circle(canvas, camera, border_color, thumb_position, thumb_radius);
 		
-		if selected {
-			draw_circle(canvas, camera, Colors::BLUE, position, half_width - 1.0);
-		}
-		
-		let position = match self.orientation {
-			Orientation::Horizontal => self.position + Vector2::new(self.size.x * 0.5, self.size.y * 1.5),
-			Orientation::Vertical => self.position + Vector2::new(self.size.x * 0.5, self.size.y + self.size.x * 0.5)
+		let text_position = match self.orientation {
+			Orientation::Horizontal => self.rect.position + Vector2::new(self.rect.width() * 0.5, self.rect.height() * 1.5),
+			Orientation::Vertical => self.rect.position + Vector2::new(self.rect.width() * 0.5, self.rect.height() + self.rect.width() * 0.5)
 		};
 		match &self.slider_type {
 			SliderType::Discrete { snap, display, .. } => {
 				if let Some(format) = display {
 					let text: String = format((self.value * *snap as f32).round() as u32);
-					text_drawer.draw(
-						canvas,
-						position,
-						&text,
-						20.0,
-						&TextStyle::new(None, Color::BLACK, FontStyle::NORMAL),
-						Align::Center,
-					);
+					draw_text(canvas, camera, text_drawer, text_position, &text,
+					          20.0, &TextStyle::default(), Align::Center);
 				}
 			}
 			SliderType::Continuous { display, .. } => {
 				if let Some(format) = display {
 					let text = format(self.value);
-					text_drawer.draw(
-						canvas,
-						position,
-						&text,
-						20.0,
-						&TextStyle::new(None, Color::BLACK, FontStyle::NORMAL),
-						Align::Center,
-					);
+					draw_text(canvas, camera, text_drawer, text_position, &text,
+					          20.0, &TextStyle::default(), Align::Center);
 				}
 			}
 		}
 	}
 	
 	fn collide_point(&self, point: Point2<f64>, camera: &Camera) -> bool {
-		let point = if self.has_camera { camera.transform * point } else { point };
-		self.position.x < point.x
-			&& point.x < self.position.x + self.size.x
-			&& self.position.y < point.y
-			&& point.y < self.position.y + self.size.y
+		let point = if self.has_camera { camera.transform.inverse() * point } else { point };
+		self.rect.collide_point(point)
 	}
 }

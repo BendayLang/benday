@@ -97,7 +97,7 @@ impl WidgetS for TextBoxS {
 			changed = true;
 		}
 
-		if input.mouse.left_button_double_clicked() {
+		if input.mouse.left_button.is_double_pressed() {
 			// Mouse double click
 			self.selection = Some((0, self.content.len()));
 			changed = true;
@@ -221,7 +221,7 @@ impl WidgetS for TextBoxS {
 
 	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, selected: bool, hovered: bool) {
 		let color = if selected { self.default_color } else { self.color };
-		fill_rounded_rect(canvas, Some(camera), color, self.base_widget.position, self.base_widget.size, Slot::RADIUS);
+		// fill_rounded_rect(canvas, Some(camera), color, self.base_widget.position, self.base_widget.size, Slot::RADIUS);
 		let text_position = self.base_widget.position + Vector2::new(5.0, self.base_widget.size.y * 0.5);
 		/*
 		if self.content.is_empty() {

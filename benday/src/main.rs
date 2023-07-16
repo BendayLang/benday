@@ -1,7 +1,8 @@
 // #![allow(dead_code, unused_variables)]
 mod blocs;
 
-use crate::blocs::BlocType;
+use blocs::BlocType;
+use pg_sdl::custom_rect::Rect;
 use blocs::{Bloc, BlocContainer, BlocElement};
 use nalgebra::{Point2, Vector2};
 use pg_sdl::app::{App, PgSdl};
@@ -16,8 +17,11 @@ use sdl2::render::Canvas;
 use sdl2::ttf::FontStyle;
 use sdl2::video::{Window, WindowContext};
 use std::collections::HashMap;
-use pg_sdl::primitives::draw_rect;
+use sdl2::pixels::Color;
+use pg_sdl::primitives::{draw_rect, draw_text};
 use pg_sdl::widgets::button::ButtonStyle;
+use pg_sdl::widgets::slider::SliderStyle;
+use pg_sdl::widgets::switch::{Switch, SwitchStyle};
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 struct Element {
@@ -50,15 +54,15 @@ impl App for MyApp {
 
 		match self.app_state.clone() {
 			AppState::Idle { selected_element, hovered_element } => {
-				changed |= camera.update(input, widgets_manager.is_widget_selected() || selected_element.is_some());
+				changed |= camera.update(input, widgets_manager.is_widget_focused() || selected_element.is_some());
 
 				// Add new bloc
-				if widgets_manager.get_button("Add").state.is_pressed() {
+				if widgets_manager.get_button(0).is_pressed() {
 					let id = self.id_counter;
 					let new_bloc = Bloc::new_bloc(
 						id,
-						hsv_color((id * 15) as u16, 1.0, 1.0),
-						Point2::new(8.0, 10.0) * id as f64,
+						hsv_color((id * 15) as u16, 1., 1.),
+						Point2::new(8., 10.) * id as f64,
 						BlocType::IfElse,
 					);
 					self.blocs.insert(id, new_bloc);
@@ -175,7 +179,7 @@ impl App for MyApp {
 					// iter through all blocs to get the bloc with the biggest 'ratio' of "hoveredness"
 					let moving_bloc = self.blocs.get(&moving_bloc_id).unwrap();
 					let moving_bloc_childs = moving_bloc.get_recursive_childs(&self.blocs);
-					let (mut new_hovered_container, mut ratio) = (None, 0.0);
+					let (mut new_hovered_container, mut ratio) = (None, 0.);
 					self.blocs_order.iter().for_each(|bloc_id| {
 						if !moving_bloc_childs.contains(bloc_id) {
 							if let Some((new_bloc_container, new_ratio)) = self
@@ -251,8 +255,8 @@ impl App for MyApp {
 
 		if let AppState::BlocMoving { hovered_container, .. } = &self.app_state {
 			if let Some(Container { bloc_container, .. }) = hovered_container {
-				let text = format!("{:?}", bloc_container);
-				text_drawer.draw(canvas, Point2::new(100., 50.), &text, 20.0, &TextStyle::default(), Align::TopLeft);
+				let text = &format!("{:?}", bloc_container);
+				draw_text(canvas, None, text_drawer, Point2::new(100., 50.), text, 20., &TextStyle::default(), Align::TopLeft);
 			}
 		}
 	}
@@ -271,33 +275,34 @@ fn main() {
 	let mut app = PgSdl::init("Benday", resolution.x, resolution.y, Some(120), true, Colors::LIGHT_GREY);
 
 	app.add_widget(
-		"Add",
 		Box::new(Button::new(
-			Point2::new(100.0, 100.0),
-			Vector2::new(200.0, 100.0),
+			Rect::new(100., 100., 200., 100.),
 			"New bloc".to_string(),
-			22.0,
+			22.,
 			ButtonStyle::default(),
 			false,
 		)),
 	);
 	app.add_widget(
-		"test",
 		Box::new(TextInput::new(
-			Point2::new(400.0, 100.0),
-			Vector2::new(120.0, 28.0),
-			"placeholder".to_string(),
-			15.0,
+			Rect::new(400., 100., 120., 28.),
+			"fixed".to_string(),
 			TextInputStyle::default(),
 			false,
 		)),
 	);
 	app.add_widget(
-		"slider",
+		Box::new(TextInput::new(
+			Rect::new(400., 100., 120., 28.),
+			"placeholder".to_string(),
+			TextInputStyle::default(),
+			true,
+		)),
+	);
+	app.add_widget(
 		Box::new(Slider::new(
-			Point2::new(100.0, 300.0),
-			Vector2::new(200.0, 40.0),
-			Colors::ORANGE,
+			Rect::new(100., 300., 200., 40.),
+			SliderStyle::new(Colors::ORANGE, Colors::LIGHT_GREY),
 			SliderType::Discrete {
 				snap: 10,
 				default_value: 5,
@@ -307,16 +312,28 @@ fn main() {
 		)),
 	);
 	app.add_widget(
-		"slider2",
 		Box::new(Slider::new(
-			Point2::new(320.0, 300.0),
-			Vector2::new(30.0, 200.0),
-			Colors::LIGHT_GREEN,
+			Rect::new(320., 300., 30., 200.),
+			SliderStyle::default(),
 			SliderType::Continuous {
 				default_value: 0.2,
-				display: Some(Box::new(|value| format!("{}", value))),
+				display: Some(Box::new(|value| format!("{:.2}", value))),
 			},
 			false,
+		)),
+	);
+	app.add_widget(
+		Box::new(Switch::new(
+			Rect::new(100., 280., 50., 30.),
+			SwitchStyle::default(),
+			true,
+		)),
+	);
+	app.add_widget(
+		Box::new(Switch::new(
+			Rect::new(135., 350., 30., 60.),
+			SwitchStyle::new(Colors::LIGHT_GREEN, Colors::LIGHT_RED),
+			true,
 		)),
 	);
 

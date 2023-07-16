@@ -1,17 +1,17 @@
 use crate::color::{darker, Colors};
 use crate::input::Input;
-use crate::primitives::{draw_rect, draw_rounded_rect, fill_rect, fill_rounded_rect};
+use crate::primitives::{draw_rect, draw_rounded_rect, draw_text, fill_rect, fill_rounded_rect};
 use crate::style::{Align, HAlign, VAlign};
 use crate::text::{TextDrawer, TextStyle};
 use crate::vector2::Vector2Plus;
+use crate::custom_rect::Rect;
+
 use nalgebra::{Matrix2, Matrix3, Point2, Scale2, Similarity2, Transform2, Translation2, Vector2};
 use sdl2::gfx::primitives::DrawRenderer;
 use sdl2::pixels::Color;
-use sdl2::rect::{Point, Rect};
 use sdl2::render::Canvas;
 use sdl2::ttf::FontStyle;
 use sdl2::video::Window;
-use crate::widgets::MyRect;
 
 pub struct Camera {
 	pub transform: Similarity2<f64>,
@@ -51,8 +51,8 @@ impl Camera {
 		self.transform.isometry.translation.vector
 	}
 
-	pub fn is_in_scope(&self, rect: &MyRect<f64>) -> bool {
-		let camera_scope = MyRect::from(Point2::origin(), self.resolution.cast());
+	pub fn is_in_scope(&self, rect: Rect) -> bool {
+		let camera_scope = Rect::from(Point2::origin(), self.resolution.cast());
 		camera_scope.collide_rect(rect)
 	}
 
@@ -251,8 +251,8 @@ impl Camera {
 						DrawRenderer::vline(canvas, x, y1, y2, axes_color).unwrap();
 
 						let position = Point2::new(x as f64, (y1 as f64 + y2 as f64) / 2.);
-						let text = format!("{}", x_th as f64 * unit);
-						text_drawer.draw(canvas, position, &text, font_size, &text_style, alignment);
+						let text = &format!("{}", x_th as f64 * unit);
+						draw_text(canvas, Some(self), text_drawer, position, text, font_size, &text_style, alignment);
 					}
 				});
 				(start.y..end.y).for_each(|y_th| {
@@ -261,8 +261,8 @@ impl Camera {
 						DrawRenderer::hline(canvas, x1, x2, y, axes_color).unwrap();
 
 						let position = Point2::new((x1 as f64 + x2 as f64) / 2., y as f64);
-						let text = format!("{}", y_th as f64 * unit);
-						text_drawer.draw(canvas, position, &text, font_size, &text_style, alignment);
+						let text = &format!("{}", y_th as f64 * unit);
+						draw_text(canvas, Some(self), text_drawer, position, text, font_size, &text_style, alignment);
 					}
 				});
 			});

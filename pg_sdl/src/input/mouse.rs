@@ -64,9 +64,4 @@ impl Mouse {
 			_ => {}
 		}
 	}
-
-	pub fn left_button_double_clicked(&self) -> bool {
-		self.left_button.is_double_pressed()
-		// self.left_button.is_pressed() && self.left_button_last_release.elapsed().as_millis() < Self::TIME_TO_DOUBLE_CLICK
-	}
 }

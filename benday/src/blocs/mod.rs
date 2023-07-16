@@ -324,6 +324,7 @@ impl Bloc {
 		&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, moving: bool,
 		selected: Option<&BlocElement>, hovered: Option<&BlocElement>,
 	) {
+		/*
 		// SHADOW
 		if moving {
 			let shadow_color = Color::from((0, 0, 0, 50));
@@ -383,6 +384,7 @@ impl Bloc {
 		}
 		let text = format!("{}", self.id);
 		draw_text(canvas, Some(camera), text_drawer, self.position, text, 15.0, &TextStyle::default(), Align::TopLeft);
+		 */
 	}
 
 	pub fn draw_container_hover(&self, canvas: &mut Canvas<Window>, camera: &Camera, bloc_container: &BlocContainer) {

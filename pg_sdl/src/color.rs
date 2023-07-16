@@ -5,9 +5,11 @@ pub struct Colors;
 
 impl Colors {
 	pub const WHITE: Color = Color::RGB(255, 255, 255);
+	pub const LIGHTER_GREY: Color = Color::RGB(223, 223, 223);
 	pub const LIGHT_GREY: Color = Color::RGB(191, 191, 191);
 	pub const GREY: Color = Color::RGB(127, 127, 127);
 	pub const DARK_GREY: Color = Color::RGB(63, 63, 63);
+	pub const DARKER_GREY: Color = Color::RGB(31, 31, 31);
 	pub const BLACK: Color = Color::RGB(0, 0, 0);
 
 	pub const DARK_RED: Color = Color::RGB(127, 0, 0);

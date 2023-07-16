@@ -78,6 +78,9 @@ impl ChadKeyState {
 	pub fn is_double_pressed(&self) -> bool {
 		*self == Self::DoublePressed
 	}
+	pub fn is_triple_pressed(&self) -> bool {
+		false // TODO triple press
+	}
 }
 
 impl KeyState {
@@ -177,6 +180,7 @@ pub struct KeysState {
 	pub rgui: KeyState,
 	pub period: KeyState,
 	pub comma: KeyState,
+	pub delete: KeyState,
 }
 
 impl KeysState {
@@ -240,6 +244,7 @@ impl KeysState {
 			rgui: KeyState::new(),
 			period: KeyState::new(),
 			comma: KeyState::new(),
+			delete: KeyState::new(),
 		}
 	}
 
@@ -298,6 +303,7 @@ impl KeysState {
 			Keycode::Tab => &self.tab,
 			Keycode::LGui => &self.lgui,
 			Keycode::RGui => &self.rgui,
+			Keycode::Delete => &self.delete,
 			_ => todo!("Keycode {:?} not implemented", keycode),
 		}
 	}
@@ -359,7 +365,8 @@ impl KeysState {
 			Keycode::RGui => &mut self.rgui,
 			Keycode::Period => &mut self.period,
 			Keycode::Comma => &mut self.comma,
-			_ => todo!("Keycode {:?} not implemented", keycode),
+			Keycode::Delete => &mut self.delete,
+			_ => &mut self.t // todo!("Keycode {:?} not implemented", keycode)
 		}
 	}
 
@@ -371,7 +378,7 @@ impl KeysState {
 		self.get_key_mut(keycode).release();
 	}
 
-	pub fn as_mut_array(&mut self) -> [&mut KeyState; 56] {
+	pub fn as_mut_array(&mut self) -> [&mut KeyState; 57] {
 		[
 			&mut self.a,
 			&mut self.b,
@@ -429,6 +436,7 @@ impl KeysState {
 			&mut self.tab,
 			&mut self.lgui,
 			&mut self.rgui,
+			&mut self.delete,
 		]
 	}
 
