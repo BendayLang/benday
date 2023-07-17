@@ -303,6 +303,16 @@ fn main() {
 			TextInputStyle::default(),
 			false,
 		)),
+	)
+	.add_widget(
+		"name",
+		Box::new(TextBox::new(
+			Point2::new(200.0, 200.0),
+			Vector2::new(200.0, 100.0),
+			ButtonStyle::default(),
+			Some("New text box".to_string()),
+			false,
+		)),
 	);
 	app.add_widget(
 		Box::new(TextInput::new(

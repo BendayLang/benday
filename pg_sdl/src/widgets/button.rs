@@ -1,19 +1,19 @@
-use nalgebra::{Point2, Vector2};
+use crate::camera::Camera;
 use crate::primitives::{draw_rect, draw_rounded_rect, draw_text, fill_rect, fill_rounded_rect};
+use crate::style::Align;
 use crate::{
 	color::{darker, Colors},
 	input::{Input, KeyState},
 	text::TextDrawer,
+	text::TextStyle,
 	widgets::Widget,
 	widgets::{HOVER, PUSH},
-	text::TextStyle,
 };
+use nalgebra::{Point2, Vector2};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
-use crate::camera::Camera;
 use crate::color::with_alpha;
-use crate::style::Align;
 use crate::custom_rect::Rect;
 use crate::widgets::{FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA};
 
@@ -106,6 +106,7 @@ impl Widget for Button {
 		let color = if self.state.is_pressed() || self.state.is_down() {
 			self.style.pushed_color } else if hovered { self.style.hovered_color } else { self.style.color };
 		let border_color = if focused { self.style.focused_color } else { self.style.border_color };
+
 		if let Some(corner_radius) = self.style.corner_radius {
 			if focused {
 				canvas.set_blend_mode(BlendMode::Blend);
