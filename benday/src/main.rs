@@ -1,6 +1,7 @@
 // #![allow(dead_code, unused_variables)]
 mod blocs;
 
+use std::any::{Any, TypeId};
 use blocs::BlocType;
 use pg_sdl::custom_rect::Rect;
 use blocs::{Bloc, BlocContainer, BlocElement};
@@ -20,6 +21,7 @@ use pg_sdl::widgets::{
 	button::{Button, ButtonStyle},
 	text_input::{TextInput, TextInputStyle}
 };
+use crate::blocs::bloc::{DraggableBloc, DraggableBlocStyle};
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 struct Element {
@@ -47,12 +49,12 @@ pub struct MyApp {
 }
 
 impl App for MyApp {
-	fn update(&mut self, delta_sec: f64, input: &Input, widgets_manager: &mut WidgetsManager, camera: &mut Camera) -> bool {
+	fn update(&mut self, _delta_sec: f64, input: &Input, widgets_manager: &mut WidgetsManager, camera: &mut Camera) -> bool {
 		let mut changed = false;
 
 		match self.app_state.clone() {
 			AppState::Idle { selected_element, hovered_element } => {
-				changed |= camera.update(input, widgets_manager.is_widget_focused() || selected_element.is_some());
+				changed |= camera.update(input, widgets_manager.focused_widget().is_some() || selected_element.is_some());
 
 				// Add new bloc
 				if widgets_manager.get::<Button>(0).unwrap().is_pressed() {
@@ -205,6 +207,7 @@ impl App for MyApp {
 				}
 			}
 		}
+		
 		changed
 	}
 
@@ -347,6 +350,20 @@ fn main() {
 		)),
 	);
 	 */
+	
+	app.add_widget(
+		Box::new(DraggableBloc::new(
+			Rect::new(100., 100., 200., 100.),
+			DraggableBlocStyle::new(Colors::LIGHT_YELLOW, 8.),
+		)),
+	);
+	
+	app.add_widget(
+		Box::new(DraggableBloc::new(
+			Rect::new(50., 50., 200., 100.),
+			DraggableBlocStyle::new(Colors::LIGHT_RED, 8.),
+		)),
+	);
 
 	app.run(my_app);
 }

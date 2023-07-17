@@ -131,6 +131,5 @@ impl Widget for Button {
 	
 	fn get_rect(&self) -> Rect { self.rect }
 	fn get_rect_mut(&mut self) -> &mut Rect { &mut self.rect }
-	
 	fn has_camera(&self) -> bool { self.has_camera }
 }

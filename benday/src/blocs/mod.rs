@@ -1,4 +1,5 @@
 pub mod containers;
+pub mod bloc;
 
 use crate::blocs::containers::{Sequence, Slot};
 use crate::Container;

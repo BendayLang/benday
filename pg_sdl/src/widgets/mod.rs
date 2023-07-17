@@ -18,10 +18,10 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::{Add, Mul};
 
-const HOVER: f32 = 0.92;
-const PUSH: f32 = 0.80;
-const FOCUS_HALO_DELTA: f64 = 2.;
-const FOCUS_HALO_ALPHA: u8 = 96;
+pub const HOVER: f32 = 0.92;
+pub const PUSH: f32 = 0.80;
+pub const FOCUS_HALO_DELTA: f64 = 2.;
+pub const FOCUS_HALO_ALPHA: u8 = 96;
 
 
 pub enum Orientation {
@@ -89,21 +89,33 @@ impl WidgetsManager {
 		if !input.mouse.delta.is_empty() {
 			let mut new_hovered_widget = None;
 			let mouse_position = input.mouse.position.cast();
-			for (name, widget) in &self.widgets {
-				let point = if widget.has_camera() { camera.transform.inverse() * mouse_position } else { mouse_position };
-				if widget.get_rect().collide_point(point) {
-					new_hovered_widget = Some(name.clone());
+			// checks collisions with the widgets without camera first
+			for id in self.order.iter().rev() {
+				let widget = self.widgets.get(id).unwrap();
+				if !widget.has_camera() && widget.get_rect().collide_point(mouse_position) {
+					new_hovered_widget = Some(id.clone());
 					break;
 				}
 			}
-			
+			// checks collisions with the widgets with camera if none without was hovered
+			if new_hovered_widget.is_none() {
+				for id in self.order.iter().rev() {
+					let widget = self.widgets.get(id).unwrap();
+					if widget.has_camera() && widget.get_rect().collide_point(camera.transform.inverse() * mouse_position) {
+						new_hovered_widget = Some(id.clone());
+						break;
+					}
+				}
+			}
 			if new_hovered_widget != self.hovered_widget {
 				self.hovered_widget = new_hovered_widget;
 				changed = true;
 			}
 		}
-		// Update the focused widget
-		if let Some(focused_widget) = &self.focused_widget {
+		
+		// Update the focused widget (if there is one)
+		if let Some(id) = &self.focused_widget {
+			
 			changed |= self.widgets.get_mut(focused_widget).unwrap().update(input, delta_sec, text_drawer, camera);
 		}
 		
@@ -145,10 +157,17 @@ impl WidgetsManager {
 		self.widgets.get_mut(&id).and_then(|w| w.as_mut().downcast_mut::<T>())
 	}
 	
+	/// Puts the given widget on top of the others
+	pub fn put_on_top(&mut self, id: WidgetId) {
+		let index = self.order.iter().position(|i| i == &id).unwrap();
+		self.order.remove(index);
+		self.order.push(id);
+	}
+	
 	/// Returns the id of the last added widget
 	pub fn last_id(&self) -> WidgetId { self.id_counter - 1 }
 	
-	pub fn is_widget_focused(&self) -> bool { self.focused_widget.is_some() }
+	pub fn focused_widget(&self) -> Option<WidgetId> { self.focused_widget }
 	
 	// TODO: remove this and replace with a macro that right all the code for us, and for every widget type
 	/*
