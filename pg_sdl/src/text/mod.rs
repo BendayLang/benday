@@ -3,6 +3,7 @@ mod text_style;
 use crate::style::Align;
 use nalgebra::{Point2, Vector2};
 use sdl2::render::TextureQuery;
+use sdl2::ttf::FontStyle;
 use sdl2::{render::Canvas, video::Window};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -12,50 +13,84 @@ pub use text_style::{DEFAULT_FONT_NAME, FONT_PATH};
 pub type FontSize = u16;
 pub type FontInfos = (PathBuf, FontSize);
 
-pub struct TextDrawer<'ttf> {
-	pub texture_creator: sdl2::render::TextureCreator<sdl2::video::WindowContext>,
-	pub font_cache: HashMap<FontInfos, sdl2::ttf::Font<'ttf, 'static>>,
+pub struct TextDrawer<'ttf, 'texture> {
+	texture_creator: sdl2::render::TextureCreator<sdl2::video::WindowContext>,
+	pub fonts: HashMap<FontInfos, sdl2::ttf::Font<'ttf, 'static>>,
+	texture_cache: HashMap<(String, TextStyle, FontSize), sdl2::render::Texture<'texture>>,
+	// vec_texture_cache: Vec<sdl2::render::Texture<'texture>>,
 }
 
-impl<'ttf> TextDrawer<'ttf> {
+impl<'ttf, 'texture> TextDrawer<'ttf, 'texture> {
 	pub fn new(texture_creator: sdl2::render::TextureCreator<sdl2::video::WindowContext>) -> Self {
-		TextDrawer { texture_creator, font_cache: HashMap::new() }
+		TextDrawer { texture_creator, fonts: HashMap::new(), texture_cache: HashMap::new() }
+		// TextDrawer { texture_creator, fonts: HashMap::new(), texture_cache: HashMap::new(), vec_texture_cache: Vec::new() }
 	}
 
-	pub fn text_size(&self, text: &str, font_size: FontSize, style: &TextStyle) -> Vector2<u32> {
+	pub fn size_of_u32(&self, text: &str, font_size: FontSize, style: &TextStyle) -> Vector2<u32> {
 		if text.is_empty() {
 			return Vector2::zeros();
 		}
 		let TextStyle { font_path, .. } = style;
-		let (width, height) = self.font_cache.get(&(font_path.to_path_buf(), font_size)).unwrap().size_of(text).unwrap();
+		let font = self.fonts.get(&(font_path.to_path_buf(), font_size)).unwrap();
+		let (width, height) = font.size_of(text).unwrap();
 		Vector2::new(width, height)
+	}
+
+	pub fn size_of_f64(&self, text: &str, font_size: FontSize, style: &TextStyle) -> Vector2<f64> {
+		if text.is_empty() {
+			return Vector2::zeros();
+		}
+		let TextStyle { font_path, .. } = style;
+		let font = self.fonts.get(&(font_path.to_path_buf(), font_size)).unwrap();
+		let (width, height) = font.size_of(text).unwrap();
+		Vector2::new(width as f64, height as f64)
+	}
+
+	fn get_texture(&mut self, text: &str, font_size: FontSize, style: &TextStyle) -> &sdl2::render::Texture {
+		let key = (text.to_string(), style.clone(), font_size);
+		if self.texture_cache.get(&key).is_none() {
+			let TextStyle { font_path, font_style, color } = style;
+			let font = self.fonts.get_mut(&(font_path.to_path_buf(), font_size)).expect("font not loaded at init");
+			font.set_style(font_style.clone());
+			let surface = font.render(text).blended(*color).expect("text texture rendering error");
+			let texture = self.texture_creator.create_texture_from_surface(&surface).unwrap();
+			// self.texture_cache.insert(key.clone(), texture);
+			// self.vec_texture_cache.push(texture);
+			println!("new len of texture cache: {}", self.texture_cache.len());
+		}
+		self.texture_cache.get(&key).unwrap()
+	}
+
+	fn shift_from_align(align: Align, size: Vector2<f64>) -> Vector2<f64> {
+		match align {
+			Align::TopLeft => Vector2::zeros(),
+			Align::Top => Vector2::new(size.x / 2.0, 0.),
+			Align::TopRight => Vector2::new(size.x, 0.),
+			Align::Left => Vector2::new(0., size.y / 2.),
+			Align::Center => size / 2.0,
+			Align::Right => Vector2::new(size.x, size.y / 2.),
+			Align::BottomLeft => Vector2::new(0., size.y),
+			Align::Bottom => Vector2::new(size.x / 2., size.y),
+			Align::BottomRight => size,
+		}
 	}
 
 	pub fn draw(
 		&mut self, canvas: &mut Canvas<Window>, position: Point2<f64>, text: &str, font_size: FontSize, style: &TextStyle,
 		align: Align,
 	) {
-		let TextStyle { font_path, font_style, color } = style;
-		let font = self.font_cache.get_mut(&(font_path.to_path_buf(), font_size)).expect("font not loaded at init");
+		// let texture = self.get_texture(text, font_size, style);
 
+		let TextStyle { font_path, font_style, color } = style;
+		let font = self.fonts.get_mut(&(font_path.to_path_buf(), font_size)).expect("font not loaded at init");
 		font.set_style(font_style.clone());
-		let surface = font.render(text).blended(*color).expect("text texture rendering error");
+		let surface: sdl2::surface::Surface<'_> = font.render(text).blended(*color).expect("text texture rendering error");
 
 		let texture = self.texture_creator.create_texture_from_surface(&surface).unwrap();
-		let TextureQuery { width, height, .. } = texture.query();
-		let size: Vector2<f64> = Vector2::new(width as f64, height as f64);
-		let target_position = match align {
-			Align::TopLeft => position,
-			Align::Top => position - Vector2::new(size.x / 2.0, 0.),
-			Align::TopRight => position - Vector2::new(size.x, 0.),
-			Align::Left => position - Vector2::new(0., size.y / 2.),
-			Align::Center => position - size / 2.0,
-			Align::Right => position - Vector2::new(size.x, size.y / 2.),
-			Align::BottomLeft => position - Vector2::new(0., size.y),
-			Align::Bottom => position - Vector2::new(size.x / 2., size.y),
-			Align::BottomRight => position - size,
-		};
-		let target = sdl2::rect::Rect::new(target_position.x as i32, target_position.y as i32, width as u32, height as u32);
+
+		let size: Vector2<f64> = self.size_of_f64(text, font_size, &style);
+		let target_position: nalgebra::Point2<f64> = position - Self::shift_from_align(align, size);
+		let target = sdl2::rect::Rect::new(target_position.x as i32, target_position.y as i32, size.x as u32, size.y as u32);
 
 		canvas.copy(&texture, None, Some(target)).unwrap();
 	}

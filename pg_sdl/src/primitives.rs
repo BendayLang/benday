@@ -226,9 +226,9 @@ pub fn draw_text(
 		let size = text_drawer.size_of_u32(&text, font_size as FontSize, style);
 		let rect = Rect::from(position, size.cast());
 		if camera.is_in_scope(rect) {
-			// text_drawer.draw(canvas, position, &text, font_size as FontSize, style, align);
+			text_drawer.draw(canvas, position, &text, font_size as FontSize, style, align);
 		}
 	} else {
-		// text_drawer.draw(canvas, position, &text, font_size as FontSize, style, align);
+		text_drawer.draw(canvas, position, &text, font_size as FontSize, style, align);
 	}
 }
