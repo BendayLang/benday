@@ -270,13 +270,11 @@ fn main() {
 		blocs: HashMap::new(),
 		blocs_order: Vec::new(),
 	};
-	
+
 	let mut widgets_manager = WidgetsManager::new();
 
-	widgets_manager.add(
-		Box::new(Button::new(Rect::new(100., 100., 200., 100.), ButtonStyle::default(), "New bloc".to_string())),
-		false,
-	);
+	widgets_manager
+		.add(Box::new(Button::new(Rect::new(100., 100., 200., 100.), ButtonStyle::default(), "New bloc".to_string())), false);
 	/*
 	app.add_widget(
 		Box::new(Button::new(
@@ -351,25 +349,17 @@ fn main() {
 	);
 	 */
 
-	NewBloc::add(
-		Rect::new(100., 100., 200., 100.),
-		NewBlocStyle::new(Colors::LIGHT_YELLOW, 8.),
-		&mut widgets_manager
-	);
-	NewBloc::add(
-		Rect::new(50., 50., 200., 100.),
-		NewBlocStyle::new(Colors::LIGHT_RED, 8.),
-		&mut widgets_manager
-	);
+	NewBloc::add(Rect::new(100., 100., 200., 100.), NewBlocStyle::new(Colors::LIGHT_YELLOW, 8.), &mut widgets_manager);
+	NewBloc::add(Rect::new(50., 50., 200., 100.), NewBlocStyle::new(Colors::LIGHT_RED, 8.), &mut widgets_manager);
 	/*
 	widgets_manager.add(Box::new(NewBloc::new(
 		Rect::new(50., 50., 200., 100.),
 		NewBlocStyle::new(Colors::LIGHT_RED, 8.))),
-	                    true);
+						true);
 	widgets_manager.add(Box::new(NewBloc::new(
 		Rect::new(0., 0., 200., 100.),
 		NewBlocStyle::new(Colors::LIGHT_VIOLET, 8.))),
-	                    true);
+						true);
 	*/
 	let resolution = Vector2::new(1280, 720);
 	let mut app = PgSdl::init("Benday", resolution, Some(120), true, Colors::LIGHT_GREY, widgets_manager);

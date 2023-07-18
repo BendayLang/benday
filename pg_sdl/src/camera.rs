@@ -1,10 +1,10 @@
 use crate::color::{darker, Colors};
+use crate::custom_rect::Rect;
 use crate::input::Input;
 use crate::primitives::{draw_rect, draw_rounded_rect, draw_text, fill_rect, fill_rounded_rect};
 use crate::style::{Align, HAlign, VAlign};
 use crate::text::{TextDrawer, TextStyle};
 use crate::vector2::Vector2Plus;
-use crate::custom_rect::Rect;
 
 use nalgebra::{Matrix2, Matrix3, Point2, Scale2, Similarity2, Transform2, Translation2, Vector2};
 use sdl2::gfx::primitives::DrawRenderer;
@@ -28,8 +28,10 @@ pub struct Camera {
 }
 
 impl Camera {
-	pub fn new(resolution: Vector2<u32>, doubling_steps: u8, zoom_in_limit: f64, zoom_out_limit: f64,
-	           top_limit: f64, bottom_limit: f64, left_limit: f64, right_limit: f64) -> Self {
+	pub fn new(
+		resolution: Vector2<u32>, doubling_steps: u8, zoom_in_limit: f64, zoom_out_limit: f64, top_limit: f64, bottom_limit: f64,
+		left_limit: f64, right_limit: f64,
+	) -> Self {
 		Camera {
 			resolution,
 			transform: Similarity2::new(resolution.cast() * 0.5, 0.0, 1.0),
@@ -44,11 +46,19 @@ impl Camera {
 		}
 	}
 
-	pub fn transform(&self) -> Similarity2<f64> { self.transform }
-	pub fn scale(&self) -> f64 { self.transform.scaling() }
+	pub fn transform(&self) -> Similarity2<f64> {
+		self.transform
+	}
+	pub fn scale(&self) -> f64 {
+		self.transform.scaling()
+	}
 
-	fn translation(&self) -> Translation2<f64> { self.transform.isometry.translation }
-	fn translation_mut(&mut self) -> &mut Translation2<f64> { &mut self.transform.isometry.translation	}
+	fn translation(&self) -> Translation2<f64> {
+		self.transform.isometry.translation
+	}
+	fn translation_mut(&mut self) -> &mut Translation2<f64> {
+		&mut self.transform.isometry.translation
+	}
 
 	pub fn is_in_scope(&self, rect: Rect) -> bool {
 		let camera_scope = Rect::from(Point2::origin(), self.resolution.cast());
@@ -58,20 +68,18 @@ impl Camera {
 	/// Translates and scales the camera from the inputs
 	pub fn update(&mut self, input: &Input, lock_translation: bool) -> bool {
 		let mut changed = false;
-		
+
 		if input.mouse.left_button.is_pressed() {
 			self.grab_delta = Some(self.translation().vector - input.mouse.position.coords.cast());
-		}
-		else if input.mouse.left_button.is_released() {
+		} else if input.mouse.left_button.is_released() {
 			self.grab_delta = None;
-		}
-		else if let Some(grab_delta) = self.grab_delta {
+		} else if let Some(grab_delta) = self.grab_delta {
 			if !lock_translation {
 				let mouse_position = input.mouse.position.coords.cast();
 				changed |= self.translate(mouse_position + grab_delta - self.translation().vector, Some(mouse_position));
 			}
 		}
-		
+
 		let scaling = self.scaling_factor.powf(input.mouse.wheel as f64);
 		let center = input.mouse.position.coords.cast();
 		changed |= self.change_scale(scaling, center);

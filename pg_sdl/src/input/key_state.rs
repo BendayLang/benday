@@ -366,7 +366,7 @@ impl KeysState {
 			Keycode::Period => &mut self.period,
 			Keycode::Comma => &mut self.comma,
 			Keycode::Delete => &mut self.delete,
-			_ => &mut self.t // todo!("Keycode {:?} not implemented", keycode)
+			_ => &mut self.t, // todo!("Keycode {:?} not implemented", keycode)
 		}
 	}
 

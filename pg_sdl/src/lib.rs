@@ -12,11 +12,11 @@
 
 pub mod app;
 pub mod camera;
-pub mod primitives;
 pub mod color;
+pub mod custom_rect;
 pub mod input;
+pub mod primitives;
 pub mod style;
 pub mod text;
 pub mod vector2;
 pub mod widgets;
-pub mod custom_rect;

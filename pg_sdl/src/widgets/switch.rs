@@ -1,18 +1,18 @@
-use std::f64::consts::PI;
-use crate::input::{Input, KeyState};
 use crate::camera::Camera;
-use crate::color::{darker, Colors, with_alpha};
+use crate::color::{darker, with_alpha, Colors};
+use crate::custom_rect::Rect;
+use crate::input::{Input, KeyState};
 use crate::primitives::{draw_circle, draw_polygon, draw_rounded_rect, fill_circle, fill_polygon, fill_rounded_rect};
 use crate::text::TextDrawer;
-use crate::widgets::{Orientation, Widget, HOVER, PUSH, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, Base, WidgetsManager};
-use crate::custom_rect::Rect;
+use crate::widgets::{Base, Orientation, Widget, WidgetsManager, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER, PUSH};
+use std::f64::consts::PI;
 
+use crate::vector2::Vector2Plus;
 use nalgebra::{Point2, Vector2};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::ttf::FontStyle;
 use sdl2::video::Window;
-use crate::vector2::Vector2Plus;
 
 pub struct SwitchStyle {
 	on_color: Color,
@@ -52,7 +52,6 @@ impl SwitchStyle {
 	}
 }
 
-
 /// A switch is a widget that can be toggled __on__ or __off__
 pub struct Switch {
 	base: Base,
@@ -63,13 +62,14 @@ pub struct Switch {
 
 impl Switch {
 	pub fn new(rect: Rect, style: SwitchStyle) -> Self {
-		let orientation = { if rect.width() > rect.height() { Orientation::Horizontal } else { Orientation::Vertical } };
-		Self {
-			base: Base::new(rect),
-			style,
-			orientation,
-			switched: false,
-		}
+		let orientation = {
+			if rect.width() > rect.height() {
+				Orientation::Horizontal
+			} else {
+				Orientation::Vertical
+			}
+		};
+		Self { base: Base::new(rect), style, orientation, switched: false }
 	}
 
 	pub fn set_switched(&mut self, switched: bool) {
@@ -93,8 +93,10 @@ impl Switch {
 }
 
 impl Widget for Switch {
-	fn update(&mut self, input: &Input, _delta_sec: f64, _widgets_manager: &mut WidgetsManager,
-	          _text_drawer: &TextDrawer, _camera: Option<&Camera>) -> bool {
+	fn update(
+		&mut self, input: &Input, _delta_sec: f64, _widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
+		_camera: Option<&Camera>,
+	) -> bool {
 		let changed = self.base.update(input, Vec::new());
 		if self.base.state.is_released() {
 			self.switched = !self.switched;
@@ -102,41 +104,57 @@ impl Widget for Switch {
 		changed
 	}
 
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>,
-	        focused: bool, hovered: bool) {
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool) {
 		let color = if self.switched { self.style.on_color } else { self.style.off_color };
 		let border_color = if focused { self.style.thumb_focused_color } else { self.style.border_color };
-		let thumb_color = if self.base.pushed() { self.style.thumb_pushed_color }
-		else if hovered { self.style.thumb_hovered_color } else { self.style.thumb_color };
-		
+		let thumb_color = if self.base.pushed() {
+			self.style.thumb_pushed_color
+		} else if hovered {
+			self.style.thumb_hovered_color
+		} else {
+			self.style.thumb_color
+		};
+
 		let thickness = match self.orientation {
 			Orientation::Horizontal => self.base.rect.height(),
 			Orientation::Vertical => self.base.rect.width(),
 		};
 		let radius = thickness * 0.5;
-		
+
 		let faces_nb = 9;
 		let vertices = match self.orientation {
 			Orientation::Horizontal => {
-				let mut vertices = (0..=faces_nb).map(|i| {
-					let angle = PI * (i as f64 / faces_nb as f64 - 0.5);
-					self.base.rect.mid_right() - Vector2::new(radius, 0.) + Vector2::new_polar(radius, angle)
-				}).collect::<Vec<Point2<f64>>>();
-				vertices.extend((0..=faces_nb).map(|i| {
-					let angle = PI * (i as f64 / faces_nb as f64 + 0.5);
-					self.base.rect.mid_left() + Vector2::new(radius, 0.) + Vector2::new_polar(radius, angle)
-				}).collect::<Vec<Point2<f64>>>());
+				let mut vertices = (0..=faces_nb)
+					.map(|i| {
+						let angle = PI * (i as f64 / faces_nb as f64 - 0.5);
+						self.base.rect.mid_right() - Vector2::new(radius, 0.) + Vector2::new_polar(radius, angle)
+					})
+					.collect::<Vec<Point2<f64>>>();
+				vertices.extend(
+					(0..=faces_nb)
+						.map(|i| {
+							let angle = PI * (i as f64 / faces_nb as f64 + 0.5);
+							self.base.rect.mid_left() + Vector2::new(radius, 0.) + Vector2::new_polar(radius, angle)
+						})
+						.collect::<Vec<Point2<f64>>>(),
+				);
 				vertices
-			},
+			}
 			Orientation::Vertical => {
-				let mut vertices = (0..=faces_nb).map(|i| {
-					let angle = PI * (i as f64 / faces_nb as f64 + 1.0);
-					self.base.rect.mid_bottom() + Vector2::new(0., radius) + Vector2::new_polar(radius, angle)
-				}).collect::<Vec<Point2<f64>>>();
-				vertices.extend((0..=faces_nb).map(|i| {
-					let angle = PI * (i as f64 / faces_nb as f64);
-					self.base.rect.mid_top() - Vector2::new(0., radius) + Vector2::new_polar(radius, angle)
-				}).collect::<Vec<Point2<f64>>>());
+				let mut vertices = (0..=faces_nb)
+					.map(|i| {
+						let angle = PI * (i as f64 / faces_nb as f64 + 1.0);
+						self.base.rect.mid_bottom() + Vector2::new(0., radius) + Vector2::new_polar(radius, angle)
+					})
+					.collect::<Vec<Point2<f64>>>();
+				vertices.extend(
+					(0..=faces_nb)
+						.map(|i| {
+							let angle = PI * (i as f64 / faces_nb as f64);
+							self.base.rect.mid_top() - Vector2::new(0., radius) + Vector2::new_polar(radius, angle)
+						})
+						.collect::<Vec<Point2<f64>>>(),
+				);
 				vertices
 			}
 		};
@@ -158,6 +176,10 @@ impl Widget for Switch {
 		draw_circle(canvas, camera, border_color, dot_position, b * radius);
 	}
 
-	fn get_base(&self) -> Base { self.base }
-	fn get_base_mut(&mut self) -> &mut Base { &mut self.base }
+	fn get_base(&self) -> Base {
+		self.base
+	}
+	fn get_base_mut(&mut self) -> &mut Base {
+		&mut self.base
+	}
 }

@@ -1,6 +1,6 @@
-use std::path::Path;
-use sdl2::pixels::Color;
 use crate::color::Colors;
+use sdl2::pixels::Color;
+use std::path::Path;
 
 // TODO
 static FONT_PATH: &str = "./fonts";
@@ -24,11 +24,7 @@ impl TextStyle {
 			format!("{}/{}", FONT_PATH, DEFAULT_FONT_NAME)
 		};
 
-		Self {
-			font_name,
-			color,
-			font_style,
-		}
+		Self { font_name, color, font_style }
 	}
 }
 
