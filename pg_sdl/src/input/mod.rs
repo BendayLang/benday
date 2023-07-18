@@ -5,6 +5,7 @@ pub use key_state::{KeyState, KeysState, Shortcut};
 use nalgebra::Vector2;
 use sdl2::clipboard::ClipboardUtil;
 use sdl2::event::WindowEvent;
+use sdl2::EventPump;
 
 pub struct Input {
 	event_pump: sdl2::EventPump,
@@ -17,10 +18,9 @@ pub struct Input {
 }
 
 impl Input {
-	/// can crash
-	pub fn new(sdl_context: sdl2::Sdl, clipboard: ClipboardUtil) -> Self {
+	pub fn new(event_pump: EventPump, clipboard: ClipboardUtil) -> Self {
 		Self {
-			event_pump: sdl_context.event_pump().unwrap(),
+			event_pump,
 			window_closed: false,
 			keys_state: KeysState::new(),
 			mouse: mouse::Mouse::new(),

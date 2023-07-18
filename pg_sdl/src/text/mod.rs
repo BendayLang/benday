@@ -4,74 +4,29 @@ use crate::style::Align;
 use nalgebra::{Point2, Vector2};
 use sdl2::render::TextureQuery;
 use sdl2::{render::Canvas, video::Window};
-use std::path::Path;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 pub use text::TextStyle;
+pub use text::{DEFAULT_FONT_NAME, FONT_PATH};
 
-/*
-// pub fn get_text_<'a>(text_style: &TextStyle, text: &str) -> (u32, u32) {
-//     let TextStyle {
-//         // text,
-//         font_name: font_path,
-//         font_size,
-//         font_style,
-//         color,
-//     } = text_style;
-//
-//     let ttf_context = sdl2::ttf::init().unwrap();
-//
-//     let mut font: sdl2::ttf::Font = ttf_context
-//         .load_font(Path::new(&font_path), *font_size)
-//         .unwrap();
-//
-//     font.set_style(*font_style);
-//
-//     // render a surface, and convert it to a texture bound to the canvas
-//     let surface = font
-//         .render(text)
-//         .blended(*color)
-//         .map_err(|e| e.to_string())
-//         .unwrap();
-//
-//     let canvas = sdl2::init()
-//         .unwrap()
-//         .video()
-//         .unwrap()
-//         .window("", 0, 0)
-//         .build()
-//         .unwrap()
-//         .into_canvas()
-//         .build()
-//         .unwrap();
-//     let texture_creator = canvas.texture_creator();
-//
-//     let TextureQuery { height, width, .. } = texture_creator
-//         .create_texture_from_surface(&surface)
-//         .expect("")
-//         .query();
-//     return (height, width);
-// }
- */
+pub type FontInfos = (PathBuf, u16);
 
-pub struct TextDrawer {
+pub struct TextDrawer<'ttf, 'rwops> {
 	pub texture_creator: sdl2::render::TextureCreator<sdl2::video::WindowContext>,
-	ttf_context: sdl2::ttf::Sdl2TtfContext,
+	// ttf_context: sdl2::ttf::Sdl2TtfContext,
+	pub font_cache: HashMap<FontInfos, sdl2::ttf::Font<'ttf, 'rwops>>,
+	// font_cache: HashMap<FontInfos, sdl2::ttf::Font<'static, 'static>>,
 }
 
-impl TextDrawer {
+impl<'ttf> TextDrawer<'ttf, '_> {
 	pub fn new(texture_creator: sdl2::render::TextureCreator<sdl2::video::WindowContext>) -> Self {
-		TextDrawer { texture_creator, ttf_context: sdl2::ttf::init().map_err(|e| e.to_string()).unwrap() }
+		TextDrawer { texture_creator, font_cache: HashMap::new() }
 	}
 
 	fn get_texture(&self, text: &str, style: &TextStyle, font_size: u16) -> sdl2::render::Texture {
-		let TextStyle { font_name: font_path, font_style, color } = style;
-
-		let mut font: sdl2::ttf::Font = self.ttf_context.load_font(Path::new(&font_path), font_size).unwrap();
-
-		font.set_style(*font_style);
-
-		// render a surface, and convert it to a texture bound to the canvas
+		let TextStyle { font_path, font_style, color } = style;
+		let font = self.font_cache.get(&(font_path.to_path_buf(), font_size)).expect("font not loaded at init");
 		let surface = font.render(text).blended(*color).map_err(|e| e.to_string()).expect("text texture rendering error");
-
 		self.texture_creator.create_texture_from_surface(&surface).map_err(|e| e.to_string()).ok().unwrap()
 	}
 
