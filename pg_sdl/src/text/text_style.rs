@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 pub static FONT_PATH: &str = "./fonts";
 pub static DEFAULT_FONT_NAME: &str = "Vera.ttf";
 
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TextStyle {
 	pub color: Color,
 	pub font_path: PathBuf,

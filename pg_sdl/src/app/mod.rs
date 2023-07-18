@@ -19,11 +19,11 @@ pub trait App {
 	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, camera: &Camera);
 }
 
-pub struct PgSdl<'a> {
+pub struct PgSdl<'ttf, 'texture> {
 	mouse: MouseUtil,
 	input: Input,
 	canvas: Canvas<Window>,
-	pub text_drawer: TextDrawer<'a>,
+	pub text_drawer: TextDrawer<'ttf, 'texture>,
 	background_color: Color,
 	widgets_manager: WidgetsManager,
 	fps: Option<u32>,
@@ -31,7 +31,7 @@ pub struct PgSdl<'a> {
 	camera: Camera,
 }
 
-impl PgSdl<'_> {
+impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 	pub fn init(
 		window_title: &str, window_size: Vector2<u32>, fps: Option<u32>, draw_fps: bool, background_color: Color,
 		widgets_manager: WidgetsManager,
@@ -95,6 +95,7 @@ impl PgSdl<'_> {
 
 	fn draw_fps(&mut self, delta_sec: f64) {
 		fill_rounded_rect(&mut self.canvas, None, Colors::WHITE, Rect::new(10.0, 2.0, 120.0, 32.0), 5.0);
+		// self.text_drawer.draw_text(
 		draw_text(
 			&mut self.canvas,
 			None,

@@ -207,9 +207,9 @@ pub fn get_text_size(
 	camera: Option<&Camera>, text_drawer: &TextDrawer, text: &str, font_size: f64, style: &TextStyle,
 ) -> Vector2<f64> {
 	if let Some(camera) = camera {
-		text_drawer.text_size(text, (camera.scale() * font_size) as FontSize, style).cast() / camera.scale()
+		text_drawer.size_of_u32(text, (camera.scale() * font_size) as FontSize, style).cast() / camera.scale()
 	} else {
-		text_drawer.text_size(text, font_size as FontSize, style).cast()
+		text_drawer.size_of_u32(text, font_size as FontSize, style).cast()
 	}
 }
 
@@ -223,12 +223,12 @@ pub fn draw_text(
 	if let Some(camera) = camera {
 		let position = camera.transform() * position;
 		let font_size = camera.scale() * font_size;
-		let size = text_drawer.text_size(&text, font_size as FontSize, style);
+		let size = text_drawer.size_of_u32(&text, font_size as FontSize, style);
 		let rect = Rect::from(position, size.cast());
 		if camera.is_in_scope(rect) {
-			text_drawer.draw(canvas, position, &text, font_size as FontSize, style, align);
+			// text_drawer.draw(canvas, position, &text, font_size as FontSize, style, align);
 		}
 	} else {
-		text_drawer.draw(canvas, position, &text, font_size as FontSize, style, align);
+		// text_drawer.draw(canvas, position, &text, font_size as FontSize, style, align);
 	}
 }

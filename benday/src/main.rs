@@ -364,14 +364,14 @@ fn main() {
 	let resolution = Vector2::new(1280, 720);
 	let ttf_context = sdl2::ttf::init().expect("SDL2 ttf could not be initialized");
 
-	let mut app: PgSdl<'_> = PgSdl::init("Benday", resolution, Some(120), true, Colors::LIGHT_GREY, widgets_manager);
+	let mut app = PgSdl::init("Benday", resolution, Some(120), true, Colors::LIGHT_GREY, widgets_manager);
 
 	let font_path = std::path::PathBuf::from(format!("{}/{}", pg_sdl::text::FONT_PATH, pg_sdl::text::DEFAULT_FONT_NAME));
 	for font in vec![(&font_path, 0, 100)] {
 		let (path, from, to) = font;
 		for size in from..=to {
 			let font: sdl2::ttf::Font = ttf_context.load_font(path, size).unwrap();
-			app.text_drawer.font_cache.insert((path.clone(), size), font);
+			app.text_drawer.fonts.insert((path.clone(), size), font);
 		}
 	}
 
