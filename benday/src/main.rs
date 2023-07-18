@@ -1,4 +1,4 @@
-// #![allow(dead_code, unused_variables)]
+#![allow(dead_code, unused_variables, unused_imports)]
 mod blocs;
 
 use crate::blocs::bloc::{NewBloc, NewBlocStyle};
@@ -264,7 +264,7 @@ impl App for MyApp {
 }
 
 fn main() {
-	let my_app = &mut MyApp {
+	let mut my_app: MyApp = MyApp {
 		id_counter: 0,
 		app_state: AppState::Idle { selected_element: None, hovered_element: None },
 		blocs: HashMap::new(),
@@ -362,8 +362,20 @@ fn main() {
 						true);
 	*/
 	let resolution = Vector2::new(1280, 720);
-	let mut app = PgSdl::init("Benday", resolution, Some(120), true, Colors::LIGHT_GREY, widgets_manager);
-	app.run(my_app);
+	let ttf_context = sdl2::ttf::init().expect("SDL2 ttf could not be initialized");
+
+	let mut app: PgSdl<'_> = PgSdl::init("Benday", resolution, Some(120), true, Colors::LIGHT_GREY, widgets_manager);
+
+	let font_path = std::path::PathBuf::from(format!("{}/{}", pg_sdl::text::FONT_PATH, pg_sdl::text::DEFAULT_FONT_NAME));
+	for font in vec![(&font_path, 0, 100)] {
+		let (path, from, to) = font;
+		for size in from..=to {
+			let font: sdl2::ttf::Font = ttf_context.load_font(path, size).unwrap();
+			app.text_drawer.font_cache.insert((path.clone(), size), font);
+		}
+	}
+
+	app.run(&mut my_app);
 }
 
 fn get_root(bloc_id: &u32, blocs: &HashMap<u32, Bloc>) -> u32 {

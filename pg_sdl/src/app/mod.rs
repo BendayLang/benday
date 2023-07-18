@@ -19,11 +19,11 @@ pub trait App {
 	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera);
 }
 
-pub struct PgSdl {
+pub struct PgSdl<'a> {
 	mouse: MouseUtil,
 	input: Input,
 	canvas: Canvas<Window>,
-	text_drawer: TextDrawer,
+	pub text_drawer: TextDrawer<'a, 'static>,
 	background_color: Color,
 	widgets_manager: WidgetsManager,
 	fps: Option<u32>,
@@ -31,7 +31,7 @@ pub struct PgSdl {
 	camera: Camera,
 }
 
-impl PgSdl {
+impl PgSdl<'_> {
 	pub fn init(
 		window_title: &str, window_size: Vector2<u32>, fps: Option<u32>, draw_fps: bool, background_color: Color,
 		widgets_manager: WidgetsManager,
@@ -54,10 +54,12 @@ impl PgSdl {
 		// TODO mettre ca en paramettre ?
 		let camera = Camera::new(window_size, 6, 2.5, 5.0, -4000.0, 4000.0, -5000.0, 5000.0);
 
+		let text_drawer = TextDrawer::new(canvas.texture_creator());
+
 		PgSdl {
 			mouse: sdl_context.mouse(),
-			text_drawer: TextDrawer::new(canvas.texture_creator()),
-			input: Input::new(sdl_context, video_subsystem.clipboard()),
+			text_drawer,
+			input: Input::new(sdl_context.event_pump().unwrap(), video_subsystem.clipboard()),
 			widgets_manager,
 			canvas,
 			background_color,
