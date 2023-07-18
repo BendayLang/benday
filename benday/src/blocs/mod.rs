@@ -294,7 +294,7 @@ impl Bloc {
 	}
 
 	pub fn draw(
-		&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, moving: bool,
+		&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, camera: &Camera, moving: bool,
 		selected: Option<&BlocElement>, hovered: Option<&BlocElement>,
 	) {
 		// SHADOW

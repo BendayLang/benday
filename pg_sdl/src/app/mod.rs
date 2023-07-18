@@ -16,14 +16,14 @@ use std::time::{Duration, Instant};
 
 pub trait App {
 	fn update(&mut self, delta_sec: f64, input: &Input, widgets_manager: &mut WidgetsManager, camera: &mut Camera) -> bool;
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera);
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, camera: &Camera);
 }
 
 pub struct PgSdl<'a> {
 	mouse: MouseUtil,
 	input: Input,
 	canvas: Canvas<Window>,
-	pub text_drawer: TextDrawer<'a, 'static>,
+	pub text_drawer: TextDrawer<'a>,
 	background_color: Color,
 	widgets_manager: WidgetsManager,
 	fps: Option<u32>,
@@ -90,7 +90,7 @@ impl PgSdl<'_> {
 		self.canvas.set_draw_color(self.background_color);
 		self.canvas.clear();
 		user_app.draw(&mut self.canvas, &mut self.text_drawer, &self.camera);
-		self.widgets_manager.draw(&mut self.canvas, &self.text_drawer, &self.camera);
+		self.widgets_manager.draw(&mut self.canvas, &mut self.text_drawer, &self.camera);
 	}
 
 	fn draw_fps(&mut self, delta_sec: f64) {
@@ -98,7 +98,7 @@ impl PgSdl<'_> {
 		draw_text(
 			&mut self.canvas,
 			None,
-			&self.text_drawer,
+			&mut self.text_drawer,
 			Point2::new(65., 17.),
 			&format!("FPS: {0:.0}", 1.0 / delta_sec),
 			24.0,

@@ -14,7 +14,7 @@ pub struct TextStyle {
 
 impl TextStyle {
 	pub fn new(font_path: Option<PathBuf>, color: Color, font_style: sdl2::ttf::FontStyle) -> Self {
-		let font_path = if let Some(font_path) = font_path {
+		let font_path: PathBuf = if let Some(font_path) = font_path {
 			let font_path = format!("{}/Vera.ttf", FONT_PATH);
 			if !Path::new(&font_path).exists() {
 				format!("{}/DejaVuSans.ttf", FONT_PATH);
@@ -22,9 +22,10 @@ impl TextStyle {
 			font_path
 		} else {
 			format!("{}/{}", FONT_PATH, DEFAULT_FONT_NAME)
-		};
+		}
+		.into();
 
-		Self { font_path: font_path.into(), color, font_style }
+		Self { font_path, color, font_style }
 	}
 }
 

@@ -82,7 +82,9 @@ pub trait Widget: AsAny {
 		camera: Option<&Camera>,
 	) -> bool;
 	/// Draw the widget on the canvas
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool);
+	fn draw(
+		&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool,
+	);
 
 	fn get_base(&self) -> Base;
 	fn get_base_mut(&mut self) -> &mut Base;
@@ -168,7 +170,7 @@ impl WidgetsManager {
 		changed
 	}
 
-	pub fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera) {
+	pub fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, camera: &Camera) {
 		// draws the widgets with camera first
 		self.cam_order.iter().for_each(|id| {
 			let focused = Some(*id) == self.focused_widget;

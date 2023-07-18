@@ -286,7 +286,9 @@ impl Widget for TextInput {
 		changed
 	}
 
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool) {
+	fn draw(
+		&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool,
+	) {
 		// Box
 		let background_color = if hovered { self.style.background_hovered_color } else { self.style.background_color };
 		let border_color = if focused { self.style.focused_color } else { self.style.border_color };

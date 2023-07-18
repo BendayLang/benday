@@ -102,7 +102,9 @@ impl Slot {
 	}
 
 	/// Affiche le slot.
-	pub fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, selected: bool, hovered: bool) {
+	pub fn draw(
+		&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, camera: &Camera, selected: bool, hovered: bool,
+	) {
 		if self.child_id.is_none() {
 			self.text_box.draw(canvas, text_drawer, Some(camera), selected, hovered);
 		}

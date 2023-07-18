@@ -200,7 +200,9 @@ impl Widget for Slider {
 		changed
 	}
 
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool) {
+	fn draw(
+		&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool,
+	) {
 		let thumb_radius = self.thickness() * 0.5;
 		let bar_radius = thumb_radius * 0.6;
 		let margin = thumb_radius - bar_radius;

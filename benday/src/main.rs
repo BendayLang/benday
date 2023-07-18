@@ -207,7 +207,7 @@ impl App for MyApp {
 		changed
 	}
 
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera) {
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, camera: &Camera) {
 		camera.draw_grid(canvas, text_drawer, Colors::LIGHT_GREY, true, false);
 
 		self.blocs_order.iter().for_each(|bloc_id| {

@@ -80,7 +80,7 @@ impl Widget for Draggable {
 	}
 
 	fn draw(
-		&self, canvas: &mut Canvas<Window>, _text_drawer: &TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool,
+		&self, canvas: &mut Canvas<Window>, _text_drawer: &mut TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool,
 	) {
 		let color = if hovered { self.style.hovered_color } else { self.style.color };
 		let border_color = if focused && !self.base.pushed() { self.style.focused_color } else { self.style.border_color };
