@@ -6,7 +6,7 @@ use crate::camera::Camera;
 use crate::color::{Colors, darker, paler, with_alpha};
 use crate::style::Align;
 use crate::text::{TextDrawer, TextStyle};
-use crate::widgets::{FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER, PUSH, Widget};
+use crate::widgets::{Base, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER, PUSH, Widget, WidgetsManager};
 use crate::custom_rect::Rect;
 
 use sdl2::keyboard::Keycode;
@@ -62,10 +62,8 @@ impl Default for TextInputStyle {
 }
 
 pub struct TextInput {
-	rect: Rect,
-	state: KeyState,
+	base: Base,
 	style: TextInputStyle,
-	has_camera: bool,
 	placeholder: String,
 	text: String,
 	carrot_timer_sec: f64,
@@ -77,12 +75,10 @@ impl TextInput {
 	const LEFT_SHIFT: f64 = 5.0;
 	const BLINKING_TIME_SEC: f64 = 0.4;
 	
-	pub fn new(rect: Rect, placeholder: String, style: TextInputStyle, has_camera: bool) -> Self {
+	pub fn new(rect: Rect, style: TextInputStyle, placeholder: String) -> Self {
 		Self {
-			rect,
-			state: KeyState::new(),
+			base: Base::new(rect),
 			style,
-			has_camera,
 			placeholder,
 			text: String::new(),
 			carrot_timer_sec: 0.,
@@ -92,8 +88,8 @@ impl TextInput {
 	}
 	
 	fn get_carrot_position(&self, text_drawer: &TextDrawer, mouse_position: Point2<i32>, camera: Option<&Camera>) -> usize {
-		let mouse_x = ((if let Some(camera) = camera { camera.transform.inverse() * mouse_position.cast() }
-		else { mouse_position.cast() }).x - self.rect.left()) as u32;
+		let mouse_x = ((if let Some(camera) = camera { camera.transform().inverse() * mouse_position.cast() }
+		else { mouse_position.cast() }).x - self.base.rect.left()) as u32;
 		let mut x: u32 = 0;
 		for (i, c) in self.text.chars().enumerate() {
 			let text_width = get_text_size(camera, text_drawer, &c.to_string(), self.style.font_size, &self.style.text_style).x as u32;
@@ -109,10 +105,10 @@ impl TextInput {
 }
 
 impl Widget for TextInput {
-	fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &TextDrawer, camera: &Camera) -> bool {
+	fn update(&mut self, input: &Input, delta_sec: f64, _widgets_manager: &mut WidgetsManager,
+	          text_drawer: &TextDrawer, camera: Option<&Camera>) -> bool {
 		let mut changed = false;
-		self.state.update();
-		let camera = if self.has_camera { Some(camera) } else { None };
+		changed |= self.base.update(input, Vec::new());
 		
 		// Carrot blinking
 		self.carrot_timer_sec += delta_sec;
@@ -164,8 +160,6 @@ impl Widget for TextInput {
 			self.carrot_position = todo!();
 			changed = true;
 		} else if input.mouse.left_button.is_pressed() {
-			self.state.press();
-			
 			// Carrot position
 			if input.keys_state.lshift.is_down() || input.keys_state.rshift.is_down() {
 				new_carrot_position = Some(self.get_carrot_position(text_drawer, input.mouse.position, camera));
@@ -174,10 +168,6 @@ impl Widget for TextInput {
 				self.selection = (self.carrot_position, self.carrot_position);
 			}
 			self.carrot_timer_sec = 0.0;
-			changed = true;
-		} else if input.mouse.left_button.is_released() {
-			self.state.release();
-			changed = true;
 		}
 		
 		// Selection
@@ -279,9 +269,8 @@ impl Widget for TextInput {
 		changed
 	}
 	
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, focused: bool, hovered: bool) {
-		let camera = if self.has_camera { Some(camera) } else { None };
-		
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>,
+	        focused: bool, hovered: bool) {
 		// Box
 		let background_color = if hovered { self.style.background_hovered_color } else { self.style.background_color };
 		let border_color = if focused { self.style.focused_color } else { self.style.border_color };
@@ -289,18 +278,18 @@ impl Widget for TextInput {
 			if focused {
 				canvas.set_blend_mode(BlendMode::Blend);
 				fill_rounded_rect(canvas, camera, with_alpha(border_color, FOCUS_HALO_ALPHA),
-				                  self.rect.enlarged(FOCUS_HALO_DELTA), FOCUS_HALO_DELTA + corner_radius);
+				                  self.base.rect.enlarged(FOCUS_HALO_DELTA), FOCUS_HALO_DELTA + corner_radius);
 			}
-			fill_rounded_rect(canvas, camera, background_color, self.rect, corner_radius);
-			draw_rounded_rect(canvas, camera, border_color, self.rect, corner_radius);
+			fill_rounded_rect(canvas, camera, background_color, self.base.rect, corner_radius);
+			draw_rounded_rect(canvas, camera, border_color, self.base.rect, corner_radius);
 		} else {
 			if focused {
 				canvas.set_blend_mode(BlendMode::Blend);
 				fill_rounded_rect(canvas, camera, with_alpha(border_color, FOCUS_HALO_ALPHA),
-				                  self.rect.enlarged(FOCUS_HALO_DELTA), FOCUS_HALO_DELTA);
+				                  self.base.rect.enlarged(FOCUS_HALO_DELTA), FOCUS_HALO_DELTA);
 			}
-			fill_rect(canvas, camera, background_color, self.rect);
-			draw_rect(canvas, camera, border_color, self.rect);
+			fill_rect(canvas, camera, background_color, self.base.rect);
+			draw_rect(canvas, camera, border_color, self.base.rect);
 		}
 		
 		if focused {
@@ -311,7 +300,7 @@ impl Widget for TextInput {
 				let selection_x = get_text_size(camera, text_drawer, &self.text[..start], self.style.font_size, &self.style.text_style).x;
 				let selection_width = get_text_size(camera, text_drawer, &self.text[start..end], self.style.font_size, &self.style.text_style).x;
 				let rect = Rect::from(
-					self.rect.mid_left() + Vector2::new(Self::LEFT_SHIFT + selection_x, -selection_height * 0.5),
+					self.base.rect.mid_left() + Vector2::new(Self::LEFT_SHIFT + selection_x, -selection_height * 0.5),
 					Vector2::new(selection_width, selection_height));
 				canvas.set_blend_mode(BlendMode::Blend);
 				fill_rect(canvas, camera, self.style.selection_color, rect);
@@ -322,14 +311,14 @@ impl Widget for TextInput {
 					get_text_size(camera, text_drawer, &self.text[0..self.carrot_position], self.style.font_size, &self.style.text_style).x };
 				let carrot_height = self.style.font_size * 1.2;
 				let rect = Rect::from(
-					self.rect.mid_left() + Vector2::new(Self::LEFT_SHIFT + carrot_x - 0.5,-carrot_height * 0.5),
+					self.base.rect.mid_left() + Vector2::new(Self::LEFT_SHIFT + carrot_x - 0.5,-carrot_height * 0.5),
 					Vector2::new(1.5, carrot_height));
 				fill_rect(canvas, camera, self.style.carrot_color, rect);
 			}
 		}
 		
 		// Text
-		let position = self.rect.mid_left() + Vector2::new(Self::LEFT_SHIFT, 0.);
+		let position = self.base.rect.mid_left() + Vector2::new(Self::LEFT_SHIFT, 0.);
 		if self.text.is_empty() {
 			draw_text(canvas, camera, text_drawer, position, &self.placeholder, self.style.font_size, &self.style.placeholder_style, Align::Left);
 		} else {
@@ -337,8 +326,6 @@ impl Widget for TextInput {
 		}
 	}
 	
-	fn get_rect(&self) -> Rect { self.rect }
-	fn get_rect_mut(&mut self) -> &mut Rect { &mut self.rect }
-	
-	fn has_camera(&self) -> bool { self.has_camera }
+	fn get_base(&self) -> Base { self.base }
+	fn get_base_mut(&mut self) -> &mut Base { &mut self.base }
 }

@@ -2,11 +2,12 @@ pub mod button;
 pub mod slider;
 pub mod switch;
 pub mod text_input;
+pub mod draggable;
 
 use crate::camera;
 use crate::camera::Camera;
 use crate::color::Colors;
-use crate::input::Input;
+use crate::input::{Input, KeyState};
 use crate::text::TextDrawer;
 use crate::custom_rect::Rect;
 use as_any::{AsAny, Downcast};
@@ -29,24 +30,60 @@ pub enum Orientation {
 	Vertical,
 }
 
-type WidgetId = u32;
+pub type WidgetId = u32;
+
+#[derive(Copy, Clone, Debug)]
+pub struct Base {
+	pub id: WidgetId,
+	pub rect: Rect,
+	pub state: KeyState,
+}
+
+/// An struct that every widget must have
+/// - id
+/// - rect
+/// - state
+impl Base {
+	pub fn new(rect: Rect) -> Self { Self { id: 0, rect, state: KeyState::new() } }
+	
+	fn set_id(&mut self, id: WidgetId) { self.id = id; }
+	
+	pub fn update(&mut self, input: &Input, other_keys: Vec<KeyState>) -> bool {
+		let mut changed = false;
+		self.state.update();
+
+		if input.mouse.left_button.is_pressed() ||
+			other_keys.iter().map(|key| key.is_pressed()).collect::<Vec<bool>>().contains(&true) {
+			self.state.press();
+			changed = true;
+		} else if input.mouse.left_button.is_released() ||
+			other_keys.iter().map(|key| key.is_released()).collect::<Vec<bool>>().contains(&true) {
+			self.state.release();
+			changed = true;
+		}
+		changed
+	}
+	
+	pub fn pushed(&self) -> bool { self.state.is_pressed() || self.state.is_down() }
+}
 
 /// A widget is a UI object that can be interacted with to take inputs from the user.
 pub trait Widget: AsAny {
 	/// Update the widget based on the inputs
-	fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &TextDrawer, camera: &Camera) -> bool;
+	fn update(&mut self, input: &Input, delta_sec: f64, widgets_manager: &mut WidgetsManager,
+	          text_drawer: &TextDrawer, camera: Option<&Camera>) -> bool;
 	/// Draw the widget on the canvas
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, focused: bool, hovered: bool);
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>,
+	        focused: bool, hovered: bool);
 	
-	fn get_rect(&self) -> Rect;
-	fn get_rect_mut(&mut self) -> &mut Rect;
-	
-	fn has_camera(&self) -> bool;
+	fn get_base(&self) -> Base;
+	fn get_base_mut(&mut self) -> &mut Base;
 }
 
 pub struct WidgetsManager {
 	widgets: HashMap<WidgetId, Box<dyn Widget>>,
-	order: Vec<WidgetId>,
+	no_cam_order: Vec<WidgetId>,
+	cam_order: Vec<WidgetId>,
 	id_counter: WidgetId,
 	focused_widget: Option<WidgetId>,
 	hovered_widget: Option<WidgetId>,
@@ -56,7 +93,8 @@ impl WidgetsManager {
 	pub fn new() -> Self {
 		WidgetsManager {
 			widgets: HashMap::new(),
-			order: Vec::new(),
+			no_cam_order: Vec::new(),
+			cam_order: Vec::new(),
 			id_counter: 0,
 			focused_widget: None,
 			hovered_widget: None,
@@ -90,18 +128,16 @@ impl WidgetsManager {
 			let mut new_hovered_widget = None;
 			let mouse_position = input.mouse.position.cast();
 			// checks collisions with the widgets without camera first
-			for id in self.order.iter().rev() {
-				let widget = self.widgets.get(id).unwrap();
-				if !widget.has_camera() && widget.get_rect().collide_point(mouse_position) {
+			for id in self.no_cam_order.iter().rev() {
+				if self.widgets.get(id).unwrap().get_base().rect.collide_point(mouse_position) {
 					new_hovered_widget = Some(id.clone());
 					break;
 				}
 			}
 			// checks collisions with the widgets with camera if none without was hovered
 			if new_hovered_widget.is_none() {
-				for id in self.order.iter().rev() {
-					let widget = self.widgets.get(id).unwrap();
-					if widget.has_camera() && widget.get_rect().collide_point(camera.transform.inverse() * mouse_position) {
+				for id in self.cam_order.iter().rev() {
+					if self.widgets.get(id).unwrap().get_base().rect.collide_point(camera.transform().inverse() * mouse_position) {
 						new_hovered_widget = Some(id.clone());
 						break;
 					}
@@ -114,9 +150,11 @@ impl WidgetsManager {
 		}
 		
 		// Update the focused widget (if there is one)
-		if let Some(id) = &self.focused_widget {
-			
-			changed |= self.widgets.get_mut(focused_widget).unwrap().update(input, delta_sec, text_drawer, camera);
+		if let Some(id) = self.focused_widget {
+			let mut focused_widget = self.widgets.remove(&id).unwrap();
+			let camera = if self.widget_has_no_camera(id) { None } else { Some(camera) };
+			changed |= focused_widget.update(input, delta_sec, self, text_drawer, camera);
+			self.widgets.insert(id, focused_widget);
 		}
 		
 		changed
@@ -124,28 +162,24 @@ impl WidgetsManager {
 	
 	pub fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera) {
 		// draws the widgets with camera first
-		self.order.iter().for_each(|id| {
-			let widget = self.widgets.get(id).unwrap();
-			if widget.has_camera() {
-				let focused = Some(*id) == self.focused_widget;
-				let hovered = Some(*id) == self.hovered_widget;
-				widget.draw(canvas, text_drawer, camera, focused, hovered);
-			}
+		self.cam_order.iter().for_each(|id| {
+			let focused = Some(*id) == self.focused_widget;
+			let hovered = Some(*id) == self.hovered_widget;
+			self.widgets.get(id).unwrap().draw(canvas, text_drawer, Some(camera), focused, hovered);
 		});
 		// draws the widgets without camera on top
-		self.order.iter().for_each(|id| {
-			let widget = self.widgets.get(id).unwrap();
-			if !widget.has_camera() {
-				let focused = Some(*id) == self.focused_widget;
-				let hovered = Some(*id) == self.hovered_widget;
-				widget.draw(canvas, text_drawer, camera, focused, hovered);
-			}
+		self.no_cam_order.iter().for_each(|id| {
+			let focused = Some(*id) == self.focused_widget;
+			let hovered = Some(*id) == self.hovered_widget;
+			self.widgets.get(id).unwrap().draw(canvas, text_drawer, None, focused, hovered);
+			
 		});
 	}
 	
-	pub fn add(&mut self, widget: Box<dyn Widget>) {
+	pub fn add(&mut self, widget: Box<dyn Widget>, has_camera: bool) {
 		self.widgets.insert(self.id_counter, widget);
-		self.order.push(self.id_counter);
+		self.widgets.get_mut(&self.id_counter).unwrap().get_base_mut().set_id(self.id_counter);
+		if has_camera { self.cam_order.push(self.id_counter) } else { self.no_cam_order.push(self.id_counter) }
 		self.id_counter += 1;
 	}
 	
@@ -157,12 +191,20 @@ impl WidgetsManager {
 		self.widgets.get_mut(&id).and_then(|w| w.as_mut().downcast_mut::<T>())
 	}
 	
-	/// Puts the given widget on top of the others
-	pub fn put_on_top(&mut self, id: WidgetId) {
-		let index = self.order.iter().position(|i| i == &id).unwrap();
-		self.order.remove(index);
-		self.order.push(id);
+	/// Puts the given widget on top of the others (the widget needs to not have a camera)
+	pub fn put_on_top_no_cam(&mut self, id: WidgetId) {
+		let index = self.no_cam_order.iter().position(|i| i == &id).unwrap();
+		self.no_cam_order.remove(index);
+		self.no_cam_order.push(id);
 	}
+	/// Puts the given widget on top of the others (the widget needs to have a camera)
+	pub fn put_on_top_cam(&mut self, id: WidgetId) {
+		let index = self.cam_order.iter().position(|i| i == &id).unwrap();
+		self.cam_order.remove(index);
+		self.cam_order.push(id);
+	}
+	
+	fn widget_has_no_camera(&self, id: WidgetId) -> bool { self.no_cam_order.contains(&id) }
 	
 	/// Returns the id of the last added widget
 	pub fn last_id(&self) -> WidgetId { self.id_counter - 1 }

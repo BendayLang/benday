@@ -1,6 +1,6 @@
 use std::f64::consts::{PI, TAU};
 use crate::input::{Input, KeyState};
-use crate::widgets::{Widget, HOVER, PUSH, Orientation, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA};
+use crate::widgets::{Widget, HOVER, PUSH, Orientation, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, WidgetsManager, Base};
 use crate::custom_rect::Rect;
 use nalgebra::{Point2, Vector2};
 use crate::vector2::Vector2Plus;
@@ -72,9 +72,7 @@ pub enum SliderType {
 ///
 /// It can be discrete or continuous
 pub struct Slider {
-	rect: Rect,
-	state: KeyState,
-	has_camera: bool,
+	base: Base,
 	/// Internal value of the slider (0.0 - 1.0)
 	value: f32,
 	style: SliderStyle,
@@ -85,19 +83,17 @@ pub struct Slider {
 impl Slider {
 	const SPEED: f32 = 2.5;
 	
-	pub fn new(rect: Rect, style: SliderStyle, slider_type: SliderType, has_camera: bool) -> Self {
+	pub fn new(rect: Rect, style: SliderStyle, slider_type: SliderType) -> Self {
 		let orientation = if rect.width() > rect.height() { Orientation::Horizontal } else { Orientation::Vertical };
 		Self {
-			rect,
+			base: Base::new(rect),
 			style,
 			orientation,
-			state: KeyState::new(),
 			value: match slider_type {
 				SliderType::Discrete { default_value, snap, .. } => default_value as f32 / snap as f32,
 				SliderType::Continuous { default_value, .. } => default_value,
 			},
 			slider_type,
-			has_camera,
 		}
 	}
 	
@@ -120,20 +116,19 @@ impl Slider {
 	
 	fn length(&self) -> f64 {
 		match self.orientation {
-			Orientation::Horizontal => self.rect.width() - self.rect.height(),
-			Orientation::Vertical => self.rect.height() - self.rect.width(),
+			Orientation::Horizontal => self.base.rect.width() - self.base.rect.height(),
+			Orientation::Vertical => self.base.rect.height() - self.base.rect.width(),
 		}
 	}
 	
 	fn thickness(&self) -> f64 {
 		match self.orientation {
-			Orientation::Horizontal => self.rect.height(),
-			Orientation::Vertical => self.rect.width(),
+			Orientation::Horizontal => self.base.rect.height(),
+			Orientation::Vertical => self.base.rect.width(),
 		}
 	}
 	
-	fn scroll_with_keys(&mut self, delta_sec: f64, plus_key: KeyState, minus_key: KeyState) -> bool {
-		let mut changed = false;
+	fn scroll_with_keys(&mut self, delta_sec: f64, plus_key: KeyState, minus_key: KeyState) {
 		if plus_key.is_pressed() && self.value != 1. {
 			match self.slider_type {
 				SliderType::Discrete { snap, .. } => {
@@ -144,11 +139,6 @@ impl Slider {
 				}
 			}
 			self.value = self.value.min(1.);
-			self.state.press();
-			changed = true;
-		} else if plus_key.is_released() {
-			self.state.release();
-			changed = true;
 		}
 		if minus_key.is_pressed() && self.value != 0. {
 			match self.slider_type {
@@ -160,47 +150,35 @@ impl Slider {
 				}
 			}
 			self.value = self.value.max(0.);
-			self.state.press();
-			changed = true;
-		} else if minus_key.is_released() {
-			self.state.release();
-			changed = true;
 		}
-		changed
 	}
 }
 
 impl Widget for Slider {
-	fn update(&mut self, input: &Input, delta_sec: f64, _text_drawer: &TextDrawer, camera: &Camera) -> bool {
+	fn update(&mut self, input: &Input, delta_sec: f64, _widgets_manager: &mut WidgetsManager,
+	          _text_drawer: &TextDrawer, camera: Option<&Camera>) -> bool {
 		let mut changed = false;
-		self.state.update();
-		
-		if input.mouse.left_button.is_pressed() {
-			self.state.press();
-			changed = true;
-		} else if input.mouse.left_button.is_released() {
-			self.state.release();
-			changed = true;
-		}
 		
 		match self.orientation {
 			Orientation::Horizontal => {
-				changed |= self.scroll_with_keys(delta_sec, input.keys_state.right, input.keys_state.left);
+				changed |= self.base.update(input, vec![input.keys_state.right, input.keys_state.left]);
+				self.scroll_with_keys(delta_sec, input.keys_state.right, input.keys_state.left);
 			},
 			Orientation::Vertical => {
-				changed |= self.scroll_with_keys(delta_sec, input.keys_state.up, input.keys_state.down);
+				changed |= self.base.update(input, vec![input.keys_state.up, input.keys_state.down]);
+				self.scroll_with_keys(delta_sec, input.keys_state.up, input.keys_state.down);
 			}
 		}
 		
 		if input.mouse.left_button.is_pressed() || input.mouse.left_button.is_down() {
 			let value = {
-				let mouse_position = if self.has_camera {
-					camera.transform.inverse() * input.mouse.position.cast()
+				let mouse_position = if let Some(camera) = camera {
+					camera.transform().inverse() * input.mouse.position.cast()
 				} else { input.mouse.position.cast() };
 				
 				let thumb_position = match self.orientation {
-					Orientation::Horizontal => mouse_position.x - self.rect.left(),
-					Orientation::Vertical => self.rect.bottom() + self.rect.height() - mouse_position.y,
+					Orientation::Horizontal => mouse_position.x - self.base.rect.left(),
+					Orientation::Vertical => self.base.rect.bottom() + self.base.rect.height() - mouse_position.y,
 				} - self.thickness() * 0.5;
 				thumb_position.clamp(0.0, self.length()) as f32 / self.length() as f32
 			};
@@ -219,47 +197,47 @@ impl Widget for Slider {
 		changed
 	}
 	
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, focused: bool, hovered: bool) {
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>,
+	        focused: bool, hovered: bool) {
 		let thumb_radius = self.thickness() * 0.5;
 		let bar_radius = thumb_radius * 0.6;
 		let margin = thumb_radius - bar_radius;
 		let thumb_position = match self.orientation {
 			Orientation::Horizontal => self.thumb_position() + thumb_radius,
-			Orientation::Vertical => self.rect.height() - self.thumb_position() - thumb_radius,
+			Orientation::Vertical => self.base.rect.height() - self.thumb_position() - thumb_radius,
 		};
-		let thumb_color = if self.state.is_pressed() || self.state.is_down() { self.style.thumb_pushed_color }
+		let thumb_color = if self.base.pushed() { self.style.thumb_pushed_color }
 		else if hovered { self.style.thumb_hovered_color } else { self.style.thumb_color };
 		let border_color = if focused { self.style.focused_color } else { self.style.border_color };
-		let camera = if self.has_camera { Some(camera) } else { None };
 		
 		let faces_nb = 7;
 		let (mut empty_track, mut filled_track, track_center) = match self.orientation {
 			Orientation::Horizontal => {
 				let empty_track: Vec<Point2<f64>> = (0..=faces_nb).map(|i| {
 					let angle = PI * (i as f64 / faces_nb as f64 - 0.5);
-					self.rect.mid_right() - Vector2::new(thumb_radius, 0.) + Vector2::new_polar(bar_radius, angle)
+					self.base.rect.mid_right() - Vector2::new(thumb_radius, 0.) + Vector2::new_polar(bar_radius, angle)
 				}).collect();
 				let filled_track: Vec<Point2<f64>> = (0..=faces_nb).map(|i| {
 					let angle = PI * (i as f64 / faces_nb as f64 + 0.5);
-					self.rect.mid_left() + Vector2::new(thumb_radius, 0.) + Vector2::new_polar(bar_radius, angle)
+					self.base.rect.mid_left() + Vector2::new(thumb_radius, 0.) + Vector2::new_polar(bar_radius, angle)
 				}).collect();
 				
-				let thumb_top = self.rect.top_left() + Vector2::new(thumb_position, -margin);
-				let thumb_bottom = self.rect.bottom_left() + Vector2::new(thumb_position, margin);
+				let thumb_top = self.base.rect.top_left() + Vector2::new(thumb_position, -margin);
+				let thumb_bottom = self.base.rect.bottom_left() + Vector2::new(thumb_position, margin);
 				(empty_track, filled_track, vec![thumb_top, thumb_bottom])
 			},
 			Orientation::Vertical => {
 				let empty_track: Vec<Point2<f64>> = (0..=faces_nb).map(|i| {
 					let angle = PI * (i as f64 / faces_nb as f64 + 1.0);
-					self.rect.mid_bottom() + Vector2::new(0., thumb_radius) + Vector2::new_polar(bar_radius, angle)
+					self.base.rect.mid_bottom() + Vector2::new(0., thumb_radius) + Vector2::new_polar(bar_radius, angle)
 				}).collect();
 				let filled_track: Vec<Point2<f64>> = (0..=faces_nb).map(|i| {
 					let angle = PI * (i as f64 / faces_nb as f64);
-					self.rect.mid_top() - Vector2::new(0., thumb_radius) + Vector2::new_polar(bar_radius, angle)
+					self.base.rect.mid_top() - Vector2::new(0., thumb_radius) + Vector2::new_polar(bar_radius, angle)
 				}).collect();
 				
-				let thumb_right = self.rect.bottom_right() + Vector2::new(-margin, thumb_position);
-				let thumb_left = self.rect.bottom_left() + Vector2::new(margin, thumb_position);
+				let thumb_right = self.base.rect.bottom_right() + Vector2::new(-margin, thumb_position);
+				let thumb_left = self.base.rect.bottom_left() + Vector2::new(margin, thumb_position);
 				(empty_track, filled_track, vec![thumb_right, thumb_left])
 			}
 		};
@@ -273,7 +251,7 @@ impl Widget for Slider {
 		draw_polygon(canvas, camera, self.style.border_color, &full_track);
 		
 		// Thumb
-		let thumb_position = self.rect.bottom_left() + match self.orientation {
+		let thumb_position = self.base.rect.bottom_left() + match self.orientation {
 			Orientation::Horizontal => Vector2::new(thumb_position, thumb_radius),
 			Orientation::Vertical => Vector2::new(thumb_radius, thumb_position),
 		};
@@ -286,8 +264,8 @@ impl Widget for Slider {
 		draw_circle(canvas, camera, border_color, thumb_position, thumb_radius);
 		
 		let text_position = match self.orientation {
-			Orientation::Horizontal => self.rect.position + Vector2::new(self.rect.width() * 0.5, self.rect.height() * 1.5),
-			Orientation::Vertical => self.rect.position + Vector2::new(self.rect.width() * 0.5, self.rect.height() + self.rect.width() * 0.5)
+			Orientation::Horizontal => self.base.rect.position + Vector2::new(self.base.rect.width() * 0.5, self.base.rect.height() * 1.5),
+			Orientation::Vertical => self.base.rect.position + Vector2::new(self.base.rect.width() * 0.5, self.base.rect.height() + self.base.rect.width() * 0.5)
 		};
 		match &self.slider_type {
 			SliderType::Discrete { snap, display, .. } => {
@@ -307,8 +285,6 @@ impl Widget for Slider {
 		}
 	}
 	
-	fn get_rect(&self) -> Rect { self.rect }
-	fn get_rect_mut(&mut self) -> &mut Rect { &mut self.rect }
-	
-	fn has_camera(&self) -> bool { self.has_camera }
+	fn get_base(&self) -> Base { self.base }
+	fn get_base_mut(&mut self) -> &mut Base { &mut self.base }
 }

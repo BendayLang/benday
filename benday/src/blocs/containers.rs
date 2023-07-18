@@ -1,16 +1,19 @@
 use crate::blocs::{Bloc, BlocContainer};
 use crate::Container;
 use nalgebra::{Point2, Vector2};
-use pg_sdl::color::{darker, Colors, paler};
 use pg_sdl::camera::Camera;
+use pg_sdl::color::{darker, paler, Colors};
+use pg_sdl::custom_rect::Rect;
+use pg_sdl::primitives::{draw_rounded_rect, fill_rounded_rect};
 use pg_sdl::text::TextDrawer;
+use pg_sdl::widgets::{
+	text_input::{TextInput, TextInputStyle},
+	Widget,
+};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
 use std::collections::HashMap;
-use pg_sdl::custom_rect::Rect;
-use pg_sdl::primitives::{draw_rounded_rect, fill_rounded_rect};
-use pg_sdl::widgets::{Widget, text_input::{TextInput, TextInputStyle}};
 
 /// Compartiment d'un bloc.
 ///
@@ -28,15 +31,15 @@ impl Slot {
 		let text_input_style = TextInputStyle::new(paler(color, 0.4), 12., Some(3.));
 		Self {
 			rect: Rect::from(Point2::origin(), Self::DEFAULT_SIZE),
-			text_box: TextInput::new(Rect::from(Point2::origin(), Self::DEFAULT_SIZE), placeholder, text_input_style, true),
+			text_box: TextInput::new(Rect::from(Point2::origin(), Self::DEFAULT_SIZE), text_input_style, placeholder),
 			child_id: None,
 		}
 	}
-	
+
 	pub fn get_size(&self) -> Vector2<f64> {
 		self.rect.size
 	}
-	
+
 	pub fn get_rect(&self) -> Rect {
 		self.rect
 	}
@@ -54,7 +57,7 @@ impl Slot {
 		self.rect.size = if let Some(bloc_id) = self.child_id {
 			*blocs.get(&bloc_id).unwrap().get_size()
 		} else {
-			self.text_box.get_rect().size
+			self.text_box.get_base().rect.size
 		};
 	}
 
@@ -62,7 +65,7 @@ impl Slot {
 		if let Some(child_id) = self.child_id {
 			blocs.get_mut(&child_id).unwrap().set_position(parent_position + self.rect.position.coords);
 		} else {
-			self.text_box.get_rect_mut().position = parent_position + self.rect.position.coords;
+			self.text_box.get_base_mut().rect.position = parent_position + self.rect.position.coords;
 		}
 	}
 
@@ -71,14 +74,16 @@ impl Slot {
 	}
 
 	pub fn translate(&mut self, delta: Vector2<f64>) {
-		self.text_box.get_rect_mut().position += delta;
+		self.text_box.get_base_mut().rect.position += delta;
 	}
 
 	pub fn get_ratio(&self, rect: Rect) -> f64 {
 		1.0 - 2.0 * (rect.v_mid() - self.rect.position.y - self.rect.height() * 0.5).abs() / rect.height()
 	}
 
-	pub fn has_child(&self) -> bool { self.child_id.is_some() }
+	pub fn has_child(&self) -> bool {
+		self.child_id.is_some()
+	}
 
 	/// Vide le slot de son contenu.
 	pub fn remove_child(&mut self) {
@@ -99,7 +104,7 @@ impl Slot {
 	/// Affiche le slot.
 	pub fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, selected: bool, hovered: bool) {
 		if self.child_id.is_none() {
-			self.text_box.draw(canvas, text_drawer, camera, selected, hovered);
+			self.text_box.draw(canvas, text_drawer, Some(camera), selected, hovered);
 		}
 	}
 
@@ -151,7 +156,7 @@ impl Sequence {
 	pub fn get_size(&self) -> Vector2<f64> {
 		self.rect.size
 	}
-	
+
 	pub fn get_rect(&self) -> Rect {
 		self.rect
 	}
@@ -194,10 +199,13 @@ impl Sequence {
 
 	pub fn update_child_position(&self, parent_position: Point2<f64>, blocs: &mut HashMap<u32, Bloc>) {
 		self.childs_ids.iter().enumerate().for_each(|(place, child_id)| {
-			blocs.get_mut(&child_id).unwrap().set_position(parent_position + self.rect.position.coords + self.childs_positions[place]);
+			blocs
+				.get_mut(&child_id)
+				.unwrap()
+				.set_position(parent_position + self.rect.position.coords + self.childs_positions[place]);
 		});
 	}
-	
+
 	fn get_child_position(&self, place: usize) -> Vector2<f64> {
 		if place == self.childs_ids.len() {
 			Vector2::new(0.0, self.rect.size.y)
@@ -287,8 +295,13 @@ impl Sequence {
 
 		let hovered_color = Color::from((0, 0, 0, 50));
 		canvas.set_blend_mode(BlendMode::Mod);
-		fill_rounded_rect(canvas, Some(camera), hovered_color,
-		                  Rect::from(self.rect.position + position.coords + place_position, size),radius);
+		fill_rounded_rect(
+			canvas,
+			Some(camera),
+			hovered_color,
+			Rect::from(self.rect.position + position.coords + place_position, size),
+			radius,
+		);
 		canvas.set_blend_mode(BlendMode::None);
 	}
 }

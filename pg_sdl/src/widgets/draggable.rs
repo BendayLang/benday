@@ -1,17 +1,16 @@
 use nalgebra::Vector2;
-use pg_sdl::camera::Camera;
-use pg_sdl::color::{darker, with_alpha, Colors, paler};
-use pg_sdl::custom_rect::Rect;
-use pg_sdl::input::{Input, KeyState};
-use pg_sdl::primitives::{draw_rounded_rect, fill_rounded_rect};
-use pg_sdl::text::TextDrawer;
-use pg_sdl::widgets::{Widget, WidgetId, WidgetsManager, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER, PUSH, Base};
+use crate::camera::Camera;
+use crate::color::{darker, with_alpha, Colors};
+use crate::custom_rect::Rect;
+use crate::input::{Input, KeyState};
+use crate::primitives::{draw_rounded_rect, fill_rounded_rect};
+use crate::text::TextDrawer;
+use crate::widgets::{Widget, WidgetId, WidgetsManager, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER, PUSH, Base};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
-use pg_sdl::widgets::text_input::{TextInput, TextInputStyle};
 
-pub struct NewBlocStyle {
+pub struct DraggableStyle {
 	color: Color,
 	hovered_color: Color,
 	focused_color: Color,
@@ -19,7 +18,7 @@ pub struct NewBlocStyle {
 	corner_radius: f64,
 }
 
-impl NewBlocStyle {
+impl DraggableStyle {
 	pub fn new(color: Color, corner_radius: f64) -> Self {
 		Self {
 			color,
@@ -31,57 +30,41 @@ impl NewBlocStyle {
 	}
 }
 
-pub struct NewBloc {
+pub struct Draggable {
 	base: Base,
-	style: NewBlocStyle,
+	style: DraggableStyle,
 	grab_delta: Option<Vector2<f64>>,
-	text_input_id: WidgetId,
 }
 
-impl NewBloc {
-	const SHADOW: Vector2<f64> = Vector2::new(6., 8.);
-	const TEXT_INPUT_SIZE: Vector2<f64> = Vector2::new(80., 20.);
+impl Draggable {
+	const SHADOW: Vector2<f64> = Vector2::new(6.0, 8.0);
 	
-	pub fn add(rect: Rect, style: NewBlocStyle, widgets_manager: &mut WidgetsManager) {
-		widgets_manager.add(Box::new(TextInput::new(
-		Rect::from(rect.center() - Self::TEXT_INPUT_SIZE * 0.5, Self::TEXT_INPUT_SIZE),
-		TextInputStyle::new(paler(style.color, 0.2), 12.,None),
-		"text".to_string())),
-		true);
-		widgets_manager.add(Box::new(Self {
-			base: Base::new(rect),
-			style,
-			grab_delta: None,
-			text_input_id: widgets_manager.last_id(),
-		}), true);
-		widgets_manager.put_on_top_cam(widgets_manager.last_id() - 1);
-		
+	pub fn new(rect: Rect, style: DraggableStyle) -> Self {
+		Self { base: Base::new(rect), style, grab_delta: None }
 	}
 }
 
-impl Widget for NewBloc {
+impl Widget for Draggable {
 	fn update(&mut self, input: &Input, _delta_sec: f64, widgets_manager: &mut WidgetsManager,
 	          _text_drawer: &TextDrawer, camera: Option<&Camera>) -> bool {
-		let camera = camera.unwrap();
 		let mut changed = self.base.update(input, Vec::new());
 		
 		if self.base.state.is_pressed() {
-			widgets_manager.put_on_top_cam(self.base.id);
-			widgets_manager.put_on_top_cam(self.text_input_id);
-			
-			self.grab_delta = Some(self.base.rect.position - camera.transform().inverse() * input.mouse.position.cast());
-			widgets_manager.get_mut::<TextInput>(self.text_input_id).unwrap().get_base_mut().rect.position -= Self::SHADOW;
+			if camera.is_some() { widgets_manager.put_on_top_cam(self.base.id) } else { widgets_manager.put_on_top_no_cam(self.base.id) };
+			self.grab_delta = if let Some(camera) = camera {
+					Some(self.base.rect.position - camera.transform().inverse() * input.mouse.position.cast())
+				} else {
+					Some(self.base.rect.position - input.mouse.position.cast())
+				};
 		}
 		else if self.base.state.is_released() {
 			self.grab_delta = None;
-			widgets_manager.get_mut::<TextInput>(self.text_input_id).unwrap().get_base_mut().rect.position += Self::SHADOW;
 		}
 		else if let Some(grab_delta) = self.grab_delta {
 			if !input.mouse.delta.is_empty() {
-				let new_position = camera.transform().inverse() * input.mouse.position.cast() + grab_delta;
-				widgets_manager.get_mut::<TextInput>(self.text_input_id).unwrap().get_base_mut().rect.position +=
-					new_position -self.base.rect.position;
-				self.base.rect.position = new_position;
+				let mouse_position = if let Some(camera) = camera { camera.transform().inverse() * input.mouse.position.cast() }
+				else { input.mouse.position.cast() };
+				self.base.rect.position = mouse_position + grab_delta;
 				changed = true;
 			}
 		}

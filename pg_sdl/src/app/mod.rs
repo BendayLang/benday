@@ -33,9 +33,8 @@ pub struct PgSdl {
 }
 
 impl PgSdl {
-	pub fn init(
-		window_title: &str, window_width: u32, window_height: u32, fps: Option<u32>, draw_fps: bool, background_color: Color,
-	) -> Self {
+	pub fn init(window_title: &str, window_size: Vector2<u32>, fps: Option<u32>, draw_fps: bool,
+	            background_color: Color, widgets_manager: WidgetsManager) -> Self {
 		let sdl_context = sdl2::init().expect("SDL2 could not be initialized");
 		
 		let video_subsystem = sdl_context.video().expect("SDL video subsystem could not be initialized");
@@ -43,7 +42,7 @@ impl PgSdl {
 		video_subsystem.text_input().start();
 		
 		let window = video_subsystem
-			.window(window_title, window_width, window_height)
+			.window(window_title, window_size.x, window_size.y)
 			.position_centered()
 			.resizable()
 			.build()
@@ -52,14 +51,13 @@ impl PgSdl {
 		let canvas = window.into_canvas().build().expect("Canvas could not be created");
 		
 		// TODO mettre ca en paramettre ?
-		let resolution = Vector2::new(window_width, window_height);
-		let camera = Camera::new(resolution, 6, 2.5, 5.0, -4000.0, 4000.0, -5000.0, 5000.0);
+		let camera = Camera::new(window_size, 6, 2.5, 5.0, -4000.0, 4000.0, -5000.0, 5000.0);
 		
 		PgSdl {
 			mouse: sdl_context.mouse(),
 			text_drawer: TextDrawer::new(canvas.texture_creator()),
 			input: Input::new(sdl_context, video_subsystem.clipboard()),
-			widgets_manager: WidgetsManager::new(),
+			widgets_manager,
 			canvas,
 			background_color,
 			fps,
@@ -135,22 +133,5 @@ impl PgSdl {
 			
 			frame_time = frame_instant.elapsed().as_secs_f64();
 		}
-	}
-	
-	pub fn add_widget(&mut self, widget: Box<dyn Widget>) -> &mut Self {
-		self.widgets_manager.add(widget);
-		self
-	}
-	
-	pub fn add_widgets(&mut self, widgets: Vec<Box<dyn Widget>>) {
-		widgets.into_iter().for_each(|widget| {
-			self.widgets_manager.add(widget);
-		});
-	}
-	
-	pub fn change_mouse_cursor(&mut self) {
-		let cursor = Cursor::from_system(SystemCursor::WaitArrow).expect("mouse cursor loading error");
-		cursor.set();
-		// TODO ca marche pas
 	}
 }

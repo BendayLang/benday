@@ -1,27 +1,26 @@
 // #![allow(dead_code, unused_variables)]
 mod blocs;
 
-use std::any::{Any, TypeId};
+use crate::blocs::bloc::{NewBloc, NewBlocStyle};
 use blocs::BlocType;
-use pg_sdl::custom_rect::Rect;
 use blocs::{Bloc, BlocContainer, BlocElement};
 use nalgebra::{Point2, Vector2};
 use pg_sdl::app::{App, PgSdl};
 use pg_sdl::camera::Camera;
 use pg_sdl::color::{hsv_color, Colors};
+use pg_sdl::custom_rect::Rect;
 use pg_sdl::input::Input;
+use pg_sdl::primitives::draw_text;
 use pg_sdl::style::Align;
 use pg_sdl::text::{TextDrawer, TextStyle};
+use pg_sdl::widgets::{
+	button::{Button, ButtonStyle},
+	WidgetsManager,
+};
 use sdl2::render::Canvas;
 use sdl2::video::Window;
+use std::any::{Any, TypeId};
 use std::collections::HashMap;
-use pg_sdl::primitives::draw_text;
-use pg_sdl::widgets::{
-	WidgetsManager,
-	button::{Button, ButtonStyle},
-	text_input::{TextInput, TextInputStyle}
-};
-use crate::blocs::bloc::{DraggableBloc, DraggableBlocStyle};
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 struct Element {
@@ -107,7 +106,7 @@ impl App for MyApp {
 									self.blocs.get_mut(child_id).unwrap().translate(-Bloc::SHADOW);
 								});
 								let delta = self.blocs.get(&bloc_id).unwrap().get_position().clone()
-									- camera.transform.inverse() * input.mouse.position.cast();
+									- camera.transform().inverse() * input.mouse.position.cast();
 
 								self.app_state = AppState::BlocMoving { moving_bloc_id: bloc_id, delta, hovered_container: None };
 							}
@@ -125,7 +124,7 @@ impl App for MyApp {
 				}
 				// Update witch element is (mouse) hovered
 				if !input.mouse.delta.is_empty() {
-					let mouse_position = camera.transform.inverse() * input.mouse.position.cast();
+					let mouse_position = camera.transform().inverse() * input.mouse.position.cast();
 					let mut new_hovered_element = None;
 					for id in self.blocs_order.iter().rev() {
 						if let Some(bloc_element) = self.blocs.get(&id).unwrap().collide_element(mouse_position) {
@@ -175,7 +174,7 @@ impl App for MyApp {
 				}
 				// Move the moving bloc
 				else if !input.mouse.delta.is_empty() {
-					let mouse_position = camera.transform.inverse() * input.mouse.position.cast();
+					let mouse_position = camera.transform().inverse() * input.mouse.position.cast();
 					self.blocs.get_mut(&moving_bloc_id).unwrap().set_position(mouse_position + delta);
 					update_layout_and_positions(&moving_bloc_id, &mut self.blocs);
 
@@ -186,11 +185,8 @@ impl App for MyApp {
 					let (mut new_hovered_container, mut ratio) = (None, 0.);
 					self.blocs_order.iter().for_each(|bloc_id| {
 						if !moving_bloc_childs.contains(bloc_id) {
-							if let Some((new_bloc_container, new_ratio)) = self
-								.blocs
-								.get(&bloc_id)
-								.unwrap()
-								.collide_container(*moving_bloc.get_rect())
+							if let Some((new_bloc_container, new_ratio)) =
+								self.blocs.get(&bloc_id).unwrap().collide_container(*moving_bloc.get_rect())
 							{
 								if new_ratio >= ratio {
 									new_hovered_container =
@@ -207,7 +203,7 @@ impl App for MyApp {
 				}
 			}
 		}
-		
+
 		changed
 	}
 
@@ -274,18 +270,12 @@ fn main() {
 		blocs: HashMap::new(),
 		blocs_order: Vec::new(),
 	};
+	
+	let mut widgets_manager = WidgetsManager::new();
 
-	let resolution = Vector2::new(1280, 720);
-
-	let mut app = PgSdl::init("Benday", resolution.x, resolution.y, Some(120), true, Colors::LIGHT_GREY);
-
-	app.add_widget(
-		Box::new(Button::new(
-			Rect::new(100., 100., 200., 100.),
-			"New bloc".to_string(),
-			ButtonStyle::default(),
-			false,
-		)),
+	widgets_manager.add(
+		Box::new(Button::new(Rect::new(100., 100., 200., 100.), ButtonStyle::default(), "New bloc".to_string())),
+		false,
 	);
 	/*
 	app.add_widget(
@@ -360,21 +350,29 @@ fn main() {
 		)),
 	);
 	 */
-	
-	app.add_widget(
-		Box::new(DraggableBloc::new(
-			Rect::new(100., 100., 200., 100.),
-			DraggableBlocStyle::new(Colors::LIGHT_YELLOW, 8.),
-		)),
-	);
-	
-	app.add_widget(
-		Box::new(DraggableBloc::new(
-			Rect::new(50., 50., 200., 100.),
-			DraggableBlocStyle::new(Colors::LIGHT_RED, 8.),
-		)),
-	);
 
+	NewBloc::add(
+		Rect::new(100., 100., 200., 100.),
+		NewBlocStyle::new(Colors::LIGHT_YELLOW, 8.),
+		&mut widgets_manager
+	);
+	NewBloc::add(
+		Rect::new(50., 50., 200., 100.),
+		NewBlocStyle::new(Colors::LIGHT_RED, 8.),
+		&mut widgets_manager
+	);
+	/*
+	widgets_manager.add(Box::new(NewBloc::new(
+		Rect::new(50., 50., 200., 100.),
+		NewBlocStyle::new(Colors::LIGHT_RED, 8.))),
+	                    true);
+	widgets_manager.add(Box::new(NewBloc::new(
+		Rect::new(0., 0., 200., 100.),
+		NewBlocStyle::new(Colors::LIGHT_VIOLET, 8.))),
+	                    true);
+	*/
+	let resolution = Vector2::new(1280, 720);
+	let mut app = PgSdl::init("Benday", resolution, Some(120), true, Colors::LIGHT_GREY, widgets_manager);
 	app.run(my_app);
 }
 

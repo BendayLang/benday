@@ -15,7 +15,7 @@ use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
 use crate::color::with_alpha;
 use crate::custom_rect::Rect;
-use crate::widgets::{FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA};
+use crate::widgets::{Base, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, WidgetId, WidgetsManager};
 
 
 pub struct ButtonStyle {
@@ -61,49 +61,33 @@ impl ButtonStyle {
 
 /// A button is a widget that it can be clicked.
 pub struct Button {
-	rect: Rect,
-	state: KeyState,
+	base: Base,
 	style: ButtonStyle,
-	has_camera: bool,
 	text: String,
 }
 
 impl Button {
-	pub fn new(rect: Rect, text: String, style: ButtonStyle, has_camera: bool) -> Self {
+	pub fn new(rect: Rect, style: ButtonStyle, text: String) -> Self {
 		Self {
-			rect,
-			state: KeyState::new(),
+			base: Base::new(rect),
 			style,
-			has_camera,
 			text,
 		}
 	}
 	pub fn set_text(&mut self, new_text: String) {
 		self.text = new_text;
 	}
-	pub fn is_pressed(&self) -> bool { self.state.is_pressed() }
+	pub fn is_pressed(&self) -> bool { self.base.state.is_pressed() }
 }
 
 impl Widget for Button {
-	fn update(&mut self, input: &Input, _delta_sec: f64, _text_drawer: &TextDrawer, _camera: &Camera) -> bool {
-		let mut changed = false;
-		self.state.update();
-
-		if input.mouse.left_button.is_pressed() || input.keys_state.enter.is_pressed() {
-			self.state.press();
-			changed = true;
-		} else if input.mouse.left_button.is_released() || input.keys_state.enter.is_released() {
-			self.state.release();
-			changed = true;
-		}
-
-		changed
+	fn update(&mut self, input: &Input, _delta_sec: f64, _widgets_manager: &mut WidgetsManager,
+	          _text_drawer: &TextDrawer, _camera: Option<&Camera>) -> bool {
+		self.base.update(input, vec![input.keys_state.enter])
 	}
 
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, focused: bool, hovered: bool) {
-		let camera = if self.has_camera { Some(camera) } else { None };
-		
-		let color = if self.state.is_pressed() || self.state.is_down() {
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool) {
+		let color = if self.base.pushed() {
 			self.style.pushed_color } else if hovered { self.style.hovered_color } else { self.style.color };
 		let border_color = if focused { self.style.focused_color } else { self.style.border_color };
 
@@ -111,26 +95,25 @@ impl Widget for Button {
 			if focused {
 				canvas.set_blend_mode(BlendMode::Blend);
 				fill_rounded_rect(canvas, camera, with_alpha(border_color, FOCUS_HALO_ALPHA),
-				                  self.rect.enlarged(FOCUS_HALO_DELTA), FOCUS_HALO_DELTA + corner_radius);
+				                  self.base.rect.enlarged(FOCUS_HALO_DELTA), FOCUS_HALO_DELTA + corner_radius);
 			}
-			fill_rounded_rect(canvas, camera, color, self.rect, corner_radius);
-			draw_rounded_rect(canvas, camera, border_color, self.rect, corner_radius);
+			fill_rounded_rect(canvas, camera, color, self.base.rect, corner_radius);
+			draw_rounded_rect(canvas, camera, border_color, self.base.rect, corner_radius);
 			
 		} else {
 			if focused {
 				canvas.set_blend_mode(BlendMode::Blend);
 				fill_rounded_rect(canvas, camera, with_alpha(border_color, FOCUS_HALO_ALPHA),
-				                  self.rect.enlarged(FOCUS_HALO_DELTA), FOCUS_HALO_DELTA);
+				                  self.base.rect.enlarged(FOCUS_HALO_DELTA), FOCUS_HALO_DELTA);
 			}
-			fill_rect(canvas, camera, color, self.rect);
-			draw_rect(canvas, camera, border_color, self.rect);
+			fill_rect(canvas, camera, color, self.base.rect);
+			draw_rect(canvas, camera, border_color, self.base.rect);
 		};
 
-		draw_text(canvas, camera, text_drawer, self.rect.center(), &self.text,
+		draw_text(canvas, camera, text_drawer, self.base.rect.center(), &self.text,
 		          self.style.font_size, &self.style.text_style, Align::Center);
 	}
 	
-	fn get_rect(&self) -> Rect { self.rect }
-	fn get_rect_mut(&mut self) -> &mut Rect { &mut self.rect }
-	fn has_camera(&self) -> bool { self.has_camera }
+	fn get_base(&self) -> Base { self.base }
+	fn get_base_mut(&mut self) -> &mut Base { &mut self.base }
 }

@@ -12,8 +12,8 @@ use crate::custom_rect::Rect;
 /// Draws a one pixel wide line
 pub fn draw_line(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, start: Point2<f64>, end: Point2<f64>) {
 	if let Some(camera) = camera {
-		let start = camera.transform * start;
-		let end = camera.transform * end;
+		let start = camera.transform() * start;
+		let end = camera.transform() * end;
 		DrawRenderer::line(canvas, start.x as i16, start.y as i16, end.x as i16, end.y as i16, color).unwrap();
 	} else {
 		DrawRenderer::line(canvas, start.x as i16, start.y as i16, end.x as i16, end.y as i16, color).unwrap();
@@ -22,7 +22,7 @@ pub fn draw_line(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Co
 
 pub fn draw_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, rect: Rect) {
 	if let Some(camera) = camera {
-		let rect = camera.transform * rect;
+		let rect = camera.transform() * rect;
 		if camera.is_in_scope(rect) {
 			canvas.set_draw_color(color);
 			canvas.draw_rect(rect.into_rect()).unwrap();
@@ -34,7 +34,7 @@ pub fn draw_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Co
 }
 pub fn fill_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, rect: Rect) {
 	if let Some(camera) = camera {
-		let rect = camera.transform * rect;
+		let rect = camera.transform() * rect;
 		if camera.is_in_scope(rect) {
 			canvas.set_draw_color(color);
 			canvas.fill_rect(rect.into_rect()).unwrap();
@@ -47,7 +47,7 @@ pub fn fill_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Co
 
 pub fn draw_rounded_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, rect: Rect, radius: f64) {
 	if let Some(camera) = camera {
-		let rect = camera.transform * rect;
+		let rect = camera.transform() * rect;
 		let radius = (camera.scale() * radius) as i16;
 		if camera.is_in_scope(rect) {
 			let (x1, x2) = (rect.left() as i16, rect.right() as i16 - 1);
@@ -62,7 +62,7 @@ pub fn draw_rounded_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, c
 }
 pub fn fill_rounded_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, rect: Rect, radius: f64) {
 	if let Some(camera) = camera {
-		let rect = camera.transform * rect;
+		let rect = camera.transform() * rect;
 		let radius = (camera.scale() * radius) as i16;
 		if camera.is_in_scope(rect) {
 			let (x1, x2) = (rect.left() as i16, rect.right() as i16 - 1);
@@ -78,7 +78,7 @@ pub fn fill_rounded_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, c
 
 pub fn draw_ellipse(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, rect: Rect) {
 	if let Some(camera) = camera {
-		let rect = camera.transform * rect;
+		let rect = camera.transform() * rect;
 		if camera.is_in_scope(Rect::from(rect.position - rect.size, 2.0 * rect.size)) {
 			DrawRenderer::ellipse(canvas, rect.x() as i16, rect.y() as i16,
 			                      rect.width() as i16, rect.height() as i16, color).unwrap();
@@ -90,7 +90,7 @@ pub fn draw_ellipse(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color:
 }
 pub fn fill_ellipse(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, rect: Rect) {
 	if let Some(camera) = camera {
-		let rect = camera.transform * rect;
+		let rect = camera.transform() * rect;
 		if camera.is_in_scope(Rect::from(rect.position - rect.size, 2.0 * rect.size)) {
 			DrawRenderer::filled_ellipse(canvas, rect.x() as i16, rect.y() as i16,
 			                             rect.width() as i16, rect.height() as i16, color).unwrap();
@@ -103,7 +103,7 @@ pub fn fill_ellipse(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color:
 
 pub fn draw_circle(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, position: Point2<f64>, radius: f64) {
 	if let Some(camera) = camera {
-		let position = camera.transform * position;
+		let position = camera.transform() * position;
 		let radius = camera.scale() * radius;
 		let rect = Rect::new(position.x - radius, position.y - radius, 2.0 * radius, 2.0 * radius);
 		if camera.is_in_scope(rect) {
@@ -115,7 +115,7 @@ pub fn draw_circle(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: 
 }
 pub fn fill_circle(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, position: Point2<f64>, radius: f64) {
 	if let Some(camera) = camera {
-		let position = camera.transform * position;
+		let position = camera.transform() * position;
 		let radius = camera.scale() * radius;
 		let rect = Rect::new(position.x - radius, position.y - radius, 2.0 * radius, 2.0 * radius);
 		if camera.is_in_scope(rect) {
@@ -128,7 +128,7 @@ pub fn fill_circle(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: 
 
 pub fn draw_polygon(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, vertices: &Vec<Point2<f64>>) {
 	if let Some(camera) = camera {
-		let vertices = vertices.iter().map(|point| camera.transform * point).collect::<Vec<Point2<f64>>>();
+		let vertices = vertices.iter().map(|point| camera.transform() * point).collect::<Vec<Point2<f64>>>();
 		let vx: Vec<i16> = vertices.iter().map(|point| point.x as i16).collect();
 		let vy: Vec<i16> = vertices.iter().map(|point| point.y as i16).collect();
 		let x_min = *vx.iter().min().unwrap() as f64;
@@ -147,7 +147,7 @@ pub fn draw_polygon(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color:
 }
 pub fn fill_polygon(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, vertices: &Vec<Point2<f64>>) {
 	if let Some(camera) = camera {
-		let vertices = vertices.iter().map(|point| camera.transform * point).collect::<Vec<Point2<f64>>>();
+		let vertices = vertices.iter().map(|point| camera.transform() * point).collect::<Vec<Point2<f64>>>();
 		let vx: Vec<i16> = vertices.iter().map(|point| point.x as i16).collect();
 		let vy: Vec<i16> = vertices.iter().map(|point| point.y as i16).collect();
 		let x_min = *vx.iter().min().unwrap() as f64;
@@ -209,7 +209,7 @@ pub fn draw_text(
 		return;
 	}
 	if let Some(camera) = camera {
-		let position = camera.transform * position;
+		let position = camera.transform() * position;
 		let font_size = camera.scale() * font_size;
 		let size = text_drawer.text_size(&text, font_size, style);
 		let rect = Rect::from(position, size.cast());

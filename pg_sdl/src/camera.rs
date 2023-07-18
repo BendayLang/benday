@@ -8,14 +8,16 @@ use crate::custom_rect::Rect;
 
 use nalgebra::{Matrix2, Matrix3, Point2, Scale2, Similarity2, Transform2, Translation2, Vector2};
 use sdl2::gfx::primitives::DrawRenderer;
+use sdl2::mouse::SystemCursor::No;
 use sdl2::pixels::Color;
 use sdl2::render::Canvas;
 use sdl2::ttf::FontStyle;
 use sdl2::video::Window;
 
 pub struct Camera {
-	pub transform: Similarity2<f64>,
 	resolution: Vector2<u32>,
+	transform: Similarity2<f64>,
+	grab_delta: Option<Vector2<f64>>,
 	scaling_factor: f64,
 	min_scale: f64,
 	max_scale: f64,
@@ -26,13 +28,12 @@ pub struct Camera {
 }
 
 impl Camera {
-	pub fn new(
-		resolution: Vector2<u32>, doubling_steps: u8, zoom_in_limit: f64, zoom_out_limit: f64, top_limit: f64, bottom_limit: f64,
-		left_limit: f64, right_limit: f64,
-	) -> Self {
+	pub fn new(resolution: Vector2<u32>, doubling_steps: u8, zoom_in_limit: f64, zoom_out_limit: f64,
+	           top_limit: f64, bottom_limit: f64, left_limit: f64, right_limit: f64) -> Self {
 		Camera {
 			resolution,
 			transform: Similarity2::new(resolution.cast() * 0.5, 0.0, 1.0),
+			grab_delta: None,
 			scaling_factor: f64::powf(2.0, 1.0 / doubling_steps as f64),
 			min_scale: 1.0 / zoom_out_limit,
 			max_scale: zoom_in_limit,
@@ -43,13 +44,11 @@ impl Camera {
 		}
 	}
 
-	pub fn scale(&self) -> f64 {
-		self.transform.scaling()
-	}
+	pub fn transform(&self) -> Similarity2<f64> { self.transform }
+	pub fn scale(&self) -> f64 { self.transform.scaling() }
 
-	fn translation(&self) -> Vector2<f64> {
-		self.transform.isometry.translation.vector
-	}
+	fn translation(&self) -> Translation2<f64> { self.transform.isometry.translation }
+	fn translation_mut(&mut self) -> &mut Translation2<f64> { &mut self.transform.isometry.translation	}
 
 	pub fn is_in_scope(&self, rect: Rect) -> bool {
 		let camera_scope = Rect::from(Point2::origin(), self.resolution.cast());
@@ -59,12 +58,20 @@ impl Camera {
 	/// Translates and scales the camera from the inputs
 	pub fn update(&mut self, input: &Input, lock_translation: bool) -> bool {
 		let mut changed = false;
-
-		if input.mouse.left_button.is_down() && !lock_translation {
-			let mouse_delta = input.mouse.delta.cast();
-			changed |= self.translate(mouse_delta);
+		
+		if input.mouse.left_button.is_pressed() {
+			self.grab_delta = Some(self.translation().vector - input.mouse.position.coords.cast());
 		}
-
+		else if input.mouse.left_button.is_released() {
+			self.grab_delta = None;
+		}
+		else if let Some(grab_delta) = self.grab_delta {
+			if !lock_translation {
+				let mouse_position = input.mouse.position.coords.cast();
+				changed |= self.translate(mouse_position + grab_delta - self.translation().vector, Some(mouse_position));
+			}
+		}
+		
 		let scaling = self.scaling_factor.powf(input.mouse.wheel as f64);
 		let center = input.mouse.position.coords.cast();
 		changed |= self.change_scale(scaling, center);
@@ -72,11 +79,8 @@ impl Camera {
 		changed
 	}
 
-	/// Translates the camera by 'delta' while restricting it within it limits.
-	fn translate(&mut self, delta: Vector2<f64>) -> bool {
-		if delta.is_empty() {
-			return false;
-		}
+	/// Translates the camera while restricting it within it limits.
+	fn translate(&mut self, delta: Vector2<f64>, mouse_position: Option<Vector2<f64>>) -> bool {
 		let old_translation = self.translation();
 		self.transform.append_translation_mut(&Translation2::from(delta));
 
@@ -84,18 +88,29 @@ impl Camera {
 		let end = self.transform.inverse() * Point2::from(self.resolution.cast()); // Bottom Right
 
 		if start.x < self.left_limit {
-			self.transform.isometry.translation.x = -self.left_limit * self.scale();
+			self.translation_mut().x = -self.left_limit * self.scale();
+			if let Some(mouse_position) = mouse_position {
+				self.grab_delta = Some(self.translation().vector - mouse_position);
+			}
 		}
 		if start.y < self.top_limit {
-			self.transform.isometry.translation.y = -self.top_limit * self.scale();
+			self.translation_mut().y = -self.top_limit * self.scale();
+			if let Some(mouse_position) = mouse_position {
+				self.grab_delta = Some(self.translation().vector - mouse_position);
+			}
 		}
 		if end.x > self.right_limit {
-			self.transform.isometry.translation.x = -self.right_limit * self.scale() + self.resolution.x as f64;
+			self.translation_mut().x = -self.right_limit * self.scale() + self.resolution.x as f64;
+			if let Some(mouse_position) = mouse_position {
+				self.grab_delta = Some(self.translation().vector - mouse_position);
+			}
 		}
 		if end.y > self.bottom_limit {
-			self.transform.isometry.translation.y = -self.bottom_limit * self.scale() + self.resolution.y as f64;
+			self.translation_mut().y = -self.bottom_limit * self.scale() + self.resolution.y as f64;
+			if let Some(mouse_position) = mouse_position {
+				self.grab_delta = Some(self.translation().vector - mouse_position);
+			}
 		}
-
 		self.translation() != old_translation
 	}
 
@@ -110,7 +125,7 @@ impl Camera {
 			}
 			let adjusted_scaling = self.min_scale / self.scale();
 			self.transform.append_scaling_mut(adjusted_scaling);
-			self.translate((1.0 - adjusted_scaling) * center);
+			self.translate((1.0 - adjusted_scaling) * center, None);
 			true
 		} else if self.max_scale < self.scale() * scaling {
 			if self.scale() >= self.max_scale {
@@ -118,17 +133,17 @@ impl Camera {
 			}
 			let adjusted_scaling = self.max_scale / self.scale();
 			self.transform.append_scaling_mut(adjusted_scaling);
-			self.translate((1.0 - adjusted_scaling) * center);
+			self.translate((1.0 - adjusted_scaling) * center, None);
 			true
 		} else {
 			self.transform.append_scaling_mut(scaling);
-			self.translate((1.0 - scaling) * center);
+			self.translate((1.0 - scaling) * center, None);
 			true
 		}
 	}
 
 	pub fn resize(&mut self, new_resolution: Vector2<u32>) {
-		self.translate((new_resolution.cast() - self.resolution.cast()) * 0.5);
+		self.translate((new_resolution.cast() - self.resolution.cast()) * 0.5, None);
 		self.resolution = new_resolution;
 	}
 

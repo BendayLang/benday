@@ -1,11 +1,12 @@
-pub mod containers;
 pub mod bloc;
+pub mod containers;
 
 use crate::blocs::containers::{Sequence, Slot};
 use crate::Container;
 use nalgebra::{Point2, Vector2};
 use pg_sdl::camera::Camera;
 use pg_sdl::color::Colors;
+use pg_sdl::custom_rect::Rect;
 use pg_sdl::primitives::{draw_rounded_rect, draw_text, fill_rounded_rect};
 use pg_sdl::style::Align;
 use pg_sdl::text::{TextDrawer, TextStyle};
@@ -13,7 +14,6 @@ use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
 use std::collections::HashMap;
-use pg_sdl::custom_rect::Rect;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
 pub enum BlocElement {
@@ -50,8 +50,8 @@ pub enum BlocType {
 /// And a bloc type, witch is an enum that contains data specific to the bloc.
 pub struct Bloc {
 	id: u32,
-	color: Color,
 	rect: Rect,
+	color: Color,
 	slots: Vec<Slot>,
 	slots_positions: Box<dyn Fn(&Self, usize) -> Vector2<f64>>,
 	sequences: Vec<Sequence>,
@@ -179,7 +179,7 @@ impl Bloc {
 	pub fn get_size(&self) -> &Vector2<f64> {
 		&self.rect.size
 	}
-	
+
 	pub fn get_rect(&self) -> &Rect {
 		&self.rect
 	}
@@ -297,7 +297,6 @@ impl Bloc {
 		&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera, moving: bool,
 		selected: Option<&BlocElement>, hovered: Option<&BlocElement>,
 	) {
-		
 		// SHADOW
 		if moving {
 			let shadow_color = Color::from((0, 0, 0, 50));
@@ -310,8 +309,13 @@ impl Bloc {
 		if selected.is_some() || hovered.is_some() {
 			// TOP BOX
 			let position = Vector2::new((self.rect.size.x - Self::TOP_BOX_SIZE.x) * 0.5, -Self::TOP_BOX_SIZE.y);
-			fill_rounded_rect(canvas, Some(camera), self.color,
-			                  Rect::from(self.rect.position + position, Self::TOP_BOX_SIZE), Self::RADIUS);
+			fill_rounded_rect(
+				canvas,
+				Some(camera),
+				self.color,
+				Rect::from(self.rect.position + position, Self::TOP_BOX_SIZE),
+				Self::RADIUS,
+			);
 		}
 		// HOVERED
 		if let Some(element) = hovered {
