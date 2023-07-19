@@ -1,8 +1,8 @@
-#![allow(dead_code, unused_variables, unused_imports)]
+// #![allow(dead_code, unused_variables, unused_imports)]
 mod blocs;
 
 use crate::blocs::bloc::{NewBloc, NewBlocStyle};
-use blocs::BlocType;
+
 use blocs::{Bloc, BlocContainer, BlocElement};
 use nalgebra::{Point2, Vector2};
 use pg_sdl::app::{App, PgSdl};
@@ -10,16 +10,16 @@ use pg_sdl::camera::Camera;
 use pg_sdl::color::{hsv_color, Colors};
 use pg_sdl::custom_rect::Rect;
 use pg_sdl::input::Input;
-use pg_sdl::primitives::draw_text;
-use pg_sdl::style::Align;
-use pg_sdl::text::{TextDrawer, TextStyle};
+
+
+use pg_sdl::text::{TextDrawer};
 use pg_sdl::widgets::{
 	button::{Button, ButtonStyle},
 	Widget, WidgetId, WidgetsManager,
 };
 use sdl2::render::Canvas;
 use sdl2::video::Window;
-use std::any::{Any, TypeId};
+
 use std::collections::HashMap;
 
 #[derive(PartialEq, Copy, Clone, Debug)]

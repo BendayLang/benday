@@ -5,17 +5,17 @@ use crate::blocs::bloc::NewBlocStyle;
 use crate::blocs::containers::{Sequence, Slot};
 use crate::Container;
 use nalgebra::{Point2, Vector2};
-use pg_sdl::camera::Camera;
-use pg_sdl::color::Colors;
+
+
 use pg_sdl::custom_rect::Rect;
-use pg_sdl::input::Input;
-use pg_sdl::primitives::{draw_rounded_rect, draw_text, fill_rounded_rect};
-use pg_sdl::style::Align;
-use pg_sdl::text::{TextDrawer, TextStyle};
-use pg_sdl::widgets::{Base, Widget, WidgetsManager};
+
+
+
+
+use pg_sdl::widgets::{Base};
 use sdl2::pixels::Color;
-use sdl2::render::{BlendMode, Canvas};
-use sdl2::video::Window;
+
+
 use std::collections::HashMap;
 
 #[derive(PartialEq, Copy, Clone, Debug)]

@@ -4,12 +4,12 @@ use nalgebra::{Point2, Vector2};
 use pg_sdl::camera::Camera;
 use pg_sdl::color::{darker, paler, with_alpha, Colors};
 use pg_sdl::custom_rect::Rect;
-use pg_sdl::input::{Input, KeyState};
+use pg_sdl::input::{Input};
 use pg_sdl::primitives::{draw_rounded_rect, fill_rounded_rect};
 use pg_sdl::text::TextDrawer;
 use pg_sdl::widgets::button::{Button, ButtonStyle};
 use pg_sdl::widgets::text_input::{TextInput, TextInputStyle};
-use pg_sdl::widgets::{Base, Widget, WidgetId, WidgetsManager, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER, PUSH};
+use pg_sdl::widgets::{Base, Widget, WidgetId, WidgetsManager, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
@@ -106,7 +106,7 @@ impl NewBloc {
 			)),
 			true,
 		)];
-		let widgets_relative_positions = Box::new(|bloc: &Self, _: &WidgetsManager, _| Vector2::new(Self::MARGIN, Self::MARGIN));
+		let widgets_relative_positions = Box::new(|_bloc: &Self, _: &WidgetsManager, _| Vector2::new(Self::MARGIN, Self::MARGIN));
 		let slots = vec![NewSlot::new(style.color, "slot".to_string(), widgets_manager)];
 		let slots_relative_positions = Box::new(|bloc: &Self, widgets_manager: &WidgetsManager, _| {
 			let widget_height = widgets_manager.get_widget(bloc.widgets_ids[0]).unwrap().get_base().rect.height();
