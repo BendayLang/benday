@@ -2,6 +2,7 @@ mod text_style;
 
 use crate::style::Align;
 use nalgebra::{Point2, Vector2};
+use sdl2::pixels::Color;
 use sdl2::render::TextureQuery;
 use sdl2::ttf::FontStyle;
 use sdl2::{render::Canvas, video::Window};
@@ -12,18 +13,17 @@ pub use text_style::{DEFAULT_FONT_NAME, FONT_PATH};
 
 pub type FontSize = u16;
 pub type FontInfos = (PathBuf, FontSize);
+pub type TextureCache<'texture> = HashMap<(String, TextStyle, FontSize), sdl2::render::Texture<'texture>>;
 
 pub struct TextDrawer<'ttf, 'texture> {
 	texture_creator: sdl2::render::TextureCreator<sdl2::video::WindowContext>,
 	pub fonts: HashMap<FontInfos, sdl2::ttf::Font<'ttf, 'static>>,
-	texture_cache: HashMap<(String, TextStyle, FontSize), sdl2::render::Texture<'texture>>,
-	// vec_texture_cache: Vec<sdl2::render::Texture<'texture>>,
+	texture_cache: Option<TextureCache<'texture>>,
 }
 
 impl<'ttf, 'texture> TextDrawer<'ttf, 'texture> {
 	pub fn new(texture_creator: sdl2::render::TextureCreator<sdl2::video::WindowContext>) -> Self {
-		TextDrawer { texture_creator, fonts: HashMap::new(), texture_cache: HashMap::new() }
-		// TextDrawer { texture_creator, fonts: HashMap::new(), texture_cache: HashMap::new(), vec_texture_cache: Vec::new() }
+		TextDrawer { texture_creator, fonts: HashMap::new(), texture_cache: Some(HashMap::new()) }
 	}
 
 	pub fn size_of_u32(&self, text: &str, font_size: FontSize, style: &TextStyle) -> Vector2<u32> {
@@ -46,21 +46,6 @@ impl<'ttf, 'texture> TextDrawer<'ttf, 'texture> {
 		Vector2::new(width as f64, height as f64)
 	}
 
-	fn get_texture(&mut self, text: &str, font_size: FontSize, style: &TextStyle) -> &sdl2::render::Texture {
-		let key = (text.to_string(), style.clone(), font_size);
-		if self.texture_cache.get(&key).is_none() {
-			let TextStyle { font_path, font_style, color } = style;
-			let font = self.fonts.get_mut(&(font_path.to_path_buf(), font_size)).expect("font not loaded at init");
-			font.set_style(font_style.clone());
-			let surface = font.render(text).blended(*color).expect("text texture rendering error");
-			let texture = self.texture_creator.create_texture_from_surface(&surface).unwrap();
-			// self.texture_cache.insert(key.clone(), texture);
-			// self.vec_texture_cache.push(texture);
-			println!("new len of texture cache: {}", self.texture_cache.len());
-		}
-		self.texture_cache.get(&key).unwrap()
-	}
-
 	fn shift_from_align(align: Align, size: Vector2<f64>) -> Vector2<f64> {
 		match align {
 			Align::TopLeft => Vector2::zeros(),
@@ -79,14 +64,26 @@ impl<'ttf, 'texture> TextDrawer<'ttf, 'texture> {
 		&mut self, canvas: &mut Canvas<Window>, position: Point2<f64>, text: &str, font_size: FontSize, style: &TextStyle,
 		align: Align,
 	) {
-		// let texture = self.get_texture(text, font_size, style);
-
 		let TextStyle { font_path, font_style, color } = style;
 		let font = self.fonts.get_mut(&(font_path.to_path_buf(), font_size)).expect("font not loaded at init");
 		font.set_style(font_style.clone());
 		let surface: sdl2::surface::Surface<'_> = font.render(text).blended(*color).expect("text texture rendering error");
-
 		let texture = self.texture_creator.create_texture_from_surface(&surface).unwrap();
+
+		// let mut texture_cache: Option<TextureCache> = None;
+		// std::mem::swap(&mut self.texture_cache, &mut texture_cache);
+
+		// let key = (text.to_string(), style.clone(), font_size);
+		// if texture_cache.as_ref().unwrap().get(&key).is_none() {
+		// 	let surface = font.render(text).blended(*color).expect("text texture rendering error");
+		// 	// let texture: sdl2::render::Texture<'_> = self.texture_creator.create_texture_from_surface(&surface).unwrap();
+		// 	texture_cache
+		// 		.as_mut()
+		// 		.unwrap()
+		// 		.insert(key.clone(), self.texture_creator.create_texture_from_surface(&surface).unwrap());
+		// 	println!("new len of texture cache: {}", texture_cache.as_ref().unwrap().len());
+		// }
+		// let texture = texture_cache.as_ref().unwrap().get(&key).unwrap();
 
 		let size: Vector2<f64> = self.size_of_f64(text, font_size, &style);
 		let target_position: nalgebra::Point2<f64> = position - Self::shift_from_align(align, size);
