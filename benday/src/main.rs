@@ -57,20 +57,37 @@ impl App for MyApp {
 			self.blocs.push(NewBloc::add(position, NewBlocStyle::new(color, 8.), widgets_manager));
 		}
 
-		self.hovered_container = if let Some(focused_widget) = widgets_manager.focused_widget() {
-			if self.blocs.contains(&focused_widget) {
-				let base = widgets_manager.get_widget(focused_widget).unwrap().get_base();
-				if base.is_pushed() {
-					None
-				} else {
-					None
+		if !input.mouse.delta.is_empty() {
+			if let Some(focused_widget) = widgets_manager.focused_widget() {
+				if self.blocs.contains(&focused_widget) {
+					let moving_bloc = widgets_manager.get::<NewBloc>(focused_widget).unwrap();
+					if moving_bloc.get_base().is_pushed() {
+						// Update the (moving bloc) hovered container
+						// iter through all blocs to get the bloc with the biggest 'ratio'
+						let moving_bloc_childs = moving_bloc.get_recursive_childs(&widgets_manager);
+						let (mut new_hovered_container, mut ratio) = (None, 0.);
+
+						widgets_manager.get_cam_order().iter().for_each(|&bloc_id| {
+							if self.blocs.contains(&bloc_id) && !moving_bloc_childs.contains(&bloc_id) {
+								if let Some((new_bloc_container, new_ratio)) = widgets_manager
+									.get::<NewBloc>(bloc_id)
+									.unwrap()
+									.collide_container(moving_bloc.get_base().rect, &widgets_manager)
+								{
+									if new_ratio >= ratio {
+										new_hovered_container = Some(Container { bloc_id, bloc_container: new_bloc_container });
+										ratio = new_ratio;
+									}
+								}
+							}
+						});
+						if new_hovered_container != self.hovered_container {
+							self.hovered_container = new_hovered_container;
+						}
+					}
 				}
-			} else {
-				None
 			}
-		} else {
-			None
-		};
+		}
 
 		/*
 		match self.app_state.clone() {
@@ -78,17 +95,6 @@ impl App for MyApp {
 				changed |= camera.update(input, widgets_manager.focused_widget().is_some() || selected_element.is_some());
 
 				// Add new bloc
-				if widgets_manager.get::<Button>(0).unwrap().is_pressed() {
-					let id = self.id_counter;
-					let new_bloc = Bloc::new_bloc(
-						id,
-						hsv_color((id * 15) as u16, 1., 1.),
-						Point2::new(8., 10.) * id as f64,
-						BlocType::IfElse,
-					);
-					self.blocs.insert(id, new_bloc);
-					self.blocs_order.push(id);
-					self.id_counter += 1;
 					update_layout_and_positions(&id, &mut self.blocs);
 				}
 				// Mouse click
@@ -132,10 +138,6 @@ impl App for MyApp {
 
 								self.app_state = AppState::BlocMoving { moving_bloc_id: bloc_id, delta, hovered_container: None };
 							}
-							_ => {
-								let selected_element = Some(Element { bloc_id, bloc_element });
-								self.app_state = AppState::Idle { selected_element, hovered_element };
-							}
 						}
 					}
 					// Click in void
@@ -143,22 +145,6 @@ impl App for MyApp {
 						self.app_state = AppState::Idle { selected_element: None, hovered_element: None };
 					}
 					changed = true;
-				}
-				// Update witch element is (mouse) hovered
-				if !input.mouse.delta.is_empty() {
-					let mouse_position = camera.transform().inverse() * input.mouse.position.cast();
-					let mut new_hovered_element = None;
-					for id in self.blocs_order.iter().rev() {
-						if let Some(bloc_element) = self.blocs.get(&id).unwrap().collide_element(mouse_position) {
-							new_hovered_element = Some(Element { bloc_id: *id, bloc_element });
-							break;
-						}
-					}
-					if new_hovered_element != hovered_element {
-						self.app_state =
-							AppState::Idle { selected_element: selected_element, hovered_element: new_hovered_element };
-						changed = true;
-					}
 				}
 			}
 			AppState::BlocMoving { moving_bloc_id, delta, hovered_container } => {
@@ -186,35 +172,6 @@ impl App for MyApp {
 					self.app_state = AppState::Idle { selected_element: element, hovered_element: element };
 					changed = true;
 				// Move the bloc
-				}
-				// Move the moving bloc
-				else if !input.mouse.delta.is_empty() {
-					let mouse_position = camera.transform().inverse() * input.mouse.position.cast();
-					self.blocs.get_mut(&moving_bloc_id).unwrap().set_position(mouse_position + delta);
-					update_layout_and_positions(&moving_bloc_id, &mut self.blocs);
-
-					// Update the (moving bloc) hovered container
-					// iter through all blocs to get the bloc with the biggest 'ratio' of "hoveredness"
-					let moving_bloc = self.blocs.get(&moving_bloc_id).unwrap();
-					let moving_bloc_childs = moving_bloc.get_recursive_childs(&self.blocs);
-					let (mut new_hovered_container, mut ratio) = (None, 0.);
-					self.blocs_order.iter().for_each(|bloc_id| {
-						if !moving_bloc_childs.contains(bloc_id) {
-							if let Some((new_bloc_container, new_ratio)) =
-								self.blocs.get(&bloc_id).unwrap().collide_container(*moving_bloc.get_rect())
-							{
-								if new_ratio >= ratio {
-									new_hovered_container =
-										Some(Container { bloc_id: *bloc_id, bloc_container: new_bloc_container });
-									ratio = new_ratio;
-								}
-							}
-						}
-					});
-					if new_hovered_container != hovered_container {
-						self.app_state = AppState::BlocMoving { moving_bloc_id, delta, hovered_container: new_hovered_container };
-					}
-					changed = true;
 				}
 			}
 		}

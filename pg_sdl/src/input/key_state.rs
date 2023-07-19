@@ -8,6 +8,47 @@ pub enum KeyState {
 	Released,
 }
 
+impl KeyState {
+	pub fn new() -> Self {
+		Self::Up
+	}
+	pub fn update(&mut self) {
+		match self {
+			Self::Pressed => {
+				*self = Self::Down;
+			}
+			Self::Released => {
+				*self = Self::Up;
+			}
+			_ => {}
+		};
+	}
+
+	pub fn press(&mut self) {
+		if self.is_up() {
+			*self = Self::Pressed
+		}
+	}
+	pub fn release(&mut self) {
+		if self.is_down() {
+			*self = Self::Released
+		}
+	}
+
+	pub fn is_up(&self) -> bool {
+		*self == Self::Up
+	}
+	pub fn is_pressed(&self) -> bool {
+		*self == Self::Pressed
+	}
+	pub fn is_down(&self) -> bool {
+		*self == Self::Down
+	}
+	pub fn is_released(&self) -> bool {
+		*self == Self::Released
+	}
+}
+
 // TODO suggestion key state avec double press
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum ChadKeyState {
@@ -80,43 +121,6 @@ impl ChadKeyState {
 	}
 	pub fn is_triple_pressed(&self) -> bool {
 		false // TODO triple press
-	}
-}
-
-impl KeyState {
-	pub fn new() -> Self {
-		Self::Up
-	}
-	pub fn update(&mut self) {
-		match self {
-			Self::Pressed => {
-				*self = Self::Down;
-			}
-			Self::Released => {
-				*self = Self::Up;
-			}
-			_ => {}
-		};
-	}
-
-	pub fn press(&mut self) {
-		*self = Self::Pressed
-	}
-	pub fn release(&mut self) {
-		*self = Self::Released
-	}
-
-	pub fn is_up(&self) -> bool {
-		*self == Self::Up
-	}
-	pub fn is_pressed(&self) -> bool {
-		*self == Self::Pressed
-	}
-	pub fn is_down(&self) -> bool {
-		*self == Self::Down
-	}
-	pub fn is_released(&self) -> bool {
-		*self == Self::Released
 	}
 }
 

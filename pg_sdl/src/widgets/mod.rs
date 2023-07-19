@@ -223,6 +223,10 @@ impl WidgetsManager {
 		self.widgets.get_mut(&id).and_then(|w| w.as_mut().downcast_mut::<T>())
 	}
 
+	pub fn get_cam_order(&self) -> &Vec<WidgetId> {
+		&self.cam_order
+	}
+
 	/// Puts the given widget on top of the others (the widget needs to not have a camera)
 	pub fn put_on_top_no_cam(&mut self, id: WidgetId) {
 		let index = self.no_cam_order.iter().position(|i| i == &id).unwrap();

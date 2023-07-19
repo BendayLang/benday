@@ -1,4 +1,4 @@
-use crate::blocs::BlocType;
+use crate::blocs::{BlocContainer, BlocType};
 use crate::Container;
 use nalgebra::{Point2, Vector2};
 use pg_sdl::camera::Camera;
@@ -35,6 +35,10 @@ impl NewSlot {
 		Self { text_input_id, child_id: None }
 	}
 
+	fn has_child(&self) -> bool {
+		self.child_id.is_some()
+	}
+
 	fn get_id(&self) -> WidgetId {
 		if let Some(child_id) = self.child_id {
 			child_id
@@ -42,6 +46,7 @@ impl NewSlot {
 			self.text_input_id
 		}
 	}
+
 	fn get_base(&self, widgets_manager: &WidgetsManager) -> Base {
 		widgets_manager.get_widget(self.get_id()).unwrap().get_base()
 	}
@@ -139,6 +144,61 @@ impl NewBloc {
 			slot.get_base_mut(widgets_manager).rect.position =
 				self.base.rect.position + (self.slots_relative_positions)(&self, &widgets_manager, nth_slot);
 		});
+	}
+
+	/// Returns a vec of the bloc's childs ids from leaf to root (including itself)
+	pub fn get_recursive_childs(&self, widgets_manager: &WidgetsManager) -> Vec<WidgetId> {
+		let mut childs = Vec::new();
+		self.slots.iter().for_each(|slot| {
+			if let Some(child_id) = slot.child_id {
+				childs.extend(widgets_manager.get::<Self>(child_id).unwrap().get_recursive_childs(widgets_manager));
+			}
+		});
+		/* TODO
+		self.sequences.iter().for_each(|sequence| {
+			childs.extend(sequence.get_recursive_childs(widgets_manager));
+		});
+		 */
+		childs.push(self.base.id);
+		childs
+	}
+
+	/// Checks if a rect is hovering on a container and checks the 'ratio'
+	pub fn collide_container(&self, rect: Rect, widgets_manager: &WidgetsManager) -> Option<(BlocContainer, f64)> {
+		if !self.base.rect.collide_rect(rect) {
+			return None;
+		}
+
+		let (mut bloc_container, mut ratio) = (None, 0.);
+
+		self.slots.iter().enumerate().for_each(|(nth_slot, slot)| {
+			if slot.get_base(widgets_manager).rect.collide_rect(rect) && !slot.has_child() {
+				let new_ratio = 1.
+					- 2. * (rect.v_mid()
+						- slot.get_base(widgets_manager).rect.position.y
+						- slot.get_base(widgets_manager).rect.height() * 0.5)
+						.abs() / rect.height();
+				if new_ratio > ratio {
+					bloc_container = Some(BlocContainer::Slot { slot_id: nth_slot });
+					ratio = new_ratio;
+				}
+			}
+		});
+		/*
+		self.sequences.iter().enumerate().for_each(|(sequence_id, sequence)| {
+			if sequence.get_rect().collide_rect(rect.translated(-self.base.rect.position.coords)) {
+				let (place, new_ratio) = sequence.get_place_ratio(rect.translated(-self.base.rect.position.coords));
+				if new_ratio > ratio {
+					bloc_container = Some(BlocContainer::Sequence { sequence_id, place });
+					ratio = new_ratio;
+				}
+			}
+		});
+		 */
+		if let Some(bloc_container) = bloc_container {
+			return Some((bloc_container, ratio));
+		}
+		None
 	}
 }
 
