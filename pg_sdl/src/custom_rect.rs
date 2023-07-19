@@ -79,6 +79,9 @@ impl Rect {
 		self.position + Vector2::new(self.size.x, 0.)
 	}
 
+	pub fn translate(&mut self, delta: Vector2<f64>) {
+		self.position += delta;
+	}
 	/// Returns a new rect with the same size translated by delta
 	pub fn translated(&self, delta: Vector2<f64>) -> Self {
 		Self::from(self.position + delta, self.size)

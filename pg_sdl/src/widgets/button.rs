@@ -1,5 +1,5 @@
 use crate::camera::Camera;
-use crate::color::with_alpha;
+use crate::color::{paler, with_alpha};
 use crate::custom_rect::Rect;
 use crate::primitives::{draw_rect, draw_rounded_rect, draw_text, fill_rect, fill_rounded_rect};
 use crate::style::Align;
@@ -15,6 +15,7 @@ use crate::{
 use nalgebra::{Point2, Vector2};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
+use sdl2::ttf::FontStyle;
 use sdl2::video::Window;
 
 pub struct ButtonStyle {
@@ -38,7 +39,7 @@ impl Default for ButtonStyle {
 			border_color: Colors::BLACK,
 			corner_radius: Some(7.0),
 			font_size: 16.,
-			text_style: TextStyle::default(),
+			text_style: TextStyle::new(None, Colors::DARK_GREY, FontStyle::NORMAL),
 		}
 	}
 }
@@ -53,7 +54,7 @@ impl ButtonStyle {
 			border_color: Colors::BLACK,
 			corner_radius,
 			font_size,
-			text_style: TextStyle::default(),
+			text_style: TextStyle::new(None, darker(color, 0.5), FontStyle::NORMAL),
 		}
 	}
 }

@@ -1,5 +1,5 @@
 max_width = 130
 use_small_heuristics = "Max"
-fn_args_layout = "Compressed"
+fn_params_layout = "Compressed"
 tab_spaces = 4
 hard_tabs = true

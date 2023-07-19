@@ -25,10 +25,10 @@ pub struct Slot {
 }
 
 impl Slot {
-	pub const DEFAULT_SIZE: Vector2<f64> = Vector2::new(80.0, 25.0);
+	pub const DEFAULT_SIZE: Vector2<f64> = Vector2::new(80., 25.);
 
 	pub fn new(color: Color, placeholder: String) -> Self {
-		let text_input_style = TextInputStyle::new(paler(color, 0.4), 12., Some(3.));
+		let text_input_style = TextInputStyle::new(paler(color, 0.4), Some(3.), 12.);
 		Self {
 			rect: Rect::from(Point2::origin(), Self::DEFAULT_SIZE),
 			text_box: TextInput::new(Rect::from(Point2::origin(), Self::DEFAULT_SIZE), text_input_style, placeholder),
@@ -78,7 +78,7 @@ impl Slot {
 	}
 
 	pub fn get_ratio(&self, rect: Rect) -> f64 {
-		1.0 - 2.0 * (rect.v_mid() - self.rect.position.y - self.rect.height() * 0.5).abs() / rect.height()
+		1. - 2. * (rect.v_mid() - self.rect.position.y - self.rect.height() * 0.5).abs() / rect.height()
 	}
 
 	pub fn has_child(&self) -> bool {
@@ -135,9 +135,9 @@ pub struct Sequence {
 }
 
 impl Sequence {
-	const DEFAULT_SIZE: Vector2<f64> = Vector2::new(120.0, 80.0);
-	const MARGIN: f64 = 7.0;
-	const RADIUS: f64 = 10.0;
+	const DEFAULT_SIZE: Vector2<f64> = Vector2::new(120., 80.);
+	const MARGIN: f64 = 7.;
+	const RADIUS: f64 = 10.;
 
 	pub fn new(color: Color) -> Self {
 		Self {
@@ -191,8 +191,8 @@ impl Sequence {
 		};
 		(0..self.childs_ids.len()).for_each(|place| {
 			self.childs_positions[place] = Vector2::new(
-				0.0,
-				(0..place).map(|i| blocs.get(self.childs_ids.get(i).unwrap()).unwrap().rect.height() + Self::MARGIN).sum(),
+				0.,
+				(0..place).map(|i| blocs.get(self.childs_ids.get(i).unwrap()).unwrap().base.rect.height() + Self::MARGIN).sum(),
 			);
 		});
 	}
@@ -208,7 +208,7 @@ impl Sequence {
 
 	fn get_child_position(&self, place: usize) -> Vector2<f64> {
 		if place == self.childs_ids.len() {
-			Vector2::new(0.0, self.rect.size.y)
+			Vector2::new(0., self.rect.size.y)
 		} else {
 			self.childs_positions[place]
 		}
@@ -216,13 +216,13 @@ impl Sequence {
 
 	pub fn get_place_ratio(&self, rect: Rect) -> (usize, f64) {
 		if self.childs_ids.is_empty() {
-			return (0, 1.0 - 2.0 * (rect.v_mid() - self.rect.bottom() - self.rect.height() * 0.5).abs() / rect.height());
+			return (0, 1. - 2. * (rect.v_mid() - self.rect.bottom() - self.rect.height() * 0.5).abs() / rect.height());
 		}
-		let (mut place, mut ratio) = (0, 0.0);
+		let (mut place, mut ratio) = (0, 0.);
 
 		for interstice in 0..=self.childs_ids.len() {
-			let objectif = if interstice == 0 { 0.0 } else { self.get_child_position(interstice).y - Self::MARGIN * 0.5 };
-			let new_ratio = 1.0 - 2.0 * (rect.v_mid() - self.rect.bottom() - objectif).abs() / rect.height();
+			let objectif = if interstice == 0 { 0. } else { self.get_child_position(interstice).y - Self::MARGIN * 0.5 };
+			let new_ratio = 1. - 2. * (rect.v_mid() - self.rect.bottom() - objectif).abs() / rect.height();
 			if new_ratio > ratio {
 				ratio = new_ratio;
 				place = interstice;
@@ -288,9 +288,9 @@ impl Sequence {
 
 	pub fn draw_hover(&self, canvas: &mut Canvas<Window>, camera: &Camera, position: Point2<f64>, place: usize) {
 		let (size, place_position, radius) = if place == 0 {
-			(Vector2::new(60.0, 40.0), Vector2::zeros(), Self::RADIUS)
+			(Vector2::new(60., 40.), Vector2::zeros(), Self::RADIUS)
 		} else {
-			(Vector2::new(60.0, Self::MARGIN), self.get_child_position(place) - Vector2::new(0.0, Self::MARGIN), 2.0)
+			(Vector2::new(60., Self::MARGIN), self.get_child_position(place) - Vector2::new(0., Self::MARGIN), 2.)
 		};
 
 		let hovered_color = Color::from((0, 0, 0, 50));

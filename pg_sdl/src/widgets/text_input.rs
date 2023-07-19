@@ -28,7 +28,7 @@ pub struct TextInputStyle {
 }
 
 impl TextInputStyle {
-	pub fn new(color: Color, font_size: f64, corner_radius: Option<f64>) -> Self {
+	pub fn new(color: Color, corner_radius: Option<f64>, font_size: f64) -> Self {
 		Self {
 			background_color: color,
 			background_hovered_color: darker(color, HOVER),
