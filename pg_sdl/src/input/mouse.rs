@@ -20,18 +20,6 @@ pub struct Mouse {
 impl Mouse {
 	const TIME_TO_DOUBLE_CLICK: u128 = 100;
 
-	pub fn new() -> Self {
-		Mouse {
-			position: Point2::origin(),
-			delta: Vector2::zeros(),
-			left_button: ChadKeyState::Up { released_time: Instant::now() },
-			right_button: KeyState::Up,
-			middle_button: KeyState::Up,
-			wheel: 0,
-			// left_button_last_release: Instant::now(),
-		}
-	}
-
 	pub fn update(&mut self) {
 		self.delta = Vector2::zeros();
 		self.wheel = 0;

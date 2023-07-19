@@ -68,14 +68,14 @@ impl<'ttf, 'texture> TextDrawer<'ttf, 'texture> {
 	) {
 		let TextStyle { font_path, font_style, color } = style;
 		let font = self.fonts.get_mut(&(font_path.to_path_buf(), font_size)).expect("font not loaded at init");
-		font.set_style(*font_style);
+		// font.set_style(*font_style);
 
 		let texture = {
 			let key: Key = (text.to_string(), style.clone(), font_size);
 			if let Some(surface) = self.texture_cache.get(&key) {
 				self.texture_creator.create_texture_from_surface(surface).unwrap()
 			} else {
-				println!("new len of texture cache: {}. Created for '{}'", self.texture_cache.len(), text);
+				// println!("new len of texture cache: {}. Created for '{}'", self.texture_cache.len(), text);
 				let surface = font.render(text).blended(*color).expect("text texture rendering error");
 				let texture = self.texture_creator.create_texture_from_surface(&surface).unwrap();
 				self.texture_cache.insert(key, surface);

@@ -38,28 +38,34 @@ impl KeyState {
 	pub fn is_up(&self) -> bool {
 		*self == Self::Up
 	}
+
 	pub fn is_pressed(&self) -> bool {
 		*self == Self::Pressed
 	}
+
 	pub fn is_down(&self) -> bool {
 		*self == Self::Down
 	}
+
 	pub fn is_released(&self) -> bool {
 		*self == Self::Released
 	}
 }
 
 // TODO suggestion key state avec double press
-#[derive(PartialEq, Eq, Debug, Clone, Default)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum ChadKeyState {
-	Up {
-		released_time: std::time::Instant,
-	},
-	#[default] // TODO ca fout la merde ?
+	Up { released_time: std::time::Instant },
 	Down,
 	Released,
 	Pressed,
 	DoublePressed,
+}
+
+impl Default for ChadKeyState {
+	fn default() -> Self {
+		Self::Up { released_time: std::time::Instant::now() }
+	}
 }
 
 impl ChadKeyState {

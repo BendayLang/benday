@@ -23,7 +23,7 @@ impl Input {
 			event_pump,
 			window_closed: false,
 			keys_state: KeysState::default(),
-			mouse: mouse::Mouse::new(),
+			mouse: mouse::Mouse::default(),
 			last_char: None,
 			clipboard,
 			window_resized: None,
