@@ -251,7 +251,7 @@ fn main() {
 
 	let mut my_app = MyApp { hovered_container: None, blocs: Vec::new() };
 	let font_path = std::path::PathBuf::from(format!("{}/{}", pg_sdl::text::FONT_PATH, pg_sdl::text::DEFAULT_FONT_NAME));
-	for font in vec![(&font_path, 0, 100)] {
+	for font in [(&font_path, 0, 100)] {
 		let (path, from, to) = font;
 		for size in from..=to {
 			let font: sdl2::ttf::Font = ttf_context.load_font(path, size).unwrap();
@@ -274,14 +274,14 @@ fn get_root(bloc_id: &u32, blocs: &HashMap<u32, Bloc>) -> u32 {
 }
 
 fn update_layout_and_positions(bloc_id: &u32, blocs: &mut HashMap<u32, Bloc>) {
-	let childs = blocs.get(bloc_id).unwrap().get_recursive_childs(&blocs);
+	let childs = blocs.get(bloc_id).unwrap().get_recursive_childs(blocs);
 	childs.iter().for_each(|child_id| {
-		let mut bloc = blocs.remove(&child_id).unwrap();
-		bloc.update_layout(&blocs);
+		let mut bloc = blocs.remove(child_id).unwrap();
+		bloc.update_layout(blocs);
 		blocs.insert(*child_id, bloc);
 	});
 	childs.iter().rev().for_each(|child_id| {
-		let mut bloc = blocs.remove(&child_id).unwrap();
+		let mut bloc = blocs.remove(child_id).unwrap();
 		bloc.update_child_position(blocs);
 		blocs.insert(*child_id, bloc);
 	});
