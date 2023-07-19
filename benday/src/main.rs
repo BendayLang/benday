@@ -64,7 +64,7 @@ impl App for MyApp {
 					if moving_bloc.get_base().is_pushed() {
 						// Update the (moving bloc) hovered container
 						// iter through all blocs to get the bloc with the biggest 'ratio'
-						let moving_bloc_childs = moving_bloc.get_recursive_childs(&widgets_manager);
+						let moving_bloc_childs = moving_bloc.get_recursive_childs(widgets_manager);
 						let (mut new_hovered_container, mut ratio) = (None, 0.);
 
 						widgets_manager.get_cam_order().iter().for_each(|&bloc_id| {
@@ -72,7 +72,7 @@ impl App for MyApp {
 								if let Some((new_bloc_container, new_ratio)) = widgets_manager
 									.get::<NewBloc>(bloc_id)
 									.unwrap()
-									.collide_container(moving_bloc.get_base().rect, &widgets_manager)
+									.collide_container(moving_bloc.get_base().rect, widgets_manager)
 								{
 									if new_ratio >= ratio {
 										new_hovered_container = Some(Container { bloc_id, bloc_container: new_bloc_container });

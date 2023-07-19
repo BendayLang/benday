@@ -166,7 +166,7 @@ impl Sequence {
 	/// Returns a vec of the sequence's childs ids from leaf to root (including itself)
 	pub fn get_recursive_childs(&self, blocs: &HashMap<u32, Bloc>) -> Vec<u32> {
 		let mut childs = Vec::new();
-		self.childs_ids.iter().for_each(|child_id| childs.extend(blocs.get(&child_id).unwrap().get_recursive_childs(blocs)));
+		self.childs_ids.iter().for_each(|child_id| childs.extend(blocs.get(child_id).unwrap().get_recursive_childs(blocs)));
 		childs
 		/* // TODO see if it may be cleaner
 		self.childs_ids.iter().map(|child_id| {
@@ -202,7 +202,7 @@ impl Sequence {
 	pub fn update_child_position(&self, parent_position: Point2<f64>, blocs: &mut HashMap<u32, Bloc>) {
 		self.childs_ids.iter().enumerate().for_each(|(place, child_id)| {
 			blocs
-				.get_mut(&child_id)
+				.get_mut(child_id)
 				.unwrap()
 				.set_position(parent_position + self.rect.position.coords + self.childs_positions[place]);
 		});

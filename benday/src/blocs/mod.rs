@@ -207,15 +207,15 @@ impl Bloc {
 	pub fn update_layout(&mut self, blocs: &HashMap<u32, Bloc>) {
 		self.slots.iter_mut().for_each(|slot| slot.update_size(blocs));
 		(0..self.slots.len()).for_each(|slot_id| {
-			let slot_position = (*self.slots_positions)(&self, slot_id);
+			let slot_position = (*self.slots_positions)(self, slot_id);
 			self.slots[slot_id].set_position(Point2::from(slot_position));
 		});
 		self.sequences.iter_mut().for_each(|sequence| sequence.update_size(blocs));
 		(0..self.sequences.len()).for_each(|sequence_id| {
-			let sequence_position = (*self.sequences_positions)(&self, sequence_id);
+			let sequence_position = (*self.sequences_positions)(self, sequence_id);
 			self.sequences[sequence_id].set_position(Point2::from(sequence_position));
 		});
-		self.base.rect.size = (*self.get_size)(&self);
+		self.base.rect.size = (*self.get_size)(self);
 	}
 
 	/// Met à jour la position de ses enfants

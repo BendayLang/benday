@@ -135,14 +135,14 @@ impl NewBloc {
 	}
 
 	fn update_size_and_childs_position(&mut self, widgets_manager: &mut WidgetsManager) {
-		self.base.rect.size = (self.get_size)(&self, &widgets_manager);
+		self.base.rect.size = (self.get_size)(self, widgets_manager);
 		self.widgets_ids.iter().enumerate().for_each(|(nth_widget, &widget_id)| {
 			widgets_manager.get_widget_mut(widget_id).unwrap().get_base_mut().rect.position =
-				self.base.rect.position + (self.widgets_relative_positions)(&self, &widgets_manager, nth_widget);
+				self.base.rect.position + (self.widgets_relative_positions)(self, widgets_manager, nth_widget);
 		});
 		self.slots.iter().enumerate().for_each(|(nth_slot, slot)| {
 			slot.get_base_mut(widgets_manager).rect.position =
-				self.base.rect.position + (self.slots_relative_positions)(&self, &widgets_manager, nth_slot);
+				self.base.rect.position + (self.slots_relative_positions)(self, widgets_manager, nth_slot);
 		});
 	}
 
