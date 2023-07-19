@@ -75,15 +75,18 @@ impl NewBlocStyle {
 	}
 }
 
+type FnRelativePosition = Box<dyn Fn(&NewBloc, &WidgetsManager, usize) -> Vector2<f64>>;
+type FnGetSize = Box<dyn Fn(&NewBloc, &WidgetsManager) -> Vector2<f64>>;
+
 pub struct NewBloc {
 	base: Base,
 	style: NewBlocStyle,
 	grab_delta: Option<Vector2<f64>>,
 	widgets_ids: Vec<WidgetId>,
-	widgets_relative_positions: Box<dyn Fn(&Self, &WidgetsManager, usize) -> Vector2<f64>>,
+	widgets_relative_positions: FnRelativePosition,
 	slots: Vec<NewSlot>,
-	slots_relative_positions: Box<dyn Fn(&Self, &WidgetsManager, usize) -> Vector2<f64>>,
-	get_size: Box<dyn Fn(&Self, &WidgetsManager) -> Vector2<f64>>,
+	slots_relative_positions: FnRelativePosition,
+	get_size: FnGetSize,
 	parent: Option<Container>,
 	bloc_type: BlocType,
 }

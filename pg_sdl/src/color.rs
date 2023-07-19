@@ -140,17 +140,14 @@ pub fn paler(color: Color, saturation_change: f32) -> Color {
 
 	let saturation = c_max * (1.0 - saturation_change);
 
-	let color = Color::RGB(
+	Color::RGB(
 		r + ((c_max - r as f32 / 255.0) * saturation * 255.0) as u8,
 		g + ((c_max - g as f32 / 255.0) * saturation * 255.0) as u8,
 		b + ((c_max - b as f32 / 255.0) * saturation * 255.0) as u8,
-	);
-
-	color
+	)
 }
 
-pub fn with_alpha(color: Color, alpha: u8) -> Color {
-	let mut new_color = color.clone();
-	new_color.a = alpha;
-	new_color
+pub fn with_alpha(mut color: Color, alpha: u8) -> Color {
+	color.a = alpha;
+	color
 }

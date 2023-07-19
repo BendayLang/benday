@@ -133,7 +133,7 @@ pub fn fill_circle(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: 
 	}
 }
 
-pub fn draw_polygon(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, vertices: &Vec<Point2<f64>>) {
+pub fn draw_polygon(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, vertices: &[Point2<f64>]) {
 	if let Some(camera) = camera {
 		let vertices = vertices.iter().map(|point| camera.transform() * point).collect::<Vec<Point2<f64>>>();
 		let vx: Vec<i16> = vertices.iter().map(|point| point.x as i16).collect();
@@ -152,7 +152,7 @@ pub fn draw_polygon(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color:
 		DrawRenderer::polygon(canvas, &vx, &vy, color).unwrap();
 	}
 }
-pub fn fill_polygon(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, vertices: &Vec<Point2<f64>>) {
+pub fn fill_polygon(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, vertices: &[Point2<f64>]) {
 	if let Some(camera) = camera {
 		let vertices = vertices.iter().map(|point| camera.transform() * point).collect::<Vec<Point2<f64>>>();
 		let vx: Vec<i16> = vertices.iter().map(|point| point.x as i16).collect();
@@ -213,6 +213,7 @@ pub fn get_text_size(
 	}
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn draw_text(
 	canvas: &mut Canvas<Window>, camera: Option<&Camera>, text_drawer: &mut TextDrawer, position: Point2<f64>, text: &str,
 	font_size: f64, style: &TextStyle, align: Align,
@@ -223,12 +224,12 @@ pub fn draw_text(
 	if let Some(camera) = camera {
 		let position = camera.transform() * position;
 		let font_size = camera.scale() * font_size;
-		let size = text_drawer.size_of_u32(&text, font_size as FontSize, style);
+		let size = text_drawer.size_of_u32(text, font_size as FontSize, style);
 		let rect = Rect::from(position, size.cast());
 		if camera.is_in_scope(rect) {
-			text_drawer.draw(canvas, position, &text, font_size as FontSize, style, align);
+			text_drawer.draw(canvas, position, text, font_size as FontSize, style, align);
 		}
 	} else {
-		text_drawer.draw(canvas, position, &text, font_size as FontSize, style, align);
+		text_drawer.draw(canvas, position, text, font_size as FontSize, style, align);
 	}
 }

@@ -46,7 +46,7 @@ pub struct Base {
 /// - visible
 impl Base {
 	pub fn new(rect: Rect) -> Self {
-		Self { id: 0, rect, state: KeyState::new(), visible: true }
+		Self { id: 0, rect, state: KeyState::default(), visible: true }
 	}
 
 	fn set_id(&mut self, id: WidgetId) {
@@ -92,6 +92,7 @@ pub trait Widget: AsAny {
 	fn get_base_mut(&mut self) -> &mut Base;
 }
 
+#[derive(Default)]
 pub struct WidgetsManager {
 	widgets: HashMap<WidgetId, Box<dyn Widget>>,
 	no_cam_order: Vec<WidgetId>,
@@ -102,23 +103,12 @@ pub struct WidgetsManager {
 }
 
 impl WidgetsManager {
-	pub fn new() -> Self {
-		WidgetsManager {
-			widgets: HashMap::new(),
-			no_cam_order: Vec::new(),
-			cam_order: Vec::new(),
-			id_counter: 0,
-			focused_widget: None,
-			hovered_widget: None,
-		}
-	}
-
 	pub fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &mut TextDrawer, camera: &Camera) -> bool {
 		let mut changed = false;
 
 		// Update witch widget is focused (Mouse click)
 		if input.mouse.left_button.is_pressed() {
-			self.focused_widget = if let Some(name) = &self.hovered_widget { Some(name.clone()) } else { None };
+			self.focused_widget = if let Some(name) = &self.hovered_widget { Some(*name) } else { None };
 			changed = true;
 		} else if input.keys_state.escape.is_pressed() && self.focused_widget.is_some() {
 			self.focused_widget = None;
@@ -143,7 +133,7 @@ impl WidgetsManager {
 			for id in self.no_cam_order.iter().rev() {
 				let widget_base = self.widgets.get(id).unwrap().get_base();
 				if widget_base.visible && widget_base.rect.collide_point(mouse_position) {
-					new_hovered_widget = Some(id.clone());
+					new_hovered_widget = Some(*id);
 					break;
 				}
 			}
@@ -152,7 +142,7 @@ impl WidgetsManager {
 				for id in self.cam_order.iter().rev() {
 					let widget_base = self.widgets.get(id).unwrap().get_base();
 					if widget_base.visible && widget_base.rect.collide_point(camera.transform().inverse() * mouse_position) {
-						new_hovered_widget = Some(id.clone());
+						new_hovered_widget = Some(*id);
 						break;
 					}
 				}

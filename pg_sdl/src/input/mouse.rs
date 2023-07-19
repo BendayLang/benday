@@ -6,6 +6,7 @@ use std::time::Instant;
 
 use super::KeyState;
 
+#[derive(Default)]
 pub struct Mouse {
 	pub position: Point2<i32>,
 	pub delta: Vector2<i32>,

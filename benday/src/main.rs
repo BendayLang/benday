@@ -238,7 +238,7 @@ impl App for MyApp {
 }
 
 fn main() {
-	let mut widgets_manager = WidgetsManager::new();
+	let mut widgets_manager = WidgetsManager::default();
 	widgets_manager.add_widget(
 		Box::new(Button::new(Rect::new(100., 100., 200., 100.), ButtonStyle::default(), "New bloc".to_string())),
 		false,

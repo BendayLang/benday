@@ -28,6 +28,7 @@ pub struct Camera {
 }
 
 impl Camera {
+	#[allow(clippy::too_many_arguments)]
 	pub fn new(
 		resolution: Vector2<u32>, doubling_steps: u8, zoom_in_limit: f64, zoom_out_limit: f64, top_limit: f64, bottom_limit: f64,
 		left_limit: f64, right_limit: f64,

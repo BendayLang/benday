@@ -103,7 +103,7 @@ impl TextInput {
 				return i;
 			}
 		}
-		return self.text.len();
+		self.text.len()
 	}
 
 	fn is_carrot_visible(&self) -> bool {
@@ -112,6 +112,7 @@ impl TextInput {
 }
 
 impl Widget for TextInput {
+	#[allow(clippy::diverging_sub_expression)]
 	fn update(
 		&mut self, input: &Input, delta_sec: f64, _widgets_manager: &mut WidgetsManager, text_drawer: &TextDrawer,
 		camera: Option<&Camera>,
@@ -189,12 +190,10 @@ impl Widget for TextInput {
 					} else {
 						(new_carrot_position, end)
 					}
+				} else if new_carrot_position >= start {
+					(start, new_carrot_position)
 				} else {
-					if new_carrot_position >= start {
-						(start, new_carrot_position)
-					} else {
-						(new_carrot_position, end)
-					}
+					(new_carrot_position, end)
 				};
 				self.carrot_position = new_carrot_position;
 				self.carrot_timer_sec = 0.;

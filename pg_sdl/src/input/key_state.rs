@@ -1,7 +1,10 @@
+use std::default;
+
 use sdl2::keyboard::Keycode;
 
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, Default)]
 pub enum KeyState {
+	#[default]
 	Up,
 	Pressed,
 	Down,
@@ -9,9 +12,6 @@ pub enum KeyState {
 }
 
 impl KeyState {
-	pub fn new() -> Self {
-		Self::Up
-	}
 	pub fn update(&mut self) {
 		match self {
 			Self::Pressed => {
@@ -50,9 +50,12 @@ impl KeyState {
 }
 
 // TODO suggestion key state avec double press
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Default)]
 pub enum ChadKeyState {
-	Up { released_time: std::time::Instant },
+	Up {
+		released_time: std::time::Instant,
+	},
+	#[default] // TODO ca fout la merde ?
 	Down,
 	Released,
 	Pressed,
@@ -96,26 +99,21 @@ impl ChadKeyState {
 	}
 
 	pub fn is_up(&self) -> bool {
-		match self {
-			Self::Up { .. } => true,
-			_ => false,
-		}
+		matches!(self, Self::Up { .. })
 	}
+
 	pub fn is_pressed(&self) -> bool {
 		*self == Self::Pressed
 	}
+
 	pub fn is_down(&self) -> bool {
-		match self {
-			Self::Down { .. } => true,
-			_ => false,
-		}
+		matches!(self, Self::Down { .. })
 	}
+
 	pub fn is_released(&self) -> bool {
-		match self {
-			Self::Released { .. } => true,
-			_ => false,
-		}
+		matches!(self, Self::Released { .. })
 	}
+
 	pub fn is_double_pressed(&self) -> bool {
 		*self == Self::DoublePressed
 	}
@@ -124,7 +122,7 @@ impl ChadKeyState {
 	}
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct KeysState {
 	pub a: KeyState,
 	pub b: KeyState,
@@ -188,70 +186,6 @@ pub struct KeysState {
 }
 
 impl KeysState {
-	pub fn new() -> Self {
-		KeysState {
-			a: KeyState::new(),
-			b: KeyState::new(),
-			c: KeyState::new(),
-			d: KeyState::new(),
-			e: KeyState::new(),
-			f: KeyState::new(),
-			g: KeyState::new(),
-			h: KeyState::new(),
-			i: KeyState::new(),
-			j: KeyState::new(),
-			k: KeyState::new(),
-			l: KeyState::new(),
-			m: KeyState::new(),
-			n: KeyState::new(),
-			o: KeyState::new(),
-			p: KeyState::new(),
-			q: KeyState::new(),
-			r: KeyState::new(),
-			s: KeyState::new(),
-			t: KeyState::new(),
-			u: KeyState::new(),
-			v: KeyState::new(),
-			w: KeyState::new(),
-			x: KeyState::new(),
-			y: KeyState::new(),
-			z: KeyState::new(),
-			up: KeyState::new(),
-			down: KeyState::new(),
-			left: KeyState::new(),
-			right: KeyState::new(),
-			_0: KeyState::new(),
-			_1: KeyState::new(),
-			_2: KeyState::new(),
-			_3: KeyState::new(),
-			_4: KeyState::new(),
-			_5: KeyState::new(),
-			_6: KeyState::new(),
-			_7: KeyState::new(),
-			_8: KeyState::new(),
-			_9: KeyState::new(),
-			space: KeyState::new(),
-			enter: KeyState::new(),
-			mouse_left: KeyState::new(),
-			mouse_right: KeyState::new(),
-			mouse_middle: KeyState::new(),
-			escape: KeyState::new(),
-			backspace: KeyState::new(),
-			lctrl: KeyState::new(),
-			rctrl: KeyState::new(),
-			tab: KeyState::new(),
-			lshift: KeyState::new(),
-			rshift: KeyState::new(),
-			lalt: KeyState::new(),
-			ralt: KeyState::new(),
-			lgui: KeyState::new(),
-			rgui: KeyState::new(),
-			period: KeyState::new(),
-			comma: KeyState::new(),
-			delete: KeyState::new(),
-		}
-	}
-
 	pub fn get_key(&self, keycode: Keycode) -> &KeyState {
 		match keycode {
 			Keycode::Backspace => &self.backspace,

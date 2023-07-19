@@ -22,7 +22,7 @@ impl Input {
 		Self {
 			event_pump,
 			window_closed: false,
-			keys_state: KeysState::new(),
+			keys_state: KeysState::default(),
 			mouse: mouse::Mouse::new(),
 			last_char: None,
 			clipboard,
@@ -57,22 +57,15 @@ impl Input {
 					}
 				}
 				Event::Quit { .. } => self.window_closed = true,
-				Event::KeyDown { keycode, .. } => {
-					if let Some(keycode) = keycode {
-						self.keys_state.press_key(keycode);
-					}
+				Event::KeyDown { keycode: Some(keycode), .. } => {
+					self.keys_state.press_key(keycode);
 				}
-				Event::KeyUp { keycode, .. } => {
-					if let Some(keycode) = keycode {
-						self.keys_state.release_key(keycode);
-					}
+				Event::KeyUp { keycode: Some(keycode), .. } => {
+					self.keys_state.release_key(keycode);
 				}
-				Event::Window { win_event, .. } => match win_event {
-					WindowEvent::SizeChanged(width, height) => {
-						self.window_resized = Some(Vector2::new(width as u32, height as u32));
-					}
-					_ => (),
-				},
+				Event::Window { win_event: WindowEvent::SizeChanged(width, height), .. } => {
+					self.window_resized = Some(Vector2::new(width as u32, height as u32));
+				}
 				_ => {}
 			}
 		}
