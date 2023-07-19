@@ -108,7 +108,7 @@ impl WidgetsManager {
 
 		// Update witch widget is focused (Mouse click)
 		if input.mouse.left_button.is_pressed() {
-			self.focused_widget = if let Some(name) = &self.hovered_widget { Some(*name) } else { None };
+			self.focused_widget = self.hovered_widget.as_ref().copied();
 			changed = true;
 		} else if input.keys_state.escape.is_pressed() && self.focused_widget.is_some() {
 			self.focused_widget = None;
@@ -199,9 +199,11 @@ impl WidgetsManager {
 		id
 	}
 
+	#[allow(clippy::borrowed_box)]
 	pub fn get_widget(&self, id: WidgetId) -> Option<&Box<dyn Widget>> {
 		self.widgets.get(&id)
 	}
+
 	pub fn get_widget_mut(&mut self, id: WidgetId) -> Option<&mut Box<dyn Widget>> {
 		self.widgets.get_mut(&id)
 	}
@@ -209,6 +211,7 @@ impl WidgetsManager {
 	pub fn get<T: Widget>(&self, id: WidgetId) -> Option<&T> {
 		self.widgets.get(&id).and_then(|w| w.as_ref().downcast_ref::<T>())
 	}
+
 	pub fn get_mut<T: Widget>(&mut self, id: WidgetId) -> Option<&mut T> {
 		self.widgets.get_mut(&id).and_then(|w| w.as_mut().downcast_mut::<T>())
 	}

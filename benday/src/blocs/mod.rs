@@ -56,13 +56,17 @@ pub struct Bloc {
 	style: NewBlocStyle,
 	grab_delta: Option<Vector2<f64>>,
 	slots: Vec<Slot>,
-	slots_positions: Box<dyn Fn(&Self, usize) -> Vector2<f64>>,
+	slots_positions: FnGet,
 	sequences: Vec<Sequence>,
-	sequences_positions: Box<dyn Fn(&Self, usize) -> Vector2<f64>>,
-	get_size: Box<dyn Fn(&Self) -> Vector2<f64>>,
+	sequences_positions: FnGet,
+	get_size: FnGetSize,
 	parent: Option<Container>,
 	bloc_type: BlocType,
 }
+
+type FnGet = Box<dyn Fn(&Bloc, usize) -> Vector2<f64>>;
+type FnGetSize = Box<dyn Fn(&Bloc) -> Vector2<f64>>;
+
 impl Bloc {
 	pub const RADIUS: f64 = 8.;
 	const MARGIN: f64 = 12.;
@@ -76,6 +80,7 @@ impl Bloc {
 	const IF_TEXT_SIZE: Vector2<f64> = Vector2::new(25., 10.); // size of "IF" text
 
 	pub fn new_bloc(color: Color, position: Point2<f64>, bloc_type: BlocType) -> Self {
+		#[allow(clippy::type_complexity)]
 		let (slots, slots_positions, sequences, sequences_positions, get_size, style): (
 			Vec<Slot>,
 			Box<dyn Fn(&Bloc, usize) -> Vector2<f64>>,
