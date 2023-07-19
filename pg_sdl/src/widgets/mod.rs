@@ -71,7 +71,7 @@ impl Base {
 		changed
 	}
 
-	pub fn pushed(&self) -> bool {
+	pub fn is_pushed(&self) -> bool {
 		self.state.is_pressed() || self.state.is_down()
 	}
 }

@@ -83,10 +83,10 @@ impl Widget for Draggable {
 		&self, canvas: &mut Canvas<Window>, _text_drawer: &TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool,
 	) {
 		let color = if hovered { self.style.hovered_color } else { self.style.color };
-		let border_color = if focused && !self.base.pushed() { self.style.focused_color } else { self.style.border_color };
-		let rect = if self.base.pushed() { self.base.rect.translated(-Self::SHADOW) } else { self.base.rect };
+		let border_color = if focused && !self.base.is_pushed() { self.style.focused_color } else { self.style.border_color };
+		let rect = if self.base.is_pushed() { self.base.rect.translated(-Self::SHADOW) } else { self.base.rect };
 
-		if self.base.pushed() {
+		if self.base.is_pushed() {
 			canvas.set_blend_mode(BlendMode::Blend);
 			fill_rounded_rect(
 				canvas,

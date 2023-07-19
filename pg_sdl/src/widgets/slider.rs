@@ -208,7 +208,7 @@ impl Widget for Slider {
 			Orientation::Horizontal => self.thumb_position() + thumb_radius,
 			Orientation::Vertical => self.base.rect.height() - self.thumb_position() - thumb_radius,
 		};
-		let thumb_color = if self.base.pushed() {
+		let thumb_color = if self.base.is_pushed() {
 			self.style.thumb_pushed_color
 		} else if hovered {
 			self.style.thumb_hovered_color

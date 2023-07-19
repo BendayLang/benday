@@ -87,7 +87,7 @@ impl Widget for Button {
 	}
 
 	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool) {
-		let color = if self.base.pushed() {
+		let color = if self.base.is_pushed() {
 			self.style.pushed_color
 		} else if hovered {
 			self.style.hovered_color

@@ -107,7 +107,7 @@ impl Widget for Switch {
 	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool) {
 		let color = if self.switched { self.style.on_color } else { self.style.off_color };
 		let border_color = if focused { self.style.thumb_focused_color } else { self.style.border_color };
-		let thumb_color = if self.base.pushed() {
+		let thumb_color = if self.base.is_pushed() {
 			self.style.thumb_pushed_color
 		} else if hovered {
 			self.style.thumb_hovered_color

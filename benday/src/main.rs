@@ -15,7 +15,7 @@ use pg_sdl::style::Align;
 use pg_sdl::text::{TextDrawer, TextStyle};
 use pg_sdl::widgets::{
 	button::{Button, ButtonStyle},
-	WidgetsManager,
+	Widget, WidgetId, WidgetsManager,
 };
 use sdl2::render::Canvas;
 use sdl2::video::Window;
@@ -41,10 +41,8 @@ enum AppState {
 }
 
 pub struct MyApp {
-	id_counter: u32,
-	app_state: AppState,
-	blocs: HashMap<u32, Bloc>,
-	blocs_order: Vec<u32>,
+	hovered_container: Option<Container>,
+	blocs: Vec<WidgetId>,
 }
 
 impl App for MyApp {
@@ -54,11 +52,25 @@ impl App for MyApp {
 
 		// Add new bloc
 		if widgets_manager.get::<Button>(0).unwrap().is_pressed() {
-			let color = hsv_color((self.id_counter * 20) as u16, 0.5, 1.);
-			let position = Point2::new(8., 10.) * self.id_counter as f64;
-			self.id_counter += 1;
-			NewBloc::add(position, NewBlocStyle::new(color, 8.), widgets_manager);
+			let color = hsv_color((self.blocs.len() * 20) as u16, 0.5, 1.);
+			let position = Point2::new(8., 10.) * self.blocs.len() as f64;
+			self.blocs.push(NewBloc::add(position, NewBlocStyle::new(color, 8.), widgets_manager));
 		}
+
+		self.hovered_container = if let Some(focused_widget) = widgets_manager.focused_widget() {
+			if self.blocs.contains(&focused_widget) {
+				let base = widgets_manager.get_widget(focused_widget).unwrap().get_base();
+				if base.is_pushed() {
+					None
+				} else {
+					None
+				}
+			} else {
+				None
+			}
+		} else {
+			None
+		};
 
 		/*
 		match self.app_state.clone() {
@@ -278,12 +290,7 @@ fn main() {
 	let resolution = Vector2::new(1280, 720);
 	let mut app = PgSdl::init("Benday", resolution, Some(120), true, Colors::LIGHT_GREY, widgets_manager);
 
-	let my_app = &mut MyApp {
-		id_counter: 0,
-		app_state: AppState::Idle { selected_element: None, hovered_element: None },
-		blocs: HashMap::new(),
-		blocs_order: Vec::new(),
-	};
+	let my_app = &mut MyApp { hovered_container: None, blocs: Vec::new() };
 	app.run(my_app);
 }
 

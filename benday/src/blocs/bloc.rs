@@ -89,7 +89,7 @@ impl NewBloc {
 	const MARGIN: f64 = 12.;
 	const INNER_MARGIN: f64 = 6.;
 
-	pub fn add(position: Point2<f64>, style: NewBlocStyle, widgets_manager: &mut WidgetsManager) {
+	pub fn add(position: Point2<f64>, style: NewBlocStyle, widgets_manager: &mut WidgetsManager) -> WidgetId {
 		let widgets_ids = vec![widgets_manager.add_widget(
 			Box::new(Button::new(
 				Rect::from(Point2::origin(), Self::W_SIZE),
@@ -122,10 +122,11 @@ impl NewBloc {
 			bloc_type: BlocType::VariableAssignment,
 		};
 		bloc.update_size_and_childs_position(widgets_manager);
-		widgets_manager.add_widget(Box::new(bloc), true);
+		let id = widgets_manager.add_widget(Box::new(bloc), true);
 
 		widgets_ids.iter().for_each(|&widget_id| widgets_manager.put_on_top_cam(widget_id));
 		slots.iter().for_each(|slot| widgets_manager.put_on_top_cam(slot.get_id()));
+		id
 	}
 
 	fn update_size_and_childs_position(&mut self, widgets_manager: &mut WidgetsManager) {
@@ -190,10 +191,10 @@ impl Widget for NewBloc {
 		&self, canvas: &mut Canvas<Window>, _text_drawer: &TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool,
 	) {
 		let color = if hovered { self.style.hovered_color } else { self.style.color };
-		let border_color = if focused && !self.base.pushed() { self.style.focused_color } else { self.style.border_color };
-		let rect = if self.base.pushed() { self.base.rect.translated(-Self::SHADOW) } else { self.base.rect };
+		let border_color = if focused && !self.base.is_pushed() { self.style.focused_color } else { self.style.border_color };
+		let rect = if self.base.is_pushed() { self.base.rect.translated(-Self::SHADOW) } else { self.base.rect };
 
-		if self.base.pushed() {
+		if self.base.is_pushed() {
 			canvas.set_blend_mode(BlendMode::Blend);
 			fill_rounded_rect(
 				canvas,
