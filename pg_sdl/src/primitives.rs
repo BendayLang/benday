@@ -2,7 +2,7 @@ use crate::camera::Camera;
 use crate::color::Colors;
 use crate::custom_rect::Rect;
 use crate::style::Align;
-use crate::text::{TextDrawer, TextStyle};
+use crate::text::{FontSize, TextDrawer, TextStyle};
 use crate::vector2::Vector2Plus;
 use nalgebra::{Matrix3, Point, Point2, Transform2, Vector2};
 use sdl2::gfx::primitives::DrawRenderer;
@@ -207,14 +207,14 @@ pub fn get_text_size(
 	camera: Option<&Camera>, text_drawer: &TextDrawer, text: &str, font_size: f64, style: &TextStyle,
 ) -> Vector2<f64> {
 	if let Some(camera) = camera {
-		text_drawer.text_size(text, camera.scale() * font_size, style).cast() / camera.scale()
+		text_drawer.size_of_u32(text, (camera.scale() * font_size) as FontSize, style).cast() / camera.scale()
 	} else {
-		text_drawer.text_size(text, font_size, style).cast()
+		text_drawer.size_of_u32(text, font_size as FontSize, style).cast()
 	}
 }
 
 pub fn draw_text(
-	canvas: &mut Canvas<Window>, camera: Option<&Camera>, text_drawer: &TextDrawer, position: Point2<f64>, text: &str,
+	canvas: &mut Canvas<Window>, camera: Option<&Camera>, text_drawer: &mut TextDrawer, position: Point2<f64>, text: &str,
 	font_size: f64, style: &TextStyle, align: Align,
 ) {
 	if text.is_empty() {
@@ -223,12 +223,12 @@ pub fn draw_text(
 	if let Some(camera) = camera {
 		let position = camera.transform() * position;
 		let font_size = camera.scale() * font_size;
-		let size = text_drawer.text_size(&text, font_size, style);
+		let size = text_drawer.size_of_u32(&text, font_size as FontSize, style);
 		let rect = Rect::from(position, size.cast());
 		if camera.is_in_scope(rect) {
-			text_drawer.draw(canvas, position, &text, font_size, style, align);
+			text_drawer.draw(canvas, position, &text, font_size as FontSize, style, align);
 		}
 	} else {
-		text_drawer.draw(canvas, position, &text, font_size, style, align);
+		text_drawer.draw(canvas, position, &text, font_size as FontSize, style, align);
 	}
 }

@@ -298,6 +298,91 @@ impl Bloc {
 			}
 		}
 	}
+
+	/*
+
+		pub fn draw(
+			&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, camera: &Camera, moving: bool,
+			selected: Option<&BlocElement>, hovered: Option<&BlocElement>,
+		) {
+			// SHADOW
+			if moving {
+				let shadow_color = Color::from((0, 0, 0, 50));
+				canvas.set_blend_mode(BlendMode::Mod);
+				fill_rounded_rect(canvas, Some(camera), shadow_color, self.rect.translated(Self::SHADOW), Self::RADIUS);
+				canvas.set_blend_mode(BlendMode::None);
+			};
+			// BODY
+			fill_rounded_rect(canvas, Some(camera), self.color, self.rect, Self::RADIUS);
+			if selected.is_some() || hovered.is_some() {
+				// TOP BOX
+				let position = Vector2::new((self.rect.size.x - Self::TOP_BOX_SIZE.x) * 0.5, -Self::TOP_BOX_SIZE.y);
+				fill_rounded_rect(
+					canvas,
+					Some(camera),
+					self.color,
+					Rect::from(self.rect.position + position, Self::TOP_BOX_SIZE),
+					Self::RADIUS,
+				);
+			}
+			// HOVERED
+			if let Some(element) = hovered {
+				match element {
+					BlocElement::Body => {
+						let hovered_color = Color::from((0, 0, 0, Bloc::HOVER_ALPHA));
+						canvas.set_blend_mode(BlendMode::Mod);
+						fill_rounded_rect(canvas, Some(camera), hovered_color, self.rect, Self::RADIUS);
+						canvas.set_blend_mode(BlendMode::None);
+					}
+					_ => (),
+				}
+			}
+			// SLOTS
+			self.slots.iter().enumerate().for_each(|(slot_id, slot)| {
+				let selected =
+					if let Some(BlocElement::Slot(selected_slot_id)) = selected { &slot_id == selected_slot_id } else { false };
+				let hovered =
+					if let Some(BlocElement::Slot(hovered_slot_id)) = hovered { &slot_id == hovered_slot_id } else { false };
+				slot.draw(canvas, text_drawer, camera, selected, hovered);
+			});
+			// SEQUENCES
+			self.sequences.iter().enumerate().for_each(|(sequence_id, sequence)| {
+				let selected = if let Some(BlocElement::Sequence(selected_sequence_id)) = selected {
+					&sequence_id == selected_sequence_id
+				} else {
+					false
+				};
+				let hovered = if let Some(BlocElement::Sequence(hovered_sequence_id)) = hovered {
+					&sequence_id == hovered_sequence_id
+				} else {
+					false
+				};
+				sequence.draw(canvas, camera, self.rect.position, selected, hovered);
+			});
+			// SELECTED
+			if let Some(element) = selected {
+				match element {
+					BlocElement::Body => {
+						draw_rounded_rect(canvas, Some(camera), Colors::BLACK, self.rect, Self::RADIUS);
+					}
+					_ => (),
+				}
+			}
+			let text = &format!("{}", self.id);
+			draw_text(canvas, Some(camera), text_drawer, self.rect.position, text, 15.0, &TextStyle::default(), Align::TopLeft);
+		}
+
+		pub fn draw_container_hover(&self, canvas: &mut Canvas<Window>, camera: &Camera, bloc_container: &BlocContainer) {
+			match bloc_container {
+				BlocContainer::Slot { slot_id } => {
+					self.slots[*slot_id].draw_hover(canvas, camera, self.rect.position);
+				}
+				BlocContainer::Sequence { sequence_id, place } => {
+					self.sequences[*sequence_id].draw_hover(canvas, camera, self.rect.position, *place);
+				}
+			}
+		}
+	*/
 }
 
 // impl Widget for Bloc {}

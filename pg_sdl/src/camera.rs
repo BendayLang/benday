@@ -166,7 +166,9 @@ impl Camera {
 		DrawRenderer::hline(canvas, 0, self.resolution.x as i16 - 1, y as i16, color).unwrap();
 	}
 	/// Draws a grid
-	pub fn draw_grid(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, color: Color, axes: bool, graduations: bool) {
+	pub fn draw_grid(
+		&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, color: Color, axes: bool, graduations: bool,
+	) {
 		let max_depth = 2;
 
 		let p = (self.scale().log(5.0) + 1.4).floor();

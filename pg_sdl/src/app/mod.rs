@@ -16,14 +16,14 @@ use std::time::{Duration, Instant};
 
 pub trait App {
 	fn update(&mut self, delta_sec: f64, input: &Input, widgets_manager: &mut WidgetsManager, camera: &mut Camera) -> bool;
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &TextDrawer, camera: &Camera);
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, camera: &Camera);
 }
 
-pub struct PgSdl {
+pub struct PgSdl<'ttf, 'texture> {
 	mouse: MouseUtil,
 	input: Input,
 	canvas: Canvas<Window>,
-	text_drawer: TextDrawer,
+	pub text_drawer: TextDrawer<'ttf, 'texture>,
 	background_color: Color,
 	widgets_manager: WidgetsManager,
 	fps: Option<u32>,
@@ -31,7 +31,7 @@ pub struct PgSdl {
 	camera: Camera,
 }
 
-impl PgSdl {
+impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 	pub fn init(
 		window_title: &str, window_size: Vector2<u32>, fps: Option<u32>, draw_fps: bool, background_color: Color,
 		widgets_manager: WidgetsManager,
@@ -54,10 +54,12 @@ impl PgSdl {
 		// TODO mettre ca en paramettre ?
 		let camera = Camera::new(window_size, 6, 2.5, 5.0, -4000.0, 4000.0, -5000.0, 5000.0);
 
+		let text_drawer = TextDrawer::new(canvas.texture_creator());
+
 		PgSdl {
 			mouse: sdl_context.mouse(),
-			text_drawer: TextDrawer::new(canvas.texture_creator()),
-			input: Input::new(sdl_context, video_subsystem.clipboard()),
+			text_drawer,
+			input: Input::new(sdl_context.event_pump().unwrap(), video_subsystem.clipboard()),
 			widgets_manager,
 			canvas,
 			background_color,
@@ -88,15 +90,16 @@ impl PgSdl {
 		self.canvas.set_draw_color(self.background_color);
 		self.canvas.clear();
 		user_app.draw(&mut self.canvas, &mut self.text_drawer, &self.camera);
-		self.widgets_manager.draw(&mut self.canvas, &self.text_drawer, &self.camera);
+		self.widgets_manager.draw(&mut self.canvas, &mut self.text_drawer, &self.camera);
 	}
 
 	fn draw_fps(&mut self, delta_sec: f64) {
 		fill_rounded_rect(&mut self.canvas, None, Colors::WHITE, Rect::new(10.0, 2.0, 120.0, 32.0), 5.0);
+		// self.text_drawer.draw_text(
 		draw_text(
 			&mut self.canvas,
 			None,
-			&self.text_drawer,
+			&mut self.text_drawer,
 			Point2::new(65., 17.),
 			&format!("FPS: {0:.0}", 1.0 / delta_sec),
 			24.0,
