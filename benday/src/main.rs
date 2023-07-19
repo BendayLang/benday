@@ -1,8 +1,7 @@
-// #![allow(dead_code, unused_variables, unused_imports)]
+#![allow(dead_code, unused_variables, unused_imports)]
 mod blocs;
 
 use crate::blocs::bloc::{NewBloc, NewBlocStyle};
-
 use blocs::{Bloc, BlocContainer, BlocElement};
 use nalgebra::{Point2, Vector2};
 use pg_sdl::app::{App, PgSdl};
@@ -10,16 +9,13 @@ use pg_sdl::camera::Camera;
 use pg_sdl::color::{hsv_color, Colors};
 use pg_sdl::custom_rect::Rect;
 use pg_sdl::input::Input;
-
-
-use pg_sdl::text::{TextDrawer};
+use pg_sdl::text::TextDrawer;
 use pg_sdl::widgets::{
 	button::{Button, ButtonStyle},
 	Widget, WidgetId, WidgetsManager,
 };
 use sdl2::render::Canvas;
 use sdl2::video::Window;
-
 use std::collections::HashMap;
 
 #[derive(PartialEq, Copy, Clone, Debug)]
@@ -251,7 +247,7 @@ fn main() {
 
 	let mut my_app = MyApp { hovered_container: None, blocs: Vec::new() };
 	let font_path = std::path::PathBuf::from(format!("{}/{}", pg_sdl::text::FONT_PATH, pg_sdl::text::DEFAULT_FONT_NAME));
-	for font in [(&font_path, 0, 100)] {
+	for font in [(&font_path, 0, 30)] {
 		let (path, from, to) = font;
 		for size in from..=to {
 			let font: sdl2::ttf::Font = ttf_context.load_font(path, size).unwrap();

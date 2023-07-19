@@ -4,20 +4,15 @@ pub mod slider;
 pub mod switch;
 pub mod text_input;
 
-use crate::camera;
 use crate::camera::Camera;
-use crate::color::Colors;
 use crate::custom_rect::Rect;
 use crate::input::{Input, KeyState};
 use crate::text::TextDrawer;
 use as_any::{AsAny, Downcast};
-use nalgebra::{Complex, Point2, RealField, Similarity, Similarity2, Transform2, Unit, Vector2};
-use sdl2::pixels::Color;
 use sdl2::render::Canvas;
 use sdl2::video::Window;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::ops::{Add, Mul};
 
 pub const HOVER: f32 = 0.92;
 pub const PUSH: f32 = 0.80;

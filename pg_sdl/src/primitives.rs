@@ -4,7 +4,7 @@ use crate::custom_rect::Rect;
 use crate::style::Align;
 use crate::text::{FontSize, TextDrawer, TextStyle};
 use crate::vector2::Vector2Plus;
-use nalgebra::{Matrix3, Point, Point2, Transform2, Vector2};
+use nalgebra::{Matrix3, Point2, Transform2, Vector2};
 use sdl2::gfx::primitives::DrawRenderer;
 use sdl2::pixels::Color;
 use sdl2::{render::Canvas, video::Window};

@@ -1,14 +1,11 @@
-use crate::color::{darker, Colors};
+use crate::color::darker;
 use crate::custom_rect::Rect;
 use crate::input::Input;
-use crate::primitives::{draw_rect, draw_rounded_rect, draw_text, fill_rect, fill_rounded_rect};
+use crate::primitives::draw_text;
 use crate::style::{Align, HAlign, VAlign};
 use crate::text::{TextDrawer, TextStyle};
-use crate::vector2::Vector2Plus;
-
-use nalgebra::{Matrix2, Matrix3, Point2, Scale2, Similarity2, Transform2, Translation2, Vector2};
+use nalgebra::{Point2, Similarity2, Translation2, Vector2};
 use sdl2::gfx::primitives::DrawRenderer;
-use sdl2::mouse::SystemCursor::No;
 use sdl2::pixels::Color;
 use sdl2::render::Canvas;
 use sdl2::ttf::FontStyle;
@@ -156,16 +153,6 @@ impl Camera {
 		self.resolution = new_resolution;
 	}
 
-	/// Draws a vertical line running the height of the screen and the x coordinate as seen by the camera
-	fn draw_vline(&self, canvas: &mut Canvas<Window>, color: Color, x: f64) {
-		let x = self.scale() * x + self.translation().x;
-		DrawRenderer::vline(canvas, x as i16, 0, self.resolution.y as i16 - 1, color).unwrap();
-	}
-	/// Draws a horizontal line running the width of the screen and the y coordinate as seen by the camera
-	fn draw_hline(&self, canvas: &mut Canvas<Window>, color: Color, y: f64) {
-		let y = self.scale() * y + self.translation().y;
-		DrawRenderer::hline(canvas, 0, self.resolution.x as i16 - 1, y as i16, color).unwrap();
-	}
 	/// Draws a grid
 	pub fn draw_grid(
 		&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, color: Color, axes: bool, graduations: bool,

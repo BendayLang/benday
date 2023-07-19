@@ -1,4 +1,4 @@
-// #![allow(dead_code, unused_variables, unreachable_code, unused_imports)]
+#![allow(dead_code, unused_variables, unreachable_code, unused_imports)]
 
 //! # Getting started
 //!

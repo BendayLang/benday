@@ -1,8 +1,6 @@
 use crate::input::key_state::ChadKeyState;
 use nalgebra::{Point2, Vector2};
 use sdl2::mouse::MouseButton;
-use sdl2::rect::Point;
-use std::time::Instant;
 
 use super::KeyState;
 
@@ -18,8 +16,6 @@ pub struct Mouse {
 }
 
 impl Mouse {
-	const TIME_TO_DOUBLE_CLICK: u128 = 100;
-
 	pub fn update(&mut self) {
 		self.delta = Vector2::zeros();
 		self.wheel = 0;

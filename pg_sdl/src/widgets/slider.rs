@@ -1,21 +1,17 @@
+use crate::camera::Camera;
+use crate::color::{darker, paler, with_alpha, Colors};
 use crate::custom_rect::Rect;
 use crate::input::{Input, KeyState};
+use crate::primitives::{draw_circle, draw_polygon, draw_text, fill_circle, fill_polygon};
+use crate::style::Align;
+use crate::text::{TextDrawer, TextStyle};
 use crate::vector2::Vector2Plus;
 use crate::widgets::{Base, Orientation, Widget, WidgetsManager, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER, PUSH};
 use nalgebra::{Point2, Vector2};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
-use sdl2::ttf::FontStyle;
-use std::f64::consts::{PI, TAU};
-
-use crate::camera::Camera;
-use crate::color::{darker, paler, with_alpha, Colors};
-use crate::primitives::{
-	draw_circle, draw_polygon, draw_rect, draw_rounded_rect, draw_text, fill_circle, fill_polygon, fill_rect, fill_rounded_rect,
-};
-use crate::style::Align;
-use crate::text::{TextDrawer, TextStyle};
 use sdl2::video::Window;
+use std::f64::consts::PI;
 
 pub struct SliderStyle {
 	filled_track_color: Color,

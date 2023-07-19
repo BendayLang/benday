@@ -2,13 +2,10 @@ mod text_style;
 
 use crate::style::Align;
 use nalgebra::{Point2, Vector2};
-use sdl2::pixels::Color;
-use sdl2::render::TextureQuery;
 use sdl2::surface::Surface;
-use sdl2::ttf::FontStyle;
 use sdl2::{render::Canvas, video::Window};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 pub use text_style::TextStyle;
 pub use text_style::{DEFAULT_FONT_NAME, FONT_PATH};
 
@@ -66,7 +63,7 @@ impl<'ttf, 'texture> TextDrawer<'ttf, 'texture> {
 		&mut self, canvas: &mut Canvas<Window>, position: Point2<f64>, text: &str, font_size: FontSize, style: &TextStyle,
 		align: Align,
 	) {
-		let TextStyle { font_path, font_style, color } = style;
+		let TextStyle { font_path, color, .. } = style;
 		let font = self.fonts.get_mut(&(font_path.to_path_buf(), font_size)).expect("font not loaded at init");
 		// font.set_style(*font_style);
 

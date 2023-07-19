@@ -96,7 +96,7 @@ pub fn hsv_color(hue: u16, saturation: f32, value: f32) -> Color {
 	Color { r: ((m + r) * 255.0) as u8, g: ((m + g) * 255.0) as u8, b: ((m + b) * 255.0) as u8, a: 255 }
 }
 
-fn color_to_hsv(color: Color) -> (u16, f32, f32) {
+pub fn color_to_hsv(color: Color) -> (u16, f32, f32) {
 	let (r, g, b) = color.rgb();
 	let c_max = max([r, g, b]).unwrap();
 	let c_min = min([r, g, b]).unwrap();
@@ -136,10 +136,7 @@ pub fn paler(color: Color, saturation_change: f32) -> Color {
 	if c_max == 0.0 {
 		return Color::BLACK;
 	}
-	let c_min = min([r, g, b]).unwrap() as f32 / 255.0;
-
 	let saturation = c_max * (1.0 - saturation_change);
-
 	Color::RGB(
 		r + ((c_max - r as f32 / 255.0) * saturation * 255.0) as u8,
 		g + ((c_max - g as f32 / 255.0) * saturation * 255.0) as u8,

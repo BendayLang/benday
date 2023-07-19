@@ -1,18 +1,16 @@
 use crate::camera::Camera;
 use crate::color::{darker, with_alpha, Colors};
 use crate::custom_rect::Rect;
-use crate::input::{Input, KeyState};
-use crate::primitives::{draw_circle, draw_polygon, draw_rounded_rect, fill_circle, fill_polygon, fill_rounded_rect};
+use crate::input::Input;
+use crate::primitives::{draw_circle, draw_polygon, fill_circle, fill_polygon};
 use crate::text::TextDrawer;
-use crate::widgets::{Base, Orientation, Widget, WidgetsManager, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER, PUSH};
-use std::f64::consts::PI;
-
 use crate::vector2::Vector2Plus;
+use crate::widgets::{Base, Orientation, Widget, WidgetsManager, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER, PUSH};
 use nalgebra::{Point2, Vector2};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
-use sdl2::ttf::FontStyle;
 use sdl2::video::Window;
+use std::f64::consts::PI;
 
 pub struct SwitchStyle {
 	on_color: Color,
@@ -105,7 +103,7 @@ impl Widget for Switch {
 	}
 
 	fn draw(
-		&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool,
+		&self, canvas: &mut Canvas<Window>, _text_drawer: &mut TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool,
 	) {
 		let color = if self.switched { self.style.on_color } else { self.style.off_color };
 		let border_color = if focused { self.style.thumb_focused_color } else { self.style.border_color };

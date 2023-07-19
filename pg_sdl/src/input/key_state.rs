@@ -1,5 +1,3 @@
-use std::default;
-
 use sdl2::keyboard::Keycode;
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy, Default)]

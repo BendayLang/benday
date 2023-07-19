@@ -1,15 +1,12 @@
 use crate::camera::Camera;
-use crate::color::{darker, paler, with_alpha, Colors};
+use crate::color::{darker, with_alpha, Colors};
 use crate::custom_rect::Rect;
-use crate::input::{Input, KeyState, KeysState, Shortcut};
+use crate::input::{Input, Shortcut};
 use crate::primitives::{draw_rect, draw_rounded_rect, draw_text, fill_rect, fill_rounded_rect, get_text_size};
 use crate::style::Align;
 use crate::text::{TextDrawer, TextStyle};
-use crate::widgets::{Base, Widget, WidgetsManager, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER, PUSH};
+use crate::widgets::{Base, Widget, WidgetsManager, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER};
 use nalgebra::{Point2, Vector2};
-use std::default;
-
-use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;

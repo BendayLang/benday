@@ -5,13 +5,10 @@ use crate::input::Input;
 use crate::primitives::{draw_text, fill_rounded_rect};
 use crate::style::Align;
 use crate::text::{TextDrawer, TextStyle};
-use crate::widgets::{Widget, WidgetsManager};
+use crate::widgets::WidgetsManager;
 use nalgebra::{Point2, Vector2};
-use ndarray::AssignElem;
-use sdl2::mouse::{Cursor, MouseUtil, SystemCursor};
-use sdl2::ttf::FontStyle;
+use sdl2::mouse::MouseUtil;
 use sdl2::{pixels::Color, render::Canvas, video::Window};
-use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 pub trait App {
