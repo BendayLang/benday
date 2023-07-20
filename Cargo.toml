@@ -1,11 +1,14 @@
 [workspace]
-members = ["pg_sdl", "benday"]
-default-members = ["benday"]
+members = ["pg_sdl", "benday", "models", "runner"]
+default-members = ["benday", "models", "runner"]
 
 
 [workspace.dependencies]
 sdl2 = { version = "0.35.2", features = ["ttf", "gfx"] }
 nalgebra = "0.32.2"
 as-any = "0.3.0"
-pg_sdl = { path = "./pg_sdl" }
-
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+pg_sdl = { path = "pg_sdl" }
+models = { path = "models" }
+runner = { path = "runner" }

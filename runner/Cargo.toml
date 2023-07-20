@@ -1,0 +1,12 @@
+[package]
+name = "runner"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "runner"
+
+[dependencies]
+fasteval = "0.2.4"
+ngrammatic = "0.4.0"
+models = { workspace = true }
