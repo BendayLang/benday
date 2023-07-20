@@ -5,13 +5,14 @@ use pg_sdl::widgets::text_input::{TextInput, TextInputStyle};
 use pg_sdl::widgets::{Base, WidgetId, WidgetsManager};
 use sdl2::pixels::Color;
 
+
 #[derive(Clone)]
-pub struct NewSlot {
+pub struct Slot {
 	text_input_id: WidgetId,
 	child_id: Option<WidgetId>,
 }
 
-impl NewSlot {
+impl Slot {
 	const DEFAULT_SIZE: Vector2<f64> = Vector2::new(80., 20.);
 
 	pub fn new(color: Color, placeholder: String, widgets_manager: &mut WidgetsManager) -> Self {

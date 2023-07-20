@@ -1,5 +1,5 @@
-use crate::blocs::containers::NewSlot;
-use crate::blocs::Container;
+use crate::blocs::containers::Slot;
+use crate::blocs::{Container, new_test_bloc};
 use crate::blocs::{BlocContainer, BlocType};
 use nalgebra::{Point2, Vector2};
 use pg_sdl::camera::Camera;
@@ -15,7 +15,7 @@ use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
 
-pub struct NewBlocStyle {
+pub struct BlocStyle {
 	color: Color,
 	hovered_color: Color,
 	focused_color: Color,
@@ -23,7 +23,7 @@ pub struct NewBlocStyle {
 	corner_radius: f64,
 }
 
-impl NewBlocStyle {
+impl BlocStyle {
 	pub fn new(color: Color, corner_radius: f64) -> Self {
 		Self {
 			color,
@@ -35,61 +35,44 @@ impl NewBlocStyle {
 	}
 }
 
-type FnRelativePosition = Box<dyn Fn(&NewBloc, &WidgetsManager, usize) -> Vector2<f64>>;
-type FnGetSize = Box<dyn Fn(&NewBloc, &WidgetsManager) -> Vector2<f64>>;
+type FnRelativePosition = Box<dyn Fn(&Bloc, &WidgetsManager, usize) -> Vector2<f64>>;
+type FnGetSize = Box<dyn Fn(&Bloc, &WidgetsManager) -> Vector2<f64>>;
 
-pub struct NewBloc {
+pub struct Bloc {
 	base: Base,
-	style: NewBlocStyle,
+	style: BlocStyle,
 	grab_delta: Option<Vector2<f64>>,
-	widgets_ids: Vec<WidgetId>,
+	pub widgets_ids: Vec<WidgetId>,
 	widgets_relative_positions: FnRelativePosition,
-	slots: Vec<NewSlot>,
+	pub slots: Vec<Slot>,
 	slots_relative_positions: FnRelativePosition,
 	get_size: FnGetSize,
 	parent: Option<Container>,
 	bloc_type: BlocType,
 }
 
-impl NewBloc {
+impl Bloc {
 	const SHADOW: Vector2<f64> = Vector2::new(6., 8.);
-	const W_SIZE: Vector2<f64> = Vector2::new(80., 20.);
-	const MARGIN: f64 = 12.;
-	const INNER_MARGIN: f64 = 6.;
-
-	pub fn add(position: Point2<f64>, _bloc_type: BlocType, widgets_manager: &mut WidgetsManager) -> WidgetId {
-		let style = NewBlocStyle::new(Colors::LIGHT_BLUE, 12.);
-		let widgets_ids = vec![widgets_manager.add_widget(
-			Box::new(Button::new(
-				Rect::from(Point2::origin(), Self::W_SIZE),
-				ButtonStyle::new(paler(style.color, 0.4), Some(7.), 12.),
-				"button".to_string(),
-			)),
-			true,
-		)];
-		let widgets_relative_positions = Box::new(|_bloc: &Self, _: &WidgetsManager, _| Vector2::new(Self::MARGIN, Self::MARGIN));
-		let slots = vec![NewSlot::new(style.color, "slot".to_string(), widgets_manager)];
-		let slots_relative_positions = Box::new(|bloc: &Self, widgets_manager: &WidgetsManager, _| {
-			let widget_height = widgets_manager.get_widget(&bloc.widgets_ids[0]).unwrap().get_base().rect.height();
-			Vector2::new(Self::MARGIN, Self::MARGIN + widget_height + Self::INNER_MARGIN)
-		});
-		let get_size = Box::new(|bloc: &Self, widgets_manager: &WidgetsManager| {
-			let widget_height = widgets_manager.get_widget(&bloc.widgets_ids[0]).unwrap().get_base().rect.height();
-			let slot_size = bloc.slots[0].get_base(widgets_manager).rect.size;
-			Vector2::new(2. * Self::MARGIN + slot_size.x, 2. * Self::MARGIN + widget_height + Self::INNER_MARGIN + slot_size.y)
-		});
-		let mut bloc = Self {
+	
+	pub fn new(position: Point2<f64>, style: BlocStyle, widgets_ids: Vec<WidgetId>, widgets_relative_positions: FnRelativePosition,
+		slots: Vec<Slot>, slots_relative_positions: FnRelativePosition, get_size: FnGetSize, bloc_type: BlocType,
+	) -> Self {
+		Self {
 			base: Base::new(Rect::from(position, Vector2::zeros())),
 			style,
 			grab_delta: None,
-			widgets_ids: widgets_ids.clone(),
+			widgets_ids,
 			widgets_relative_positions,
-			slots: slots.clone(),
+			slots,
 			slots_relative_positions,
 			get_size,
 			parent: None,
-			bloc_type: BlocType::VariableAssignment,
-		};
+			bloc_type,
+		}
+	}
+
+	pub fn add(position: Point2<f64>, _bloc_type: BlocType, widgets_manager: &mut WidgetsManager) -> WidgetId {
+		let (mut bloc, widgets_ids, slots) = new_test_bloc(position, widgets_manager);
 		bloc.update_size(widgets_manager);
 		bloc.update_position(widgets_manager);
 		let id = widgets_manager.add_widget(Box::new(bloc), true);
@@ -195,25 +178,25 @@ impl NewBloc {
 
 	/// Sets parents and childs depending on if there is a connection or a disconnection
 	pub fn set_parent_and_child(parent: &Container, child_id: &WidgetId, connection: bool, widgets_manager: &mut WidgetsManager) {
-		widgets_manager.get_mut::<NewBloc>(child_id).unwrap().parent = if connection { Some(parent.clone()) } else { None };
+		widgets_manager.get_mut::<Bloc>(child_id).unwrap().parent = if connection { Some(parent.clone()) } else { None };
 
 		let Container { bloc_id: parent_id, bloc_container } = parent;
 		match bloc_container {
 			BlocContainer::Slot { nth_slot } => {
-				widgets_manager.get_mut::<NewBloc>(parent_id).unwrap().slots[*nth_slot].set_child(if connection {
+				widgets_manager.get_mut::<Bloc>(parent_id).unwrap().slots[*nth_slot].set_child(if connection {
 					Some(*child_id)
 				} else {
 					None
 				});
 
-				let text_input_id = widgets_manager.get::<NewBloc>(parent_id).unwrap().slots[*nth_slot].get_text_input_id();
+				let text_input_id = widgets_manager.get::<Bloc>(parent_id).unwrap().slots[*nth_slot].get_text_input_id();
 				let text_input = widgets_manager.get_widget_mut(&text_input_id).unwrap();
 				if connection {
 					text_input.get_base_mut().set_invisible();
 				} else {
 					text_input.get_base_mut().set_visible();
 					widgets_manager.put_on_top_cam(&text_input_id);
-					let child_childs = widgets_manager.get::<NewBloc>(child_id).unwrap().get_recursive_childs(widgets_manager);
+					let child_childs = widgets_manager.get::<Bloc>(child_id).unwrap().get_recursive_childs(widgets_manager);
 					child_childs.iter().rev().for_each(|child_id| widgets_manager.put_on_top_cam(child_id));
 				}
 			}
@@ -226,7 +209,7 @@ impl NewBloc {
 	pub fn get_root(&self, widgets_manager: &WidgetsManager) -> WidgetId {
 		let mut id = self.base.id;
 		loop {
-			if let Some(Container { bloc_id: parent_id, .. }) = widgets_manager.get::<NewBloc>(&id).unwrap().parent {
+			if let Some(Container { bloc_id: parent_id, .. }) = widgets_manager.get::<Bloc>(&id).unwrap().parent {
 				id = parent_id;
 			} else {
 				return id;
@@ -235,7 +218,7 @@ impl NewBloc {
 	}
 }
 
-impl Widget for NewBloc {
+impl Widget for Bloc {
 	fn update(
 		&mut self, input: &Input, _delta_sec: f64, widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
 		camera: Option<&Camera>,
@@ -304,7 +287,7 @@ impl Widget for NewBloc {
 		draw_rounded_rect(canvas, camera, border_color, rect, self.style.corner_radius);
 
 		let text = format!("{}", self.base.id); // format!("{} {:?}", self.base.id, self.parent);
-		let position = rect.position + Vector2::new(Self::MARGIN, Self::MARGIN * 0.5);
+		let position = rect.position + Vector2::new(6., 3.);
 		draw_text(canvas, camera, text_drawer, position, &text, 10., &TextStyle::default(), Align::Left);
 	}
 
