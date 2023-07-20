@@ -53,9 +53,9 @@ impl Widget for Draggable {
 
 		if self.base.state.is_pressed() {
 			if camera.is_some() {
-				widgets_manager.put_on_top_cam(self.base.id)
+				widgets_manager.put_on_top_cam(&self.base.id)
 			} else {
-				widgets_manager.put_on_top_no_cam(self.base.id)
+				widgets_manager.put_on_top_no_cam(&self.base.id)
 			};
 			self.grab_delta = if let Some(camera) = camera {
 				Some(self.base.rect.position - camera.transform().inverse() * input.mouse.position.cast())

@@ -98,6 +98,22 @@ impl Rect {
 	pub fn collide_rect(&self, rect: Rect) -> bool {
 		self.left() < rect.right() && rect.left() < self.right() && self.bottom() < rect.top() && rect.bottom() < self.top()
 	}
+	/// Returns a new rect that is 'encapsulated' by both given rects
+	pub fn clip_rect(&self, rect: Rect) -> Option<Rect> {
+		if self.collide_rect(rect) {
+			let left = self.left().max(rect.left());
+			let right = self.right().min(rect.right());
+			let bottom = self.bottom().max(rect.bottom());
+			let top = self.top().min(rect.top());
+			Some(Rect::new(left, bottom, right - left, top - bottom))
+		} else {
+			None
+		}
+	}
+
+	pub fn surface(&self) -> f64 {
+		self.width() * self.height()
+	}
 }
 
 impl Mul<Rect> for Similarity<f64, Unit<Complex<f64>>, 2> {

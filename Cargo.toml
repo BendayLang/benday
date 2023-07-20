@@ -6,3 +6,6 @@ default-members = ["benday"]
 [workspace.dependencies]
 sdl2 = { version = "0.35.2", features = ["ttf", "gfx"] }
 nalgebra = "0.32.2"
+as-any = "0.3.0"
+pg_sdl = { path = "./pg_sdl" }
+

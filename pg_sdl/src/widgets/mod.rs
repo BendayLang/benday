@@ -69,6 +69,18 @@ impl Base {
 	pub fn is_pushed(&self) -> bool {
 		self.state.is_pressed() || self.state.is_down()
 	}
+
+	pub fn is_visible(&self) -> bool {
+		self.visible
+	}
+
+	pub fn set_visible(&mut self) {
+		self.visible = true;
+	}
+
+	pub fn set_invisible(&mut self) {
+		self.visible = false;
+	}
 }
 
 /// A widget is a UI object that can be interacted with to take inputs from the user.
@@ -108,7 +120,9 @@ impl WidgetsManager {
 		} else if input.keys_state.escape.is_pressed() && self.focused_widget.is_some() {
 			self.focused_widget = None;
 			changed = true;
-		} else if input.keys_state.tab.is_pressed() {
+		}
+		// TAB to navigate between widgets
+		else if input.keys_state.tab.is_pressed() {
 			if let Some(focused_widget) = &self.focused_widget {
 				// TODO pass the not visibles widgets when tab
 				self.focused_widget = if input.keys_state.lshift.is_down() || input.keys_state.rshift.is_down() {
@@ -127,16 +141,17 @@ impl WidgetsManager {
 			// checks collisions with the widgets without camera first
 			for id in self.no_cam_order.iter().rev() {
 				let widget_base = self.widgets.get(id).unwrap().get_base();
-				if widget_base.visible && widget_base.rect.collide_point(mouse_position) {
+				if widget_base.is_visible() && widget_base.rect.collide_point(mouse_position) {
 					new_hovered_widget = Some(*id);
 					break;
 				}
 			}
 			// checks collisions with the widgets with camera if none without was hovered
 			if new_hovered_widget.is_none() {
+				let mouse_position = camera.transform().inverse() * mouse_position;
 				for id in self.cam_order.iter().rev() {
 					let widget_base = self.widgets.get(id).unwrap().get_base();
-					if widget_base.visible && widget_base.rect.collide_point(camera.transform().inverse() * mouse_position) {
+					if widget_base.is_visible() && widget_base.rect.collide_point(mouse_position) {
 						new_hovered_widget = Some(*id);
 						break;
 					}
@@ -150,8 +165,8 @@ impl WidgetsManager {
 
 		// Update the focused widget (if there is one)
 		if let Some(id) = self.focused_widget {
-			let mut focused_widget = self.widgets.remove(&id).unwrap();
 			let camera = if self.widget_has_no_camera(id) { None } else { Some(camera) };
+			let mut focused_widget = self.widgets.remove(&id).unwrap();
 			changed |= focused_widget.update(input, delta_sec, self, text_drawer, camera);
 			self.widgets.insert(id, focused_widget);
 		}
@@ -163,7 +178,7 @@ impl WidgetsManager {
 		// draws the widgets with camera first
 		self.cam_order.iter().for_each(|id| {
 			let widget = self.widgets.get(id).unwrap();
-			if widget.get_base().visible {
+			if widget.get_base().is_visible() {
 				let focused = Some(*id) == self.focused_widget;
 				let hovered = Some(*id) == self.hovered_widget;
 				widget.draw(canvas, text_drawer, Some(camera), focused, hovered);
@@ -172,7 +187,7 @@ impl WidgetsManager {
 		// draws the widgets without camera on top
 		self.no_cam_order.iter().for_each(|id| {
 			let widget = self.widgets.get(id).unwrap();
-			if widget.get_base().visible {
+			if widget.get_base().is_visible() {
 				let focused = Some(*id) == self.focused_widget;
 				let hovered = Some(*id) == self.hovered_widget;
 				widget.draw(canvas, text_drawer, None, focused, hovered);
@@ -195,20 +210,28 @@ impl WidgetsManager {
 	}
 
 	#[allow(clippy::borrowed_box)]
-	pub fn get_widget(&self, id: WidgetId) -> Option<&Box<dyn Widget>> {
-		self.widgets.get(&id)
+	pub fn get_widget(&self, id: &WidgetId) -> Option<&Box<dyn Widget>> {
+		self.widgets.get(id)
 	}
 
-	pub fn get_widget_mut(&mut self, id: WidgetId) -> Option<&mut Box<dyn Widget>> {
-		self.widgets.get_mut(&id)
+	pub fn get_widget_mut(&mut self, id: &WidgetId) -> Option<&mut Box<dyn Widget>> {
+		self.widgets.get_mut(id)
 	}
 
-	pub fn get<T: Widget>(&self, id: WidgetId) -> Option<&T> {
-		self.widgets.get(&id).and_then(|w| w.as_ref().downcast_ref::<T>())
+	pub fn get<T: Widget>(&self, id: &WidgetId) -> Option<&T> {
+		self.widgets.get(id).and_then(|w| w.as_ref().downcast_ref::<T>())
 	}
 
-	pub fn get_mut<T: Widget>(&mut self, id: WidgetId) -> Option<&mut T> {
-		self.widgets.get_mut(&id).and_then(|w| w.as_mut().downcast_mut::<T>())
+	pub fn get_mut<T: Widget>(&mut self, id: &WidgetId) -> Option<&mut T> {
+		self.widgets.get_mut(id).and_then(|w| w.as_mut().downcast_mut::<T>())
+	}
+
+	pub fn remove(&mut self, id: &WidgetId) -> Option<Box<dyn Widget>> {
+		self.widgets.remove(id)
+	}
+
+	pub fn insert(&mut self, id: WidgetId, widget: Box<dyn Widget>) {
+		self.widgets.insert(id, widget);
 	}
 
 	pub fn get_cam_order(&self) -> &Vec<WidgetId> {
@@ -216,16 +239,16 @@ impl WidgetsManager {
 	}
 
 	/// Puts the given widget on top of the others (the widget needs to not have a camera)
-	pub fn put_on_top_no_cam(&mut self, id: WidgetId) {
-		let index = self.no_cam_order.iter().position(|i| i == &id).unwrap();
+	pub fn put_on_top_no_cam(&mut self, id: &WidgetId) {
+		let index = self.no_cam_order.iter().position(|i| i == id).unwrap();
 		self.no_cam_order.remove(index);
-		self.no_cam_order.push(id);
+		self.no_cam_order.push(*id);
 	}
 	/// Puts the given widget on top of the others (the widget needs to have a camera)
-	pub fn put_on_top_cam(&mut self, id: WidgetId) {
-		let index = self.cam_order.iter().position(|i| i == &id).unwrap();
+	pub fn put_on_top_cam(&mut self, id: &WidgetId) {
+		let index = self.cam_order.iter().position(|i| i == id).unwrap();
 		self.cam_order.remove(index);
-		self.cam_order.push(id);
+		self.cam_order.push(*id);
 	}
 
 	fn widget_has_no_camera(&self, id: WidgetId) -> bool {

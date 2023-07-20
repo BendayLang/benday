@@ -3,9 +3,8 @@ name = "benday"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-pg_sdl = { path = "../pg_sdl" }
+pg_sdl = { workspace = true }
 sdl2 = { workspace = true }
 nalgebra = { workspace = true }
+as-any = { workspace = true }
