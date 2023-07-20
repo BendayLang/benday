@@ -1,6 +1,7 @@
 use crate::blocs::containers::Slot;
-use crate::blocs::{Container, new_test_bloc};
+use crate::blocs::{new_test_bloc, Container};
 use crate::blocs::{BlocContainer, BlocType};
+use models::ast;
 use nalgebra::{Point2, Vector2};
 use pg_sdl::camera::Camera;
 use pg_sdl::color::{darker, paler, with_alpha, Colors};
@@ -53,8 +54,9 @@ pub struct Bloc {
 
 impl Bloc {
 	const SHADOW: Vector2<f64> = Vector2::new(6., 8.);
-	
-	pub fn new(position: Point2<f64>, style: BlocStyle, widgets_ids: Vec<WidgetId>, widgets_relative_positions: FnRelativePosition,
+
+	pub fn new(
+		position: Point2<f64>, style: BlocStyle, widgets_ids: Vec<WidgetId>, widgets_relative_positions: FnRelativePosition,
 		slots: Vec<Slot>, slots_relative_positions: FnRelativePosition, get_size: FnGetSize, bloc_type: BlocType,
 	) -> Self {
 		Self {
@@ -115,6 +117,7 @@ impl Bloc {
 		childs.push(self.base.id);
 		childs
 	}
+
 	/// Returns a vec of the bloc's childs ids, including widgets, from leaf to root (including itself)
 	pub fn get_recursive_childs(&self, widgets_manager: &WidgetsManager) -> Vec<WidgetId> {
 		let mut childs = Vec::new();
@@ -216,6 +219,20 @@ impl Bloc {
 			}
 		}
 	}
+
+	// pub fn as_ast_node(&self, id: &WidgetId, blocs: &Vec<WidgetId>, widgets_manager: &WidgetsManager) -> ast::Node {
+	// 	let data: ast::NodeData = match self.bloc_type {
+	// 		BlocType::VariableAssignment => {
+	// 			let value_slot_id = self.slots[0].get_id();
+	// 			let inner = blocs.get(id).expect("caca, ce bloc n'existe pas !!!").as_ast_node(blocs);
+	// 			let value = Box::new(inner);
+	// 			let name: String = todo!();
+	// 			ast::NodeData::VariableAssignment(ast::VariableAssignment { name, value })
+	// 		}
+	// 		_ => todo!("other bloc types"),
+	// 	};
+	// 	ast::Node { id, data }
+	// }
 }
 
 impl Widget for Bloc {

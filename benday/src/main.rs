@@ -1,7 +1,7 @@
 #![allow(dead_code, unused_variables, unused_imports)]
 mod blocs;
 
-use crate::blocs::bloc::{Bloc};
+use crate::blocs::bloc::Bloc;
 use crate::blocs::{BlocType, Container};
 use as_any::Downcast;
 
@@ -18,7 +18,6 @@ use pg_sdl::widgets::{
 };
 use sdl2::render::Canvas;
 use sdl2::video::Window;
-
 
 pub struct MyApp {
 	hovered_container: Option<Container>,
