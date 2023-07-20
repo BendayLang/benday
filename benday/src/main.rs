@@ -1,10 +1,10 @@
-//#![allow(dead_code, unused_variables, unused_imports)]
+#![allow(dead_code, unused_variables, unused_imports)]
 mod blocs;
 
-use crate::blocs::bloc::{NewBloc, NewBlocStyle};
+use crate::blocs::bloc::{NewBloc};
 use crate::blocs::{BlocType, Container};
 use as_any::Downcast;
-use blocs::BlocContainer;
+
 use nalgebra::{Point2, Vector2};
 use pg_sdl::app::{App, PgSdl};
 use pg_sdl::camera::Camera;
@@ -18,7 +18,7 @@ use pg_sdl::widgets::{
 };
 use sdl2::render::Canvas;
 use sdl2::video::Window;
-use std::collections::HashMap;
+
 
 pub struct MyApp {
 	hovered_container: Option<Container>,
@@ -33,7 +33,7 @@ impl App for MyApp {
 
 		// Add new bloc
 		if widgets_manager.get::<Button>(&0).unwrap().is_pressed() {
-			let color = hsv_color((self.blocs.len() * 20) as u16, 0.5, 1.);
+			let _color = hsv_color((self.blocs.len() * 20) as u16, 0.5, 1.);
 			let position = Point2::new(8., 10.) * self.blocs.len() as f64;
 			let bloc_id = NewBloc::add(position, BlocType::VariableAssignment, widgets_manager);
 			self.blocs.push(bloc_id);
@@ -49,7 +49,7 @@ impl App for MyApp {
 					let (mut new_hovered_container, mut ratio) = (None, 0.);
 
 					widgets_manager.get_cam_order().iter().for_each(|bloc_id| {
-						if self.blocs.contains(bloc_id) && !moving_bloc_childs.contains(&bloc_id) {
+						if self.blocs.contains(bloc_id) && !moving_bloc_childs.contains(bloc_id) {
 							if let Some((new_bloc_container, new_ratio)) = widgets_manager
 								.get::<NewBloc>(bloc_id)
 								.unwrap()

@@ -57,7 +57,7 @@ impl NewBloc {
 	const MARGIN: f64 = 12.;
 	const INNER_MARGIN: f64 = 6.;
 
-	pub fn add(position: Point2<f64>, bloc_type: BlocType, widgets_manager: &mut WidgetsManager) -> WidgetId {
+	pub fn add(position: Point2<f64>, _bloc_type: BlocType, widgets_manager: &mut WidgetsManager) -> WidgetId {
 		let style = NewBlocStyle::new(Colors::LIGHT_BLUE, 12.);
 		let widgets_ids = vec![widgets_manager.add_widget(
 			Box::new(Button::new(
@@ -166,7 +166,7 @@ impl NewBloc {
 				if slot_rect.collide_rect(rect) {
 					let new_ratio = (slot_rect.center() - rect.center()).norm();
 					if new_ratio > ratio {
-						bloc_container = Some(BlocContainer::Slot { nth_slot: nth_slot });
+						bloc_container = Some(BlocContainer::Slot { nth_slot });
 						ratio = new_ratio;
 					}
 				}
