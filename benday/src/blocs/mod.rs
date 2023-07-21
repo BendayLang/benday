@@ -1,13 +1,14 @@
+pub mod as_ast_node;
 pub mod bloc;
 pub mod containers;
 
+use crate::blocs::bloc::{Bloc, BlocStyle};
+use crate::blocs::containers::Slot;
 use nalgebra::{Point2, Vector2};
-use pg_sdl::color::{Colors, paler};
+use pg_sdl::color::{paler, Colors};
 use pg_sdl::custom_rect::Rect;
 use pg_sdl::widgets::button::{Button, ButtonStyle};
 use pg_sdl::widgets::{Base, WidgetId, WidgetsManager};
-use crate::blocs::bloc::{Bloc, BlocStyle};
-use crate::blocs::containers::Slot;
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum BlocContainer {
@@ -56,10 +57,20 @@ fn new_test_bloc(position: Point2<f64>, widgets_manager: &mut WidgetsManager) ->
 		let slot_size = bloc.slots[0].get_base(widgets_manager).rect.size;
 		Vector2::new(2. * MARGIN + slot_size.x, 2. * MARGIN + widget_height + INNER_MARGIN + slot_size.y)
 	});
-	
-	(Bloc::new(position, style, widgets_ids.clone(), widgets_relative_positions, slots.clone(), slots_relative_positions, get_size,
-	           BlocType::VariableAssignment),
-		widgets_ids, slots
+
+	(
+		Bloc::new(
+			position,
+			style,
+			widgets_ids.clone(),
+			widgets_relative_positions,
+			slots.clone(),
+			slots_relative_positions,
+			get_size,
+			BlocType::VariableAssignment,
+		),
+		widgets_ids,
+		slots,
 	)
 }
 

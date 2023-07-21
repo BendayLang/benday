@@ -84,6 +84,10 @@ impl TextInput {
 		}
 	}
 
+	pub fn get_text(&self) -> &str {
+		&self.text
+	}
+
 	fn get_carrot_position(&self, text_drawer: &TextDrawer, mouse_position: Point2<i32>, camera: Option<&Camera>) -> usize {
 		let mouse_x = ((if let Some(camera) = camera {
 			camera.transform().inverse() * mouse_position.cast()

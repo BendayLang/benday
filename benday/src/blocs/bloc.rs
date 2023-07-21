@@ -11,10 +11,13 @@ use pg_sdl::primitives::{draw_rounded_rect, draw_text, fill_rounded_rect};
 use pg_sdl::style::Align;
 use pg_sdl::text::{TextDrawer, TextStyle};
 use pg_sdl::widgets::button::{Button, ButtonStyle};
+use pg_sdl::widgets::text_input::TextInput;
 use pg_sdl::widgets::{Base, Widget, WidgetId, WidgetsManager, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
+
+use super::as_ast_node::AsAstNode;
 
 pub struct BlocStyle {
 	color: Color,
@@ -219,20 +222,38 @@ impl Bloc {
 			}
 		}
 	}
+}
 
-	// pub fn as_ast_node(&self, id: &WidgetId, blocs: &Vec<WidgetId>, widgets_manager: &WidgetsManager) -> ast::Node {
-	// 	let data: ast::NodeData = match self.bloc_type {
-	// 		BlocType::VariableAssignment => {
-	// 			let value_slot_id = self.slots[0].get_id();
-	// 			let inner = blocs.get(id).expect("caca, ce bloc n'existe pas !!!").as_ast_node(blocs);
-	// 			let value = Box::new(inner);
-	// 			let name: String = todo!();
-	// 			ast::NodeData::VariableAssignment(ast::VariableAssignment { name, value })
-	// 		}
-	// 		_ => todo!("other bloc types"),
-	// 	};
-	// 	ast::Node { id, data }
-	// }
+impl AsAstNode for Bloc {
+	fn as_ast_node(&self, blocs: &Vec<WidgetId>, widgets_manager: &WidgetsManager) -> ast::Node {
+		let id = self.base.id;
+		let data: ast::NodeData = match self.bloc_type {
+			BlocType::VariableAssignment => {
+				let name_text_input_id = self.widgets_ids.first().unwrap();
+				let name_text_input = widgets_manager.get::<TextInput>(name_text_input_id).unwrap();
+				let name = name_text_input.get_text().to_string();
+				let value: Box<ast::Node> = Box::new(self.slots.first().unwrap().as_ast_node(blocs, widgets_manager));
+				ast::NodeData::VariableAssignment(ast::VariableAssignment { name, value })
+			}
+			BlocType::IfElse => {
+				ast::NodeData::IfElse(ast::IfElse {
+					if_: ast::If {
+						condition: Box::new(self.slots.first().unwrap().as_ast_node(blocs, widgets_manager)),
+						sequence: todo!(), // sequence: self.sequences.first().unwrap().as_ast_node(blocs, widgets_manager),
+					},
+					elif: None,
+					else_: None,
+				})
+			}
+			BlocType::While => ast::NodeData::While(ast::While {
+				is_do: false,
+				condition: Box::new(self.slots.first().unwrap().as_ast_node(blocs, widgets_manager)),
+				sequence: todo!(),
+			}),
+			_ => todo!("other bloc types"),
+		};
+		ast::Node { id, data }
+	}
 }
 
 impl Widget for Bloc {

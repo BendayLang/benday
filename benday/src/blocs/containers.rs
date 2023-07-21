@@ -1,3 +1,4 @@
+use models::ast;
 use nalgebra::{Point2, Vector2};
 use pg_sdl::color::paler;
 use pg_sdl::custom_rect::Rect;
@@ -5,6 +6,8 @@ use pg_sdl::widgets::text_input::{TextInput, TextInputStyle};
 use pg_sdl::widgets::{Base, WidgetId, WidgetsManager};
 use sdl2::pixels::Color;
 
+use super::as_ast_node::AsAstNode;
+use super::bloc::Bloc;
 
 #[derive(Clone)]
 pub struct Slot {
@@ -52,5 +55,17 @@ impl Slot {
 	}
 	pub fn get_base_mut<'a>(&'a self, widgets_manager: &'a mut WidgetsManager) -> &mut Base {
 		widgets_manager.get_widget_mut(&self.get_id()).unwrap().get_base_mut()
+	}
+}
+
+impl AsAstNode for Slot {
+	fn as_ast_node(&self, blocs: &Vec<WidgetId>, widgets_manager: &WidgetsManager) -> ast::Node {
+		if let Some(child_id) = self.child_id {
+			let value_bloc = widgets_manager.get::<Bloc>(&child_id).unwrap();
+			value_bloc.as_ast_node(blocs, widgets_manager)
+		} else {
+			let value_bloc = widgets_manager.get::<TextInput>(&self.text_input_id).unwrap();
+			ast::Node { id: self.text_input_id, data: ast::NodeData::RawText(value_bloc.get_text().to_string()) }
+		}
 	}
 }
