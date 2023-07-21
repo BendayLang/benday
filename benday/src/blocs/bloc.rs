@@ -1,5 +1,5 @@
 use crate::blocs::containers::{Sequence, Slot};
-use crate::blocs::{new_test_bloc, Container, new_variable_assignment_bloc};
+use crate::blocs::{Container, new_test_bloc, new_variable_assignment_bloc, new_if_else_bloc};
 use crate::blocs::{BlocContainer, BlocType};
 use models::ast;
 use nalgebra::{Point2, Vector2};
@@ -78,6 +78,7 @@ impl Bloc {
 		let mut bloc = match bloc_type {
 			BlocType::Test => new_test_bloc(position, widgets_manager),
 			BlocType::VariableAssignment => new_variable_assignment_bloc(position, widgets_manager),
+			BlocType::IfElse => new_if_else_bloc(position, widgets_manager),
 			_ => todo!()
 		};
 		

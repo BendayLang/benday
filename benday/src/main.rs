@@ -33,17 +33,37 @@ impl App for MyApp {
 		// Add new bloc
 		if widgets_manager.get::<Button>(&0).unwrap().is_pressed() {
 			let position = Point2::new(8., 10.) * self.blocs.len() as f64;
+			let bloc_id = Bloc::add(position, BlocType::Test, widgets_manager);
+			self.blocs.push(bloc_id);
+		}
+		else if widgets_manager.get::<Button>(&1).unwrap().is_pressed() {
+			let position = Point2::new(8., 10.) * self.blocs.len() as f64;
 			let bloc_id = Bloc::add(position, BlocType::VariableAssignment, widgets_manager);
 			self.blocs.push(bloc_id);
 		}
-
-		// Update the (moving bloc) hovered container
+		else if widgets_manager.get::<Button>(&2).unwrap().is_pressed() {
+			let position = Point2::new(8., 10.) * self.blocs.len() as f64;
+			let bloc_id = Bloc::add(position, BlocType::IfElse, widgets_manager);
+			self.blocs.push(bloc_id);
+		}
+		
 		if let Some(focused_widget) = widgets_manager.focused_widget() {
 			if self.blocs.contains(&focused_widget) {
-				let moving_bloc = widgets_manager.get::<Bloc>(&focused_widget).unwrap();
-				if !input.mouse.delta.is_empty() && moving_bloc.get_base().is_pushed() {
+				let bloc = widgets_manager.get::<Bloc>(&focused_widget).unwrap();
+				// Take a bloc
+				if bloc.get_base().state.is_pressed() {
+					let parent = bloc.get_parent();
+					if let Some(container) = parent.clone() {
+						Bloc::set_parent_and_child(&container, &focused_widget, false, widgets_manager);
+						// Update layout and childs positions
+						let root_id = widgets_manager.get::<Bloc>(&container.bloc_id).unwrap().get_root(widgets_manager);
+						update_layout(root_id, widgets_manager);
+					}
+				}
+				// Update the (moving bloc) hovered container
+				else if bloc.get_base().state.is_down() && !input.mouse.delta.is_empty() {
 					// iter through all blocs to get the bloc with the biggest 'ratio'
-					let moving_bloc_childs = moving_bloc.get_recursive_bloc_childs(widgets_manager);
+					let moving_bloc_childs = bloc.get_recursive_bloc_childs(widgets_manager);
 					let (mut new_hovered_container, mut ratio) = (None, 0.);
 
 					widgets_manager.get_cam_order().iter().for_each(|bloc_id| {
@@ -51,7 +71,7 @@ impl App for MyApp {
 							if let Some((new_bloc_container, new_ratio)) = widgets_manager
 								.get::<Bloc>(bloc_id)
 								.unwrap()
-								.collide_container(moving_bloc.get_base().rect, widgets_manager)
+								.collide_container(bloc.get_base().rect, widgets_manager)
 							{
 								if new_ratio >= ratio {
 									new_hovered_container =
@@ -65,30 +85,8 @@ impl App for MyApp {
 						self.hovered_container = new_hovered_container;
 					}
 				}
-			}
-		};
-
-		// Take a bloc
-		if let Some(focused_widget) = widgets_manager.focused_widget() {
-			if self.blocs.contains(&focused_widget) {
-				let bloc = widgets_manager.get::<Bloc>(&focused_widget).unwrap();
-				if bloc.get_base().state.is_pressed() {
-					let parent = bloc.get_parent();
-					if let Some(container) = parent.clone() {
-						Bloc::set_parent_and_child(&container, &focused_widget, false, widgets_manager);
-						// Update layout and childs positions
-						let root_id = widgets_manager.get::<Bloc>(&container.bloc_id).unwrap().get_root(widgets_manager);
-						update_layout(root_id, widgets_manager);
-					}
-				}
-			}
-		}
-
-		// Release the moving bloc
-		if let Some(focused_widget) = widgets_manager.focused_widget() {
-			if self.blocs.contains(&focused_widget) {
-				let moving_bloc = widgets_manager.get::<Bloc>(&focused_widget).unwrap();
-				if moving_bloc.get_base().state.is_released() {
+				// Release the moving bloc
+				else if bloc.get_base().state.is_released() {
 					if let Some(container) = self.hovered_container.clone() {
 						Bloc::set_parent_and_child(&container, &focused_widget, true, widgets_manager);
 						// Update layout and childs positions
@@ -98,7 +96,7 @@ impl App for MyApp {
 					self.hovered_container = None;
 				}
 			}
-		}
+		};
 
 		changed
 	}
@@ -122,8 +120,17 @@ impl App for MyApp {
 
 fn main() {
 	let mut widgets_manager = WidgetsManager::default();
+	let style = ButtonStyle::new(Colors::LIGHT_AZURE, Some(6.), 16.);
 	widgets_manager.add_widget(
-		Box::new(Button::new(Rect::new(100., 100., 200., 100.), ButtonStyle::default(), "New bloc".to_string())),
+		Box::new(Button::new(Rect::new(100., 100., 140., 80.), style.clone(), "Test Bloc".to_string())),
+		false,
+	);
+	widgets_manager.add_widget(
+		Box::new(Button::new(Rect::new(300., 100., 140., 80.), style.clone(), "VarAssign Bloc".to_string())),
+		false,
+	);
+	widgets_manager.add_widget(
+		Box::new(Button::new(Rect::new(500., 100., 140., 80.), style, "IfElse Bloc".to_string())),
 		false,
 	);
 
