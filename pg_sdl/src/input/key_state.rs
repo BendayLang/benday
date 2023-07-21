@@ -23,9 +23,7 @@ impl KeyState {
 	}
 
 	pub fn press(&mut self) {
-		if self.is_up() {
-			*self = Self::Pressed
-		}
+		*self = Self::Pressed
 	}
 	pub fn release(&mut self) {
 		if self.is_down() {

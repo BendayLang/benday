@@ -58,7 +58,7 @@ impl Camera {
 	}
 
 	pub fn is_in_scope(&self, rect: Rect) -> bool {
-		let camera_scope = Rect::from(Point2::origin(), self.resolution.cast());
+		let camera_scope = Rect::from_origin(self.resolution.cast());
 		camera_scope.collide_rect(rect)
 	}
 

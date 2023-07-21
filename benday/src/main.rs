@@ -32,7 +32,6 @@ impl App for MyApp {
 
 		// Add new bloc
 		if widgets_manager.get::<Button>(&0).unwrap().is_pressed() {
-			let _color = hsv_color((self.blocs.len() * 20) as u16, 0.5, 1.);
 			let position = Point2::new(8., 10.) * self.blocs.len() as f64;
 			let bloc_id = Bloc::add(position, BlocType::VariableAssignment, widgets_manager);
 			self.blocs.push(bloc_id);

@@ -1,5 +1,5 @@
-use crate::blocs::containers::Slot;
-use crate::blocs::{new_test_bloc, Container};
+use crate::blocs::containers::{Sequence, Slot};
+use crate::blocs::{new_test_bloc, Container, new_variable_assignment_bloc};
 use crate::blocs::{BlocContainer, BlocType};
 use models::ast;
 use nalgebra::{Point2, Vector2};
@@ -39,7 +39,7 @@ impl BlocStyle {
 	}
 }
 
-type FnRelativePosition = Box<dyn Fn(&Bloc, &WidgetsManager, usize) -> Vector2<f64>>;
+type FnRelativePositions = Box<dyn Fn(&Bloc, &WidgetsManager, usize) -> Vector2<f64>>;
 type FnGetSize = Box<dyn Fn(&Bloc, &WidgetsManager) -> Vector2<f64>>;
 
 pub struct Bloc {
@@ -47,9 +47,9 @@ pub struct Bloc {
 	style: BlocStyle,
 	grab_delta: Option<Vector2<f64>>,
 	pub widgets_ids: Vec<WidgetId>,
-	widgets_relative_positions: FnRelativePosition,
+	widgets_relative_positions: FnRelativePositions,
 	pub slots: Vec<Slot>,
-	slots_relative_positions: FnRelativePosition,
+	pub sequences: Vec<Sequence>,
 	get_size: FnGetSize,
 	parent: Option<Container>,
 	bloc_type: BlocType,
@@ -59,8 +59,9 @@ impl Bloc {
 	const SHADOW: Vector2<f64> = Vector2::new(6., 8.);
 
 	pub fn new(
-		position: Point2<f64>, style: BlocStyle, widgets_ids: Vec<WidgetId>, widgets_relative_positions: FnRelativePosition,
-		slots: Vec<Slot>, slots_relative_positions: FnRelativePosition, get_size: FnGetSize, bloc_type: BlocType,
+		position: Point2<f64>, style: BlocStyle,
+		widgets_ids: Vec<WidgetId>, widgets_relative_positions: FnRelativePositions,
+		slots: Vec<Slot>, sequences: Vec<Sequence>, get_size: FnGetSize, bloc_type: BlocType,
 	) -> Self {
 		Self {
 			base: Base::new(Rect::from(position, Vector2::zeros())),
@@ -69,21 +70,28 @@ impl Bloc {
 			widgets_ids,
 			widgets_relative_positions,
 			slots,
-			slots_relative_positions,
+			sequences,
 			get_size,
 			parent: None,
 			bloc_type,
 		}
 	}
 
-	pub fn add(position: Point2<f64>, _bloc_type: BlocType, widgets_manager: &mut WidgetsManager) -> WidgetId {
-		let (mut bloc, widgets_ids, slots) = new_test_bloc(position, widgets_manager);
+	pub fn add(position: Point2<f64>, bloc_type: BlocType, widgets_manager: &mut WidgetsManager) -> WidgetId {
+		let mut bloc = match bloc_type {
+			BlocType::Test => new_test_bloc(position, widgets_manager),
+			BlocType::VariableAssignment => new_variable_assignment_bloc(position, widgets_manager),
+			_ => todo!()
+		};
+		
+		let widgets_ids = bloc.widgets_ids.clone();
+		let slots_ids = bloc.slots.iter().map(|slot| slot.get_id()).collect::<Vec<WidgetId>>();
 		bloc.update_size(widgets_manager);
 		bloc.update_position(widgets_manager);
+		
 		let id = widgets_manager.add_widget(Box::new(bloc), true);
-
 		widgets_ids.iter().for_each(|widget_id| widgets_manager.put_on_top_cam(widget_id));
-		slots.iter().for_each(|slot| widgets_manager.put_on_top_cam(&slot.get_id()));
+		slots_ids.iter().for_each(|slot_id| widgets_manager.put_on_top_cam(&slot_id));
 		id
 	}
 
@@ -98,9 +106,9 @@ impl Bloc {
 			widgets_manager.get_widget_mut(&widget_id).unwrap().get_base_mut().rect.position =
 				self.base.rect.position + (self.widgets_relative_positions)(self, widgets_manager, nth_widget);
 		});
-		self.slots.iter().enumerate().for_each(|(nth_slot, slot)| {
+		self.slots.iter().for_each(|slot| {
 			slot.get_base_mut(widgets_manager).rect.position =
-				self.base.rect.position + (self.slots_relative_positions)(self, widgets_manager, nth_slot);
+				self.base.rect.position + slot.get_relative_position(self, widgets_manager);
 		});
 	}
 
