@@ -1,5 +1,5 @@
 use crate::blocs::containers::{Sequence, Slot};
-use crate::blocs::{new_test_bloc, Container, new_variable_assignment_bloc};
+use crate::blocs::{new_test_bloc, new_variable_assignment_bloc, Container};
 use crate::blocs::{BlocContainer, BlocType};
 use models::ast;
 use nalgebra::{Point2, Vector2};
@@ -59,8 +59,7 @@ impl Bloc {
 	const SHADOW: Vector2<f64> = Vector2::new(6., 8.);
 
 	pub fn new(
-		position: Point2<f64>, style: BlocStyle,
-		widgets_ids: Vec<WidgetId>, widgets_relative_positions: FnRelativePositions,
+		position: Point2<f64>, style: BlocStyle, widgets_ids: Vec<WidgetId>, widgets_relative_positions: FnRelativePositions,
 		slots: Vec<Slot>, sequences: Vec<Sequence>, get_size: FnGetSize, bloc_type: BlocType,
 	) -> Self {
 		Self {
@@ -81,14 +80,14 @@ impl Bloc {
 		let mut bloc = match bloc_type {
 			BlocType::Test => new_test_bloc(position, widgets_manager),
 			BlocType::VariableAssignment => new_variable_assignment_bloc(position, widgets_manager),
-			_ => todo!()
+			_ => todo!(),
 		};
-		
+
 		let widgets_ids = bloc.widgets_ids.clone();
 		let slots_ids = bloc.slots.iter().map(|slot| slot.get_id()).collect::<Vec<WidgetId>>();
 		bloc.update_size(widgets_manager);
 		bloc.update_position(widgets_manager);
-		
+
 		let id = widgets_manager.add_widget(Box::new(bloc), true);
 		widgets_ids.iter().for_each(|widget_id| widgets_manager.put_on_top_cam(widget_id));
 		slots_ids.iter().for_each(|slot_id| widgets_manager.put_on_top_cam(&slot_id));
@@ -243,22 +242,29 @@ impl AsAstNode for Bloc {
 				let value: Box<ast::Node> = Box::new(self.slots.first().unwrap().as_ast_node(blocs, widgets_manager));
 				ast::NodeData::VariableAssignment(ast::VariableAssignment { name, value })
 			}
-			BlocType::IfElse => {
-				ast::NodeData::IfElse(ast::IfElse {
-					if_: ast::If {
-						condition: Box::new(self.slots.first().unwrap().as_ast_node(blocs, widgets_manager)),
-						sequence: todo!(), // sequence: self.sequences.first().unwrap().as_ast_node(blocs, widgets_manager),
-					},
-					elif: None,
-					else_: None,
-				})
-			}
-			BlocType::While => ast::NodeData::While(ast::While {
-				is_do: false,
-				condition: Box::new(self.slots.first().unwrap().as_ast_node(blocs, widgets_manager)),
-				sequence: todo!(),
+			BlocType::IfElse => ast::NodeData::IfElse(ast::IfElse {
+				if_: ast::If {
+					condition: Box::new(self.slots.first().unwrap().as_ast_node(blocs, widgets_manager)),
+					sequence: Box::new(self.sequences.first().unwrap().as_ast_node(blocs, widgets_manager)),
+				},
+				elif: None,  // TODO
+				else_: None, // TODO
 			}),
-			_ => todo!("other bloc types"),
+			BlocType::While => ast::NodeData::While(ast::While {
+				is_do: false, // TODO
+				condition: Box::new(self.slots.first().unwrap().as_ast_node(blocs, widgets_manager)),
+				sequence: Box::new(self.sequences.first().unwrap().as_ast_node(blocs, widgets_manager)),
+			}),
+			BlocType::FunctionCall => {
+				let name_text_input_id = self.widgets_ids.first().unwrap();
+				// TODO ca ne sera peut etre plus un text input...
+				let name_text_input = widgets_manager.get::<TextInput>(name_text_input_id).unwrap();
+				let name = name_text_input.get_text().to_string();
+				let argv: Vec<ast::Node> = self.slots.iter().map(|slot| slot.as_ast_node(blocs, widgets_manager)).collect();
+				ast::NodeData::FunctionCall(ast::FunctionCall { name, argv })
+			}
+			BlocType::FunctionDeclaration => unimplemented!("Fn decl to ast"),
+			BlocType::Test => panic!("le bloc test n'existe PAS"),
 		};
 		ast::Node { id, data }
 	}

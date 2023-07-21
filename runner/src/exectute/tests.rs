@@ -59,7 +59,6 @@ fn should_assign_variable_and_print_it() {
 			Node {
 				id: 3,
 				data: NodeData::FunctionCall(FunctionCall {
-					is_builtin: true,
 					name: "print".to_string(),
 					argv: vec![Node { id: 4, data: NodeData::RawText("{x}".to_string()) }],
 				}),

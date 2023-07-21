@@ -60,7 +60,7 @@ fn handle_while(
 	while iteration != user_prefs::MAX_ITERATION
 		&& get_bool(execute_node(&while_node.condition, variables, id_path, stdout, actions)?)
 	{
-		let return_value = handle_sequence(&while_node.sequence, variables, id_path, stdout, actions)?;
+		let return_value = execute_node(&while_node.sequence, variables, id_path, stdout, actions)?;
 		if return_value != None {
 			return Ok(return_value);
 		}
@@ -76,17 +76,17 @@ fn handle_if_else(
 	ifelse: &IfElse, variables: &mut VariableMap, id_path: &mut IdPath, stdout: &mut Vec<String>, actions: &mut Vec<Action>,
 ) -> AstResult {
 	if get_bool(execute_node(&ifelse.if_.condition, variables, id_path, stdout, actions)?) {
-		return handle_sequence(&ifelse.if_.sequence, variables, id_path, stdout, actions);
+		return execute_node(&ifelse.if_.sequence, variables, id_path, stdout, actions);
 	}
 	if let Some(elifs) = &ifelse.elif {
 		for elif in elifs {
 			if get_bool(execute_node(&elif.condition, variables, id_path, stdout, actions)?) {
-				return handle_sequence(&elif.sequence, variables, id_path, stdout, actions);
+				return execute_node(&elif.sequence, variables, id_path, stdout, actions);
 			}
 		}
 	}
 	if let Some(else_) = &ifelse.else_ {
-		return handle_sequence(&else_, variables, id_path, stdout, actions);
+		return execute_node(&else_, variables, id_path, stdout, actions);
 	}
 	Ok(None)
 }
@@ -153,23 +153,20 @@ fn handle_function_call(
 		function_call.argv.iter().map(|arg| execute_node(arg, variables, id_path, stdout, actions)).collect::<Vec<AstResult>>();
 
 	actions.push(Action::CallBuildInFn(function_call.name.clone()));
-	if function_call.is_builtin {
-		match function_call.name.as_str() {
-			"print" => {
-				for arg in args {
-					let to_push = match arg? {
-						Some(a) => a.to_string(),
-						None => "()".to_string(),
-					};
-					actions.push(Action::PushStdout(to_push.clone()));
-					stdout.push(to_push);
-				}
+	match function_call.name.as_str() {
+		"print" => {
+			for arg in args {
+				let to_push = match arg? {
+					Some(a) => a.to_string(),
+					None => "()".to_string(),
+				};
+				actions.push(Action::PushStdout(to_push.clone()));
+				stdout.push(to_push);
 			}
-			_ => todo!("FunctionCall {}", function_call.name),
 		}
-	} else {
-		todo!("fn calls pas builtin...")
+		_ => todo!("FunctionCall {}", function_call.name),
 	}
+
 	Ok(None)
 }
 

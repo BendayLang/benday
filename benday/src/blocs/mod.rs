@@ -24,11 +24,13 @@ pub struct Container {
 }
 
 pub enum BlocType {
-	Test,
 	VariableAssignment,
-	Print,
 	IfElse,
 	While,
+	FunctionCall, // widget 1 = name. slots = params
+	FunctionDeclaration,
+	// Sequence,
+	Test, // TODO
 }
 
 const WIDGET_SIZE: Vector2<f64> = Vector2::new(80., 20.);

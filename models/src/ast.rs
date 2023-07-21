@@ -28,14 +28,14 @@ type Sequence = Vec<Node>;
 pub struct While {
 	pub is_do: bool,
 	pub condition: Box<Node>,
-	pub sequence: Sequence,
+	pub sequence: Box<Node>,
 }
 
 // TODO remove the if, since it's just a IfElse with no elif and no else (that are Optionnal anyway)
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct If {
 	pub condition: Box<Node>,
-	pub sequence: Sequence,
+	pub sequence: Box<Node>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -44,7 +44,7 @@ pub struct IfElse {
 	pub if_: If,
 	pub elif: Option<Vec<If>>,
 	#[serde(rename = "else")]
-	pub else_: Option<Sequence>,
+	pub else_: Option<Box<Node>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
@@ -57,7 +57,6 @@ pub struct VariableAssignment {
 #[serde(rename_all = "camelCase")]
 pub struct FunctionCall {
 	pub name: String, // TODO: un id ?
-	pub is_builtin: bool,
 	pub argv: Vec<Node>,
 }
 
@@ -65,5 +64,5 @@ pub struct FunctionCall {
 pub struct FunctionDeclaration {
 	pub name: String,
 	pub argv: HashMap<String, VariableAssignment>,
-	pub sequence: Sequence,
+	pub sequence: Box<Node>,
 }

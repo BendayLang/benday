@@ -158,3 +158,17 @@ impl Widget for Sequence {
 		&mut self.base
 	}
 }
+
+impl AsAstNode for Sequence {
+	fn as_ast_node(&self, blocs: &Vec<WidgetId>, widgets_manager: &WidgetsManager) -> ast::Node {
+		ast::Node {
+			id: self.base.id,
+			data: ast::NodeData::Sequence(
+				self.childs_ids
+					.iter()
+					.map(|id| widgets_manager.get::<Bloc>(id).unwrap().as_ast_node(blocs, widgets_manager))
+					.collect(),
+			),
+		}
+	}
+}
