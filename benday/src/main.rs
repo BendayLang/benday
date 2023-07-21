@@ -1,12 +1,11 @@
 #![allow(dead_code, unused_variables, unused_imports)]
-
 mod blocs;
 
 use crate::blocs::bloc::Bloc;
+use crate::blocs::containers::Sequence;
 use crate::blocs::{BlocContainer, BlocType, Container};
 use as_any::Downcast;
-
-use crate::blocs::containers::Sequence;
+use blocs::as_ast_node::AsAstNode;
 use nalgebra::{Point2, Vector2};
 use pg_sdl::app::{App, PgSdl};
 use pg_sdl::camera::Camera;
@@ -28,6 +27,7 @@ pub struct MyApp {
 	blocs: Vec<WidgetId>,
 	hovered_container: Option<Container>,
 	rect: Option<Rect>,
+	root_id: WidgetId,
 }
 
 impl App for MyApp {
@@ -36,18 +36,24 @@ impl App for MyApp {
 		changed |= camera.update(input, widgets_manager.focused_widget().is_some());
 
 		// Add new bloc
-		if widgets_manager.get::<Button>(&0).unwrap().is_pressed() {
-			let position = Point2::new(8., 10.) * self.blocs.len() as f64;
-			let bloc_id = Bloc::add(position, BlocType::Test, widgets_manager);
-			self.blocs.push(bloc_id);
-		} else if widgets_manager.get::<Button>(&1).unwrap().is_pressed() {
-			let position = Point2::new(8., 10.) * self.blocs.len() as f64;
-			let bloc_id = Bloc::add(position, BlocType::VariableAssignment, widgets_manager);
-			self.blocs.push(bloc_id);
-		} else if widgets_manager.get::<Button>(&2).unwrap().is_pressed() {
-			let position = Point2::new(8., 10.) * self.blocs.len() as f64;
-			let bloc_id = Bloc::add(position, BlocType::IfElse, widgets_manager);
-			self.blocs.push(bloc_id);
+		let position = Point2::new(8., 10.) * self.blocs.len() as f64;
+		if widgets_manager.get::<Button>(&2).unwrap().is_pressed() {
+			self.blocs.push(Bloc::add(position, BlocType::FunctionCall, widgets_manager));
+		} else if widgets_manager.get::<Button>(&3).unwrap().is_pressed() {
+			self.blocs.push(Bloc::add(position, BlocType::VariableAssignment, widgets_manager));
+		} else if widgets_manager.get::<Button>(&4).unwrap().is_pressed() {
+			self.blocs.push(Bloc::add(position, BlocType::IfElse, widgets_manager));
+		}
+
+		// Run
+		if widgets_manager.get::<Button>(&5).unwrap().is_pressed() {
+			let root_bloc = widgets_manager.get::<Sequence>(&0).unwrap();
+			let ast = root_bloc.as_ast_node(&self.blocs, widgets_manager);
+			let (return_value, stdout, variables, actions) = runner::exectute::runner(&ast);
+			println!("Actions : {:?}", actions);
+			for str in stdout {
+				println!("{str}");
+			}
 		}
 
 		if let Some(focused_widget) = widgets_manager.focused_widget() {
@@ -134,19 +140,23 @@ impl App for MyApp {
 
 fn main() {
 	let mut widgets_manager = WidgetsManager::default();
+
+	let root_id = Bloc::add(Point2::origin(), BlocType::Sequence, &mut widgets_manager);
+
 	let style = ButtonStyle::new(Colors::LIGHT_AZURE, Some(6.), 16.);
-	widgets_manager
-		.add_widget(Box::new(Button::new(Rect::new(100., 100., 140., 80.), style.clone(), "Test Bloc".to_string())), false);
+	widgets_manager.add_widget(Box::new(Button::new(Rect::new(100., 100., 140., 80.), style.clone(), "Fn()".to_string())), false);
 	widgets_manager
 		.add_widget(Box::new(Button::new(Rect::new(300., 100., 140., 80.), style.clone(), "VarAssign Bloc".to_string())), false);
-	widgets_manager.add_widget(Box::new(Button::new(Rect::new(500., 100., 140., 80.), style, "IfElse Bloc".to_string())), false);
+	widgets_manager
+		.add_widget(Box::new(Button::new(Rect::new(500., 100., 140., 80.), style.clone(), "IfElse Bloc".to_string())), false);
+	widgets_manager.add_widget(Box::new(Button::new(Rect::new(700., 100., 140., 80.), style, "RUN".to_string())), false);
 
 	let resolution = Vector2::new(1280, 720);
 	let ttf_context = sdl2::ttf::init().expect("SDL2 ttf could not be initialized");
 
 	let mut app = PgSdl::init("Benday", resolution, Some(120), true, Colors::LIGHT_GREY, widgets_manager);
 
-	let mut my_app = MyApp { blocs: Vec::new(), hovered_container: None, rect: None };
+	let mut my_app = MyApp { blocs: vec![root_id], hovered_container: None, rect: None, root_id: 0 };
 	let font_path = std::path::PathBuf::from(format!("{}/{}", pg_sdl::text::FONT_PATH, pg_sdl::text::DEFAULT_FONT_NAME));
 	for font in [(&font_path, 0, 30)] {
 		let (path, from, to) = font;

@@ -9,12 +9,12 @@ use std::collections::HashMap;
 pub fn expand_variables(expression: &str, variables: &VariableMap, id_path: &IdPath) -> Result<String, VariableExpansionError> {
 	let start = expression.find('{');
 	let end = expression.find('}');
-	if start == None {
-		if end == None {
+	if start.is_none() {
+		if end.is_none() {
 			return Ok(expression.to_string());
 		}
 		return Err(VariableExpansionError::MissingOpeningBracket);
-	} else if end == None {
+	} else if end.is_none() {
 		return Err(VariableExpansionError::MissingClosingBracket);
 	}
 	let start = start.unwrap();
@@ -27,10 +27,10 @@ pub fn expand_variables(expression: &str, variables: &VariableMap, id_path: &IdP
 	match value_option {
 		Some((value, _)) => {
 			let result = expression[0..start].to_string() + &value.to_string() + &expression[end + 1..];
-			return expand_variables(&result, variables, id_path);
+			expand_variables(&result, variables, id_path)
 		}
 		None => {
-			return Err(VariableExpansionError::VariableNotFound(variable_name.to_string()));
+			Err(VariableExpansionError::VariableNotFound(variable_name.to_string()))
 		}
 	}
 }

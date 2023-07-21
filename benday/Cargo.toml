@@ -9,3 +9,4 @@ sdl2 = { workspace = true }
 nalgebra = { workspace = true }
 as-any = { workspace = true }
 models = { workspace = true }
+runner = { workspace = true }

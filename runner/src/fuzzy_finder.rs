@@ -3,7 +3,7 @@ pub fn hard_fuzzy_find(elements: Vec<String>, query: &str) -> Vec<String> {
 	// TODO make it case insensitive
 	let corpus = ngrammatic::CorpusBuilder::new().fill(elements).finish();
 	let mut res: Vec<(usize, String)> =
-		corpus.search(&query, 0.).iter().map(|r| ((r.similarity * 1000.) as usize, r.text.clone())).collect();
+		corpus.search(query, 0.).iter().map(|r| ((r.similarity * 1000.) as usize, r.text.clone())).collect();
 	res.sort();
 	return res.iter().rev().map(|r| r.1.clone()).collect();
 }
@@ -36,7 +36,7 @@ fn does_match(element: &str, query: &str) -> Option<usize> {
 			return None;
 		}
 	}
-	return Some(count);
+	Some(count)
 }
 
 #[cfg(test)]

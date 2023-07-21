@@ -1,4 +1,4 @@
-use super::{math, user_prefs, Runner};
+use super::{math, user_prefs};
 use crate::{find_variable::find_variable, variables_expansion::expand_variables};
 use models::{
 	ast::*,
@@ -77,30 +77,30 @@ fn handle_while(
 			todo!("break on max iteration ({})", user_prefs::MAX_ITERATION);
 		}
 	}
-	return Ok(None);
+	Ok(None)
 }
 
 fn handle_if_else(
 	ifelse: &IfElse, variables: &mut VariableMap, id_path: &mut IdPath, stdout: &mut Vec<String>, actions: &mut Vec<Action>,
 ) -> AstResult {
-	if {
-		actions.push(Action::ControlFlowEvaluateCondition);
-		get_bool(execute_node(&ifelse.if_.condition, variables, id_path, stdout, actions)?)
-	} {
+	let res = {
+ 		actions.push(Action::ControlFlowEvaluateCondition);
+ 		get_bool(execute_node(&ifelse.if_.condition, variables, id_path, stdout, actions)?)
+ 	}; if res {
 		return execute_node(&ifelse.if_.sequence, variables, id_path, stdout, actions);
 	}
 	if let Some(elifs) = &ifelse.elif {
 		for elif in elifs {
-			if {
-				actions.push(Action::ControlFlowEvaluateCondition);
-				get_bool(execute_node(&elif.condition, variables, id_path, stdout, actions)?)
-			} {
+			let res = {
+   				actions.push(Action::ControlFlowEvaluateCondition);
+   				get_bool(execute_node(&elif.condition, variables, id_path, stdout, actions)?)
+   			}; if res {
 				return execute_node(&elif.sequence, variables, id_path, stdout, actions);
 			}
 		}
 	}
 	if let Some(else_) = &ifelse.else_ {
-		return execute_node(&else_, variables, id_path, stdout, actions);
+		return execute_node(else_, variables, id_path, stdout, actions);
 	}
 	Ok(None)
 }
@@ -210,7 +210,7 @@ fn get_bool(return_value: Option<ReturnValue>) -> bool {
 		}
 	} else {
 		todo!("Add a warning, void should not be evaluated");
-		return false;
+		false
 	}
 }
 

@@ -161,9 +161,12 @@ impl Sequence {
 			.iter()
 			.enumerate()
 			.map(|(place, child_id)| {
-				let y = Self::GAP_HEIGHT + (0..place).map(|i| {
-					widgets_manager.get::<Bloc>(&self.childs_ids[i]).unwrap().get_base().rect.height() + Self::GAP_HEIGHT
-				}).sum::<f64>();
+				let y = Self::GAP_HEIGHT
+					+ (0..place)
+						.map(|i| {
+							widgets_manager.get::<Bloc>(&self.childs_ids[i]).unwrap().get_base().rect.height() + Self::GAP_HEIGHT
+						})
+						.sum::<f64>();
 				origin + Vector2::new(0., y)
 			})
 			.collect()
@@ -186,7 +189,7 @@ impl Sequence {
 		childs.push(self.base.id);
 		childs
 	}
-	
+
 	pub fn get_childs_ids(&self) -> &Vec<WidgetId> {
 		&self.childs_ids
 	}

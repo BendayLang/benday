@@ -15,7 +15,7 @@ impl ErrorMessage {
 	pub fn new(id_path: IdPath, type_: ErrorType, custom_message: Option<&str>) -> Self {
 		Self {
 			id_path,
-			custom_message: custom_message.map_or(None, |s| Some(s.to_string())),
+			custom_message: custom_message.map(|s| s.to_string()),
 			error: type_,
 			level: ErrorLevel::Error,
 		}

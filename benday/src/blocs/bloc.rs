@@ -1,5 +1,5 @@
 use crate::blocs::containers::{Sequence, Slot};
-use crate::blocs::{new_if_else_bloc, new_test_bloc, new_variable_assignment_bloc, Container};
+use crate::blocs::{new_if_else_bloc, new_variable_assignment_bloc, Container};
 use crate::blocs::{BlocContainer, BlocType};
 use models::ast;
 use nalgebra::{Point2, Vector2};
@@ -18,6 +18,7 @@ use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
 
 use super::as_ast_node::AsAstNode;
+use super::{new_function_call_bloc, new_sequence_bloc};
 
 pub struct BlocStyle {
 	color: Color,
@@ -78,10 +79,12 @@ impl Bloc {
 
 	pub fn add(position: Point2<f64>, bloc_type: BlocType, widgets_manager: &mut WidgetsManager) -> WidgetId {
 		let mut bloc = match bloc_type {
-			BlocType::Test => new_test_bloc(position, widgets_manager),
 			BlocType::VariableAssignment => new_variable_assignment_bloc(position, widgets_manager),
 			BlocType::IfElse => new_if_else_bloc(position, widgets_manager),
-			_ => todo!(),
+			BlocType::Sequence => new_sequence_bloc(position, widgets_manager),
+			BlocType::FunctionCall => new_function_call_bloc(position, widgets_manager),
+			BlocType::FunctionDeclaration => todo!(),
+			BlocType::While => todo!(),
 		};
 
 		let widgets_ids = bloc.widgets_ids.clone();
@@ -124,10 +127,11 @@ impl Bloc {
 				self.base.rect.position + sequence_position;
 
 			let sequence = widgets_manager.get::<Sequence>(sequence_id).unwrap();
-			sequence.get_updated_layout(widgets_manager).iter().zip(sequence.get_childs_ids().clone()).for_each(|(new_position,
-				                                                                                              child_id)| {
-				widgets_manager.get_mut::<Bloc>(&child_id).unwrap().get_base_mut().rect.position = *new_position;
-			});
+			sequence.get_updated_layout(widgets_manager).iter().zip(sequence.get_childs_ids().clone()).for_each(
+				|(new_position, child_id)| {
+					widgets_manager.get_mut::<Bloc>(&child_id).unwrap().get_base_mut().rect.position = *new_position;
+				},
+			);
 		});
 	}
 
@@ -234,7 +238,7 @@ impl Bloc {
 			BlocContainer::Sequence { nth_sequence, place } => {
 				let sequence_id = widgets_manager.get::<Bloc>(parent_id).unwrap().sequences_ids[*nth_sequence];
 				let sequence = widgets_manager.get::<Sequence>(&sequence_id).unwrap();
-				
+
 				let child_nb = sequence.get_childs_ids().len();
 				if connection {
 					// all this to increment the place in the 'parent' field for the blocs bellow the new one
@@ -250,8 +254,7 @@ impl Bloc {
 					// insert the bloc
 					let sequence = widgets_manager.get_mut::<Sequence>(&sequence_id).unwrap();
 					sequence.get_childs_ids_mut().insert(*place, *child_id);
-				}
-				else {
+				} else {
 					// all this to decrement the place in the 'parent' field for the blocs bellow the new one
 					sequence.get_childs_ids().clone()[(place + 1)..child_nb].iter().for_each(|child_id| {
 						let container = widgets_manager.get::<Bloc>(child_id).unwrap().get_parent().clone().unwrap();
@@ -286,6 +289,10 @@ impl AsAstNode for Bloc {
 	fn as_ast_node(&self, blocs: &Vec<WidgetId>, widgets_manager: &WidgetsManager) -> ast::Node {
 		let id = self.base.id;
 		let data: ast::NodeData = match self.bloc_type {
+			BlocType::Sequence => {
+				// TODO pas sur...
+				widgets_manager.get::<Sequence>(&self.sequences_ids[0]).unwrap().as_ast_node(blocs, widgets_manager).data
+			}
 			BlocType::VariableAssignment => {
 				let name_text_input_id = self.widgets_ids.first().unwrap();
 				let name_text_input = widgets_manager.get::<TextInput>(name_text_input_id).unwrap();
@@ -319,7 +326,6 @@ impl AsAstNode for Bloc {
 				ast::NodeData::FunctionCall(ast::FunctionCall { name, argv })
 			}
 			BlocType::FunctionDeclaration => unimplemented!("Fn decl to ast"),
-			BlocType::Test => panic!("le bloc test n'existe PAS"),
 		};
 		ast::Node { id, data }
 	}
