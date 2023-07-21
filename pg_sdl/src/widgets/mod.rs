@@ -1,3 +1,4 @@
+pub mod blank_box;
 pub mod button;
 pub mod draggable;
 pub mod slider;

@@ -49,7 +49,7 @@ pub struct Bloc {
 	pub widgets_ids: Vec<WidgetId>,
 	widgets_relative_positions: FnRelativePositions,
 	pub slots: Vec<Slot>,
-	pub sequences: Vec<Sequence>,
+	pub sequences_ids: Vec<WidgetId>,
 	get_size: FnGetSize,
 	parent: Option<Container>,
 	bloc_type: BlocType,
@@ -60,7 +60,7 @@ impl Bloc {
 
 	pub fn new(
 		position: Point2<f64>, style: BlocStyle, widgets_ids: Vec<WidgetId>, widgets_relative_positions: FnRelativePositions,
-		slots: Vec<Slot>, sequences: Vec<Sequence>, get_size: FnGetSize, bloc_type: BlocType,
+		slots: Vec<Slot>, sequences_ids: Vec<WidgetId>, get_size: FnGetSize, bloc_type: BlocType,
 	) -> Self {
 		Self {
 			base: Base::new(Rect::from(position, Vector2::zeros())),
@@ -69,7 +69,7 @@ impl Bloc {
 			widgets_ids,
 			widgets_relative_positions,
 			slots,
-			sequences,
+			sequences_ids,
 			get_size,
 			parent: None,
 			bloc_type,
@@ -86,64 +86,83 @@ impl Bloc {
 
 		let widgets_ids = bloc.widgets_ids.clone();
 		let slots_ids = bloc.slots.iter().map(|slot| slot.get_id()).collect::<Vec<WidgetId>>();
+		let sequences_ids = bloc.sequences_ids.clone();
 		bloc.update_size(widgets_manager);
-		bloc.update_position(widgets_manager);
+		bloc.update_layout(widgets_manager);
 
 		let id = widgets_manager.add_widget(Box::new(bloc), true);
 		widgets_ids.iter().for_each(|widget_id| widgets_manager.put_on_top_cam(widget_id));
-		slots_ids.iter().for_each(|slot_id| widgets_manager.put_on_top_cam(&slot_id));
+		sequences_ids.iter().for_each(|sequence_id| widgets_manager.put_on_top_cam(sequence_id));
+		slots_ids.iter().for_each(|slot_id| widgets_manager.put_on_top_cam(slot_id));
 		id
 	}
 
 	/// Met à jour la taille du bloc
 	pub fn update_size(&mut self, widgets_manager: &mut WidgetsManager) {
+		self.sequences_ids.iter().for_each(|sequence_id| {
+			let new_size = widgets_manager.get::<Sequence>(sequence_id).unwrap().get_updated_size(widgets_manager);
+			widgets_manager.get_mut::<Sequence>(sequence_id).unwrap().get_base_mut().rect.size = new_size;
+		});
 		self.base.rect.size = (self.get_size)(self, widgets_manager);
 	}
 
 	/// Met à jour la position de ses enfants (widgets, slots et séquences)
-	pub fn update_position(&mut self, widgets_manager: &mut WidgetsManager) {
+	pub fn update_layout(&mut self, widgets_manager: &mut WidgetsManager) {
 		self.widgets_ids.iter().enumerate().for_each(|(nth_widget, &widget_id)| {
 			widgets_manager.get_widget_mut(&widget_id).unwrap().get_base_mut().rect.position =
 				self.base.rect.position + (self.widgets_relative_positions)(self, widgets_manager, nth_widget);
 		});
+		// update_layout
 		self.slots.iter().for_each(|slot| {
 			slot.get_base_mut(widgets_manager).rect.position =
 				self.base.rect.position + slot.get_relative_position(self, widgets_manager);
 		});
+		self.sequences_ids.iter().for_each(|sequence_id| {
+			let sequence_position =
+				widgets_manager.get::<Sequence>(sequence_id).unwrap().get_relative_position(self, widgets_manager);
+			widgets_manager.get_mut::<Sequence>(sequence_id).unwrap().get_base_mut().rect.position =
+				self.base.rect.position + sequence_position;
+
+			let sequence = widgets_manager.get::<Sequence>(sequence_id).unwrap();
+			sequence.get_updated_layout(widgets_manager).iter().zip(sequence.get_childs_ids().clone()).for_each(|(new_position,
+				                                                                                              child_id)| {
+				widgets_manager.get_mut::<Bloc>(&child_id).unwrap().get_base_mut().rect.position = *new_position;
+			});
+		});
 	}
 
-	/// Returns a vec of the bloc's childs ids from leaf to root (including itself)
-	pub fn get_recursive_bloc_childs(&self, widgets_manager: &WidgetsManager) -> Vec<WidgetId> {
-		let mut childs = Vec::new();
-		self.slots.iter().for_each(|slot| {
-			if slot.has_child() {
-				childs.extend(widgets_manager.get::<Self>(&slot.get_id()).unwrap().get_recursive_bloc_childs(widgets_manager));
-			}
-		});
-		/* TODO
-		self.sequences.iter().for_each(|sequence| {
-			childs.extend(sequence.get_recursive_childs(widgets_manager));
-		});
-		 */
-		childs.push(self.base.id);
-		childs
+	pub fn get_parent(&self) -> &Option<Container> {
+		&self.parent
 	}
 
-	/// Returns a vec of the bloc's childs ids, including widgets, from leaf to root (including itself)
+	/// Returns a vec of the bloc's childs ids (of type Bloc) from leaf to root (including itself)
 	pub fn get_recursive_childs(&self, widgets_manager: &WidgetsManager) -> Vec<WidgetId> {
 		let mut childs = Vec::new();
 		self.slots.iter().for_each(|slot| {
 			if slot.has_child() {
 				childs.extend(widgets_manager.get::<Self>(&slot.get_id()).unwrap().get_recursive_childs(widgets_manager));
+			}
+		});
+		self.sequences_ids.iter().for_each(|sequence_id| {
+			childs.extend(widgets_manager.get::<Sequence>(sequence_id).unwrap().get_recursive_childs(widgets_manager));
+		});
+		childs.push(self.base.id);
+		childs
+	}
+
+	/// Returns a vec of the bloc's childs ids, including widgets, from leaf to root (including itself)
+	pub fn get_recursive_widget_childs(&self, widgets_manager: &WidgetsManager) -> Vec<WidgetId> {
+		let mut childs = Vec::new();
+		self.slots.iter().for_each(|slot| {
+			if slot.has_child() {
+				childs.extend(widgets_manager.get::<Self>(&slot.get_id()).unwrap().get_recursive_widget_childs(widgets_manager));
 			} else {
 				childs.push(slot.get_id());
 			}
 		});
-		/* TODO
-		self.sequences.iter().for_each(|sequence| {
-			childs.extend(sequence.get_recursive_childs(widgets_manager));
+		self.sequences_ids.iter().for_each(|sequence_id| {
+			childs.extend(widgets_manager.get::<Sequence>(sequence_id).unwrap().get_recursive_widget_childs(widgets_manager));
 		});
-		 */
 		childs.extend(self.widgets_ids.clone());
 		childs.push(self.base.id);
 		childs
@@ -159,9 +178,7 @@ impl Bloc {
 
 		self.slots.iter().enumerate().for_each(|(nth_slot, slot)| {
 			if !slot.has_child() {
-				let slot_rect = slot.get_base(widgets_manager).rect;
-				if slot_rect.collide_rect(rect) {
-					let new_ratio = (slot_rect.center() - rect.center()).norm();
+				if let Some(new_ratio) = get_ratio(rect, slot.get_base(widgets_manager).rect) {
 					if new_ratio > ratio {
 						bloc_container = Some(BlocContainer::Slot { nth_slot });
 						ratio = new_ratio;
@@ -169,25 +186,24 @@ impl Bloc {
 				}
 			}
 		});
-		/*
-		self.sequences.iter().enumerate().for_each(|(sequence_id, sequence)| {
-			if sequence.get_rect().collide_rect(rect.translated(-self.base.rect.position.coords)) {
-				let (place, new_ratio) = sequence.get_place_ratio(rect.translated(-self.base.rect.position.coords));
-				if new_ratio > ratio {
-					bloc_container = Some(BlocContainer::Sequence { sequence_id, place });
-					ratio = new_ratio;
-				}
+		self.sequences_ids.iter().enumerate().for_each(|(nth_sequence, sequence_id)| {
+			let sequence = widgets_manager.get::<Sequence>(sequence_id).unwrap();
+			if sequence.get_base().rect.collide_rect(rect) {
+				(0..=sequence.get_childs_ids().len()).for_each(|place| {
+					if let Some(new_ratio) = get_ratio(rect, sequence.get_gap_rect(place, widgets_manager)) {
+						if new_ratio > ratio {
+							bloc_container = Some(BlocContainer::Sequence { nth_sequence, place });
+							ratio = new_ratio;
+						}
+					}
+				})
 			}
 		});
-		 */
+
 		if let Some(bloc_container) = bloc_container {
 			return Some((bloc_container, ratio));
 		}
 		None
-	}
-
-	pub fn get_parent(&self) -> &Option<Container> {
-		&self.parent
 	}
 
 	/// Sets parents and childs depending on if there is a connection or a disconnection
@@ -210,12 +226,46 @@ impl Bloc {
 				} else {
 					text_input.get_base_mut().set_visible();
 					widgets_manager.put_on_top_cam(&text_input_id);
-					let child_childs = widgets_manager.get::<Bloc>(child_id).unwrap().get_recursive_childs(widgets_manager);
+					let child_childs =
+						widgets_manager.get::<Bloc>(child_id).unwrap().get_recursive_widget_childs(widgets_manager);
 					child_childs.iter().rev().for_each(|child_id| widgets_manager.put_on_top_cam(child_id));
 				}
 			}
-			BlocContainer::Sequence { .. } => {
-				todo!()
+			BlocContainer::Sequence { nth_sequence, place } => {
+				let sequence_id = widgets_manager.get::<Bloc>(parent_id).unwrap().sequences_ids[*nth_sequence];
+				let sequence = widgets_manager.get::<Sequence>(&sequence_id).unwrap();
+				
+				let child_nb = sequence.get_childs_ids().len();
+				if connection {
+					// all this to increment the place in the 'parent' field for the blocs bellow the new one
+					sequence.get_childs_ids().clone()[*place..child_nb].iter().for_each(|child_id| {
+						let container = widgets_manager.get::<Bloc>(child_id).unwrap().get_parent().clone().unwrap();
+						let Container { bloc_id, bloc_container } = container;
+						let BlocContainer::Sequence { nth_sequence, place } = bloc_container else { panic!("Bloc in sequence have parent not of type Sequence") };
+						widgets_manager.get_mut::<Bloc>(child_id).unwrap().parent = Some(Container {
+							bloc_id,
+							bloc_container: BlocContainer::Sequence { nth_sequence, place: place + 1 }
+						});
+					});
+					// insert the bloc
+					let sequence = widgets_manager.get_mut::<Sequence>(&sequence_id).unwrap();
+					sequence.get_childs_ids_mut().insert(*place, *child_id);
+				}
+				else {
+					// all this to decrement the place in the 'parent' field for the blocs bellow the new one
+					sequence.get_childs_ids().clone()[(place + 1)..child_nb].iter().for_each(|child_id| {
+						let container = widgets_manager.get::<Bloc>(child_id).unwrap().get_parent().clone().unwrap();
+						let Container { bloc_id, bloc_container } = container;
+						let BlocContainer::Sequence { nth_sequence, place } = bloc_container else { panic!("Bloc in sequence have parent not of type Sequence") };
+						widgets_manager.get_mut::<Bloc>(child_id).unwrap().parent = Some(Container {
+							bloc_id,
+							bloc_container: BlocContainer::Sequence { nth_sequence, place: place - 1 }
+						});
+					});
+					// remove the bloc
+					let sequence = widgets_manager.get_mut::<Sequence>(&sequence_id).unwrap();
+					sequence.get_childs_ids_mut().remove(*place);
+				}
 			}
 		}
 	}
@@ -246,7 +296,9 @@ impl AsAstNode for Bloc {
 			BlocType::IfElse => ast::NodeData::IfElse(ast::IfElse {
 				if_: ast::If {
 					condition: Box::new(self.slots.first().unwrap().as_ast_node(blocs, widgets_manager)),
-					sequence: Box::new(self.sequences.first().unwrap().as_ast_node(blocs, widgets_manager)),
+					sequence: Box::new(
+						widgets_manager.get::<Sequence>(&self.sequences_ids[0]).unwrap().as_ast_node(blocs, widgets_manager),
+					),
 				},
 				elif: None,  // TODO
 				else_: None, // TODO
@@ -254,7 +306,9 @@ impl AsAstNode for Bloc {
 			BlocType::While => ast::NodeData::While(ast::While {
 				is_do: false, // TODO
 				condition: Box::new(self.slots.first().unwrap().as_ast_node(blocs, widgets_manager)),
-				sequence: Box::new(self.sequences.first().unwrap().as_ast_node(blocs, widgets_manager)),
+				sequence: Box::new(
+					widgets_manager.get::<Sequence>(&self.sequences_ids[0]).unwrap().as_ast_node(blocs, widgets_manager),
+				),
 			}),
 			BlocType::FunctionCall => {
 				let name_text_input_id = self.widgets_ids.first().unwrap();
@@ -279,7 +333,7 @@ impl Widget for Bloc {
 		let camera = camera.unwrap();
 		let mut changed = self.base.update(input, Vec::new());
 
-		let mut childs_ids = self.get_recursive_childs(widgets_manager);
+		let mut childs_ids = self.get_recursive_widget_childs(widgets_manager);
 		childs_ids.remove(childs_ids.len() - 1);
 
 		if self.base.state.is_pressed() {
@@ -349,5 +403,13 @@ impl Widget for Bloc {
 	}
 	fn get_base_mut(&mut self) -> &mut Base {
 		&mut self.base
+	}
+}
+
+fn get_ratio(moving_rect: Rect, fixed_rect: Rect) -> Option<f64> {
+	if moving_rect.collide_rect(fixed_rect) {
+		Some(1000. - (fixed_rect.center() - moving_rect.center()).norm())
+	} else {
+		None
 	}
 }

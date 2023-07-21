@@ -13,7 +13,7 @@ use std::time::{Duration, Instant};
 
 pub trait App {
 	fn update(&mut self, delta_sec: f64, input: &Input, widgets_manager: &mut WidgetsManager, camera: &mut Camera) -> bool;
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, camera: &Camera);
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, widgets_manager: &WidgetsManager, camera: &Camera);
 }
 
 pub struct PgSdl<'ttf, 'texture> {
@@ -86,8 +86,7 @@ impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 	{
 		self.canvas.set_draw_color(self.background_color);
 		self.canvas.clear();
-		user_app.draw(&mut self.canvas, &mut self.text_drawer, &self.camera);
-		self.widgets_manager.draw(&mut self.canvas, &mut self.text_drawer, &self.camera);
+		user_app.draw(&mut self.canvas, &mut self.text_drawer, &self.widgets_manager, &self.camera);
 	}
 
 	fn draw_fps(&mut self, delta_sec: f64) {

@@ -1,17 +1,21 @@
 #![allow(dead_code, unused_variables, unused_imports)]
+
 mod blocs;
 
 use crate::blocs::bloc::Bloc;
-use crate::blocs::{BlocType, Container};
+use crate::blocs::{BlocContainer, BlocType, Container};
 use as_any::Downcast;
 
+use crate::blocs::containers::Sequence;
 use nalgebra::{Point2, Vector2};
 use pg_sdl::app::{App, PgSdl};
 use pg_sdl::camera::Camera;
 use pg_sdl::color::{hsv_color, Colors};
 use pg_sdl::custom_rect::Rect;
 use pg_sdl::input::Input;
+use pg_sdl::primitives::draw_rect;
 use pg_sdl::text::TextDrawer;
+use pg_sdl::widgets::blank_box::{BlankBox, BlankBoxStyle};
 use pg_sdl::widgets::{
 	button::{Button, ButtonStyle},
 	Widget, WidgetId, WidgetsManager,
@@ -20,9 +24,10 @@ use sdl2::render::Canvas;
 use sdl2::video::Window;
 
 pub struct MyApp {
-	hovered_container: Option<Container>,
 	/// Lists the widgets that are blocs
 	blocs: Vec<WidgetId>,
+	hovered_container: Option<Container>,
+	rect: Option<Rect>,
 }
 
 impl App for MyApp {
@@ -35,18 +40,16 @@ impl App for MyApp {
 			let position = Point2::new(8., 10.) * self.blocs.len() as f64;
 			let bloc_id = Bloc::add(position, BlocType::Test, widgets_manager);
 			self.blocs.push(bloc_id);
-		}
-		else if widgets_manager.get::<Button>(&1).unwrap().is_pressed() {
+		} else if widgets_manager.get::<Button>(&1).unwrap().is_pressed() {
 			let position = Point2::new(8., 10.) * self.blocs.len() as f64;
 			let bloc_id = Bloc::add(position, BlocType::VariableAssignment, widgets_manager);
 			self.blocs.push(bloc_id);
-		}
-		else if widgets_manager.get::<Button>(&2).unwrap().is_pressed() {
+		} else if widgets_manager.get::<Button>(&2).unwrap().is_pressed() {
 			let position = Point2::new(8., 10.) * self.blocs.len() as f64;
 			let bloc_id = Bloc::add(position, BlocType::IfElse, widgets_manager);
 			self.blocs.push(bloc_id);
 		}
-		
+
 		if let Some(focused_widget) = widgets_manager.focused_widget() {
 			if self.blocs.contains(&focused_widget) {
 				let bloc = widgets_manager.get::<Bloc>(&focused_widget).unwrap();
@@ -63,7 +66,7 @@ impl App for MyApp {
 				// Update the (moving bloc) hovered container
 				else if bloc.get_base().state.is_down() && !input.mouse.delta.is_empty() {
 					// iter through all blocs to get the bloc with the biggest 'ratio'
-					let moving_bloc_childs = bloc.get_recursive_bloc_childs(widgets_manager);
+					let moving_bloc_childs = bloc.get_recursive_childs(widgets_manager);
 					let (mut new_hovered_container, mut ratio) = (None, 0.);
 
 					widgets_manager.get_cam_order().iter().for_each(|bloc_id| {
@@ -83,6 +86,22 @@ impl App for MyApp {
 					});
 					if new_hovered_container != self.hovered_container {
 						self.hovered_container = new_hovered_container;
+						// spé
+						self.rect = if let Some(Container { bloc_id, bloc_container }) = &self.hovered_container {
+							let bloc = widgets_manager.get::<Bloc>(bloc_id).unwrap();
+							match bloc_container {
+								BlocContainer::Slot { nth_slot } => Some(bloc.slots[*nth_slot].get_base(widgets_manager).rect),
+								BlocContainer::Sequence { nth_sequence, place } => Some(
+									widgets_manager
+										.get::<Sequence>(&bloc.sequences_ids[*nth_sequence])
+										.unwrap()
+										.get_gap_rect(*place, widgets_manager),
+								),
+							}
+						} else {
+							None
+						};
+						// spé
 					}
 				}
 				// Release the moving bloc
@@ -94,6 +113,7 @@ impl App for MyApp {
 						update_layout(root_id, widgets_manager);
 					}
 					self.hovered_container = None;
+					self.rect = None;
 				}
 			}
 		};
@@ -101,45 +121,32 @@ impl App for MyApp {
 		changed
 	}
 
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, camera: &Camera) {
+	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, widgets_manager: &WidgetsManager, camera: &Camera) {
 		camera.draw_grid(canvas, text_drawer, Colors::LIGHT_GREY, true, false);
-		/*
-		if let Some(Container{ bloc_id, bloc_container }) = &self.hovered_container {
-			match bloc_container {
-				BlocContainer::Slot {nth_slot} => {
-					let rect = widgets_manager.get::<NewBloc>(bloc_id).unwrap().slots[nth_slot].get_base().rect;
-				},
-				BlocContainer::Sequence { nth_sequence, place } => {
-					todo!()
-				}
-			}
+
+		widgets_manager.draw(canvas, text_drawer, camera);
+
+		if let Some(rect) = self.rect {
+			draw_rect(canvas, Some(camera), Colors::WHITE, rect);
 		}
-		 */
 	}
 }
 
 fn main() {
 	let mut widgets_manager = WidgetsManager::default();
 	let style = ButtonStyle::new(Colors::LIGHT_AZURE, Some(6.), 16.);
-	widgets_manager.add_widget(
-		Box::new(Button::new(Rect::new(100., 100., 140., 80.), style.clone(), "Test Bloc".to_string())),
-		false,
-	);
-	widgets_manager.add_widget(
-		Box::new(Button::new(Rect::new(300., 100., 140., 80.), style.clone(), "VarAssign Bloc".to_string())),
-		false,
-	);
-	widgets_manager.add_widget(
-		Box::new(Button::new(Rect::new(500., 100., 140., 80.), style, "IfElse Bloc".to_string())),
-		false,
-	);
+	widgets_manager
+		.add_widget(Box::new(Button::new(Rect::new(100., 100., 140., 80.), style.clone(), "Test Bloc".to_string())), false);
+	widgets_manager
+		.add_widget(Box::new(Button::new(Rect::new(300., 100., 140., 80.), style.clone(), "VarAssign Bloc".to_string())), false);
+	widgets_manager.add_widget(Box::new(Button::new(Rect::new(500., 100., 140., 80.), style, "IfElse Bloc".to_string())), false);
 
 	let resolution = Vector2::new(1280, 720);
 	let ttf_context = sdl2::ttf::init().expect("SDL2 ttf could not be initialized");
 
 	let mut app = PgSdl::init("Benday", resolution, Some(120), true, Colors::LIGHT_GREY, widgets_manager);
 
-	let mut my_app = MyApp { hovered_container: None, blocs: Vec::new() };
+	let mut my_app = MyApp { blocs: Vec::new(), hovered_container: None, rect: None };
 	let font_path = std::path::PathBuf::from(format!("{}/{}", pg_sdl::text::FONT_PATH, pg_sdl::text::DEFAULT_FONT_NAME));
 	for font in [(&font_path, 0, 30)] {
 		let (path, from, to) = font;
@@ -153,7 +160,7 @@ fn main() {
 }
 
 fn update_layout(bloc_id: WidgetId, widgets_manager: &mut WidgetsManager) {
-	let childs = widgets_manager.get::<Bloc>(&bloc_id).unwrap().get_recursive_bloc_childs(widgets_manager);
+	let childs = widgets_manager.get::<Bloc>(&bloc_id).unwrap().get_recursive_childs(widgets_manager);
 	childs.iter().for_each(|child_id| {
 		let mut bloc_w = widgets_manager.remove(child_id).unwrap();
 		let bloc = bloc_w.as_mut().downcast_mut::<Bloc>().unwrap();
@@ -163,7 +170,7 @@ fn update_layout(bloc_id: WidgetId, widgets_manager: &mut WidgetsManager) {
 	childs.iter().rev().for_each(|child_id| {
 		let mut bloc_w = widgets_manager.remove(child_id).unwrap();
 		let bloc = bloc_w.as_mut().downcast_mut::<Bloc>().unwrap();
-		bloc.update_position(widgets_manager);
+		bloc.update_layout(widgets_manager);
 		widgets_manager.insert(*child_id, bloc_w);
 	});
 }

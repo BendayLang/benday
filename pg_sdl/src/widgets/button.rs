@@ -124,7 +124,7 @@ impl Widget for Button {
 			}
 			fill_rect(canvas, camera, color, self.base.rect);
 			draw_rect(canvas, camera, border_color, self.base.rect);
-		};
+		}
 
 		draw_text(
 			canvas,

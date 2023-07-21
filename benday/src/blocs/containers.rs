@@ -23,15 +23,16 @@ pub struct Slot {
 }
 
 impl Slot {
-	const DEFAULT_SIZE: Vector2<f64> = Vector2::new(80., 22.);
+	const SIZE: Vector2<f64> = Vector2::new(80., 22.);
+	const RADIUS: f64 = 4.;
 
 	pub fn new(
 		color: Color, placeholder: String, fn_relative_position: FnRelativePosition, widgets_manager: &mut WidgetsManager,
 	) -> Self {
 		let text_input_id = widgets_manager.add_widget(
 			Box::new(TextInput::new(
-				Rect::from_origin(Self::DEFAULT_SIZE),
-				TextInputStyle::new(paler(color, 0.4), Some(4.), 12.),
+				Rect::from_origin(Self::SIZE),
+				TextInputStyle::new(paler(color, 0.4), Some(Self::RADIUS), 12.),
 				placeholder,
 			)),
 			true,
@@ -112,13 +113,98 @@ pub struct Sequence {
 
 impl Sequence {
 	const SIZE: Vector2<f64> = Vector2::new(50., 40.);
+	const RADIUS: f64 = 3.;
+	const GAP_HEIGHT: f64 = 10.;
 
-	pub fn new(style: SequenceStyle, fn_relative_position: FnRelativePosition) -> Self {
-		Self { base: Base::new(Rect::from_origin(Vector2::zeros())), style, childs_ids: Vec::new(), fn_relative_position }
+	pub fn add(color: Color, fn_relative_position: FnRelativePosition, widgets_manager: &mut WidgetsManager) -> WidgetId {
+		let style = SequenceStyle::new(darker(color, 0.9), Self::RADIUS);
+		widgets_manager.add_widget(
+			Box::new(Self {
+				base: Base::new(Rect::from_origin(Self::SIZE)),
+				style,
+				childs_ids: Vec::new(),
+				fn_relative_position,
+			}),
+			true,
+		)
 	}
 
 	pub fn get_relative_position(&self, bloc: &Bloc, widgets_manager: &WidgetsManager) -> Vector2<f64> {
 		(self.fn_relative_position)(bloc, widgets_manager)
+	}
+
+	/// Met à jour la taille de la séquence
+	pub fn get_updated_size(&self, widgets_manager: &WidgetsManager) -> Vector2<f64> {
+		if self.childs_ids.is_empty() {
+			Self::SIZE
+		} else {
+			let width = self
+				.childs_ids
+				.iter()
+				.map(|child_id| widgets_manager.get::<Bloc>(child_id).unwrap().get_base().rect.width())
+				.max_by(|a, b| a.partial_cmp(b).unwrap())
+				.unwrap();
+			let height = (self
+				.childs_ids
+				.iter()
+				.map(|child_id| widgets_manager.get::<Bloc>(child_id).unwrap().get_base().rect.height())
+				.sum::<f64>())
+			.max(Self::SIZE.y);
+			let nb_blocs = self.childs_ids.len();
+			Vector2::new(width, height) + Vector2::new(1, nb_blocs + 1).cast() * Self::GAP_HEIGHT
+		}
+	}
+
+	pub fn get_updated_layout(&self, widgets_manager: &WidgetsManager) -> Vec<Point2<f64>> {
+		let origin = self.base.rect.position;
+		self.childs_ids
+			.iter()
+			.enumerate()
+			.map(|(place, child_id)| {
+				let y = Self::GAP_HEIGHT + (0..place).map(|i| {
+					widgets_manager.get::<Bloc>(&self.childs_ids[i]).unwrap().get_base().rect.height() + Self::GAP_HEIGHT
+				}).sum::<f64>();
+				origin + Vector2::new(0., y)
+			})
+			.collect()
+	}
+	/// Returns a vec of the bloc's childs ids from leaf to root (including itself)
+	pub fn get_recursive_childs(&self, widgets_manager: &WidgetsManager) -> Vec<WidgetId> {
+		let mut childs = Vec::new();
+		self.childs_ids.iter().for_each(|child_id| {
+			childs.extend(widgets_manager.get::<Bloc>(child_id).unwrap().get_recursive_childs(widgets_manager));
+		});
+		childs
+	}
+
+	/// Returns a vec of the bloc's childs ids, including widgets, from leaf to root (including itself)
+	pub fn get_recursive_widget_childs(&self, widgets_manager: &WidgetsManager) -> Vec<WidgetId> {
+		let mut childs = Vec::new();
+		self.childs_ids.iter().for_each(|child_id| {
+			childs.extend(widgets_manager.get::<Bloc>(child_id).unwrap().get_recursive_widget_childs(widgets_manager));
+		});
+		childs.push(self.base.id);
+		childs
+	}
+	
+	pub fn get_childs_ids(&self) -> &Vec<WidgetId> {
+		&self.childs_ids
+	}
+	pub fn get_childs_ids_mut(&mut self) -> &mut Vec<WidgetId> {
+		&mut self.childs_ids
+	}
+
+	pub fn get_gap_rect(&self, place: usize, widgets_manager: &WidgetsManager) -> Rect {
+		if self.childs_ids.is_empty() {
+			self.base.rect
+		} else {
+			let y = if place == 0 {
+				self.base.rect.bottom()
+			} else {
+				widgets_manager.get::<Bloc>(&self.childs_ids[place - 1]).unwrap().get_base().rect.top()
+			};
+			Rect::new(self.base.rect.left(), y, self.base.rect.width(), Self::GAP_HEIGHT)
+		}
 	}
 }
 
