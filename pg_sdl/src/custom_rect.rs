@@ -14,6 +14,9 @@ impl Rect {
 	pub fn from(position: Point2<f64>, size: Vector2<f64>) -> Rect {
 		Self { position, size }
 	}
+	pub fn from_origin(size: Vector2<f64>) -> Rect {
+		Self { position: Point2::origin(), size }
+	}
 	pub fn into_rect(self) -> sdl2::rect::Rect {
 		sdl2::rect::Rect::new(self.x() as i32, self.y() as i32, self.width() as u32, self.height() as u32)
 	}
