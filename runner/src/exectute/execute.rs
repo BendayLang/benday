@@ -16,11 +16,18 @@ pub enum Action {
 	Goto(Id),
 	Return(AstResult),
 	CheckVarNameValidity(bool),
-	EvaluateRawText, // Le return value ?
+	EvaluateRawText,
 	AssigneVariable { key: (String, Id), value: ReturnValue },
 	CallBuildInFn(String),
 	PushStdout(String),
 	GetArgs,
+	ControlFlowEvaluateCondition,
+}
+
+impl Action {
+	pub fn return_some(return_value: ReturnValue) -> Self {
+		Self::Return(Ok(Some(return_value)))
+	}
 }
 
 pub fn execute_node(
@@ -57,17 +64,18 @@ fn handle_while(
 		todo!("Implement at the end of the project");
 	}
 	let mut iteration = 0;
-	while iteration != user_prefs::MAX_ITERATION
-		&& get_bool(execute_node(&while_node.condition, variables, id_path, stdout, actions)?)
-	{
+	while {
+		actions.push(Action::ControlFlowEvaluateCondition);
+		get_bool(execute_node(&while_node.condition, variables, id_path, stdout, actions)?)
+	} {
 		let return_value = execute_node(&while_node.sequence, variables, id_path, stdout, actions)?;
-		if return_value != None {
+		if return_value.is_some() {
 			return Ok(return_value);
 		}
 		iteration += 1;
-	}
-	if iteration == user_prefs::MAX_ITERATION {
-		todo!("break on max iteration ({})", user_prefs::MAX_ITERATION);
+		if iteration == user_prefs::MAX_ITERATION {
+			todo!("break on max iteration ({})", user_prefs::MAX_ITERATION);
+		}
 	}
 	return Ok(None);
 }
@@ -75,12 +83,18 @@ fn handle_while(
 fn handle_if_else(
 	ifelse: &IfElse, variables: &mut VariableMap, id_path: &mut IdPath, stdout: &mut Vec<String>, actions: &mut Vec<Action>,
 ) -> AstResult {
-	if get_bool(execute_node(&ifelse.if_.condition, variables, id_path, stdout, actions)?) {
+	if {
+		actions.push(Action::ControlFlowEvaluateCondition);
+		get_bool(execute_node(&ifelse.if_.condition, variables, id_path, stdout, actions)?)
+	} {
 		return execute_node(&ifelse.if_.sequence, variables, id_path, stdout, actions);
 	}
 	if let Some(elifs) = &ifelse.elif {
 		for elif in elifs {
-			if get_bool(execute_node(&elif.condition, variables, id_path, stdout, actions)?) {
+			if {
+				actions.push(Action::ControlFlowEvaluateCondition);
+				get_bool(execute_node(&elif.condition, variables, id_path, stdout, actions)?)
+			} {
 				return execute_node(&elif.sequence, variables, id_path, stdout, actions);
 			}
 		}
