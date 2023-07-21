@@ -143,11 +143,9 @@ pub fn new_function_call_bloc(position: Point2<f64>, widgets_manager: &mut Widge
 		Vector2::new(MARGIN + INNER_MARGIN, MARGIN + (max_height - sequence_0_height) * 0.5)
 	});
 	let sequence_id = Sequence::add(color, fn_relative_position, widgets_manager);
-	// TODO caaaacaaaaaa
 	let get_size = Box::new(|bloc: &Bloc, widgets_manager: &WidgetsManager| {
 		let sequence_0_size = widgets_manager.get::<Sequence>(&bloc.sequences_ids[0]).unwrap().get_base().rect.size;
-		let height = 200.;
-		Vector2::new(2. * MARGIN + INNER_MARGIN + sequence_0_size.x, 2. * MARGIN + height)
+		Vector2::new(2. * MARGIN, 2. * MARGIN) + sequence_0_size
 	});
 
 	Bloc::new(position, style, widgets_ids, widgets_relative_positions, slots, vec![sequence_id], get_size, bloc_type)
@@ -161,17 +159,12 @@ pub fn new_sequence_bloc(position: Point2<f64>, widgets_manager: &mut WidgetsMan
 	let widgets_ids = Vec::new();
 	let widgets_relative_positions = Box::new(|_: &Bloc, _: &WidgetsManager, _| Vector2::zeros());
 
-	let fn_relative_position: FnRelativePosition = Box::new(|bloc: &Bloc, widgets_manager: &WidgetsManager| {
-		let sequence_0_height = widgets_manager.get::<Sequence>(&bloc.sequences_ids[0]).unwrap().get_base().rect.height();
-		let max_height = 200.;
-		Vector2::new(MARGIN + INNER_MARGIN, MARGIN + (max_height - sequence_0_height) * 0.5)
-	});
+	let fn_relative_position: FnRelativePosition = Box::new(|_: &Bloc, _: &WidgetsManager| Vector2::new(MARGIN, MARGIN));
 	let sequence_id = Sequence::add(color, fn_relative_position, widgets_manager);
-	// TODO caaaacaaaaaa
+
 	let get_size = Box::new(|bloc: &Bloc, widgets_manager: &WidgetsManager| {
 		let sequence_0_size = widgets_manager.get::<Sequence>(&bloc.sequences_ids[0]).unwrap().get_base().rect.size;
-		let height = 200.;
-		Vector2::new(2. * MARGIN + INNER_MARGIN + sequence_0_size.x, 2. * MARGIN + height)
+		Vector2::new(2. * MARGIN, 2. * MARGIN) + sequence_0_size
 	});
 
 	Bloc::new(position, style, widgets_ids, widgets_relative_positions, vec![], vec![sequence_id], get_size, bloc_type)
