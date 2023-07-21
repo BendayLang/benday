@@ -17,6 +17,7 @@ use sdl2::render::{BlendMode, Canvas};
 use sdl2::ttf::FontStyle;
 use sdl2::video::Window;
 
+#[derive(Clone)]
 pub struct ButtonStyle {
 	color: Color,
 	hovered_color: Color,
