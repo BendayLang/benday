@@ -35,12 +35,10 @@ pub enum BlocType {
 type FnRelativePositions = Box<dyn Fn(&Bloc, &WidgetsManager, usize) -> Vector2<f64>>;
 type FnGetSize = Box<dyn Fn(&Bloc, &WidgetsManager) -> Vector2<f64>>;
 
-
 const TEXT_INPUT_SIZE: Vector2<f64> = Vector2::new(80., 20.);
 const MARGIN: f64 = 12.;
 const INNER_MARGIN: f64 = 6.;
 const RADIUS: f64 = 12.;
-
 
 pub fn new_variable_assignment_bloc(position: Point2<f64>, widgets_manager: &mut WidgetsManager) -> Bloc {
 	let bloc_type = BlocType::VariableAssignment;
