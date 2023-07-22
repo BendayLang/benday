@@ -15,6 +15,7 @@ use pg_sdl::input::Input;
 use pg_sdl::primitives::draw_rect;
 use pg_sdl::text::TextDrawer;
 use pg_sdl::widgets::blank_box::{BlankBox, BlankBoxStyle};
+use pg_sdl::widgets::select::{Select, SelectStyle};
 use pg_sdl::widgets::{
 	button::{Button, ButtonStyle},
 	Widget, WidgetId, WidgetsManager,
@@ -149,6 +150,7 @@ fn main() {
 	widgets_manager
 		.add_widget(Box::new(Button::new(Rect::new(500., 100., 140., 80.), style.clone(), "IfElse Bloc".to_string())), false);
 	widgets_manager.add_widget(Box::new(Button::new(Rect::new(700., 100., 140., 80.), style, "RUN".to_string())), false);
+	widgets_manager.add_widget(Box::new(Select::default()), true);
 
 	let resolution = Vector2::new(1280, 720);
 	let ttf_context = sdl2::ttf::init().expect("SDL2 ttf could not be initialized");
@@ -157,7 +159,7 @@ fn main() {
 
 	let mut my_app = MyApp { blocs: vec![root_id], hovered_container: None, rect: None };
 	let font_path = std::path::PathBuf::from(format!("{}/{}", pg_sdl::text::FONT_PATH, pg_sdl::text::DEFAULT_FONT_NAME));
-	for font in [(&font_path, 0, 30)] {
+	for font in [(&font_path, 0, 45)] {
 		let (path, from, to) = font;
 		for size in from..=to {
 			let font: sdl2::ttf::Font = ttf_context.load_font(path, size).unwrap();
