@@ -12,8 +12,8 @@ use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
 
 pub struct TextInputStyle {
-	background_color: Color,
-	background_hovered_color: Color,
+	color: Color,
+	hovered_color: Color,
 	focused_color: Color,
 	border_color: Color,
 	carrot_color: Color,
@@ -27,8 +27,8 @@ pub struct TextInputStyle {
 impl TextInputStyle {
 	pub fn new(color: Color, corner_radius: Option<f64>, font_size: f64) -> Self {
 		Self {
-			background_color: color,
-			background_hovered_color: darker(color, HOVER),
+			color: color,
+			hovered_color: darker(color, HOVER),
 			focused_color: Colors::BLUE,
 			border_color: Colors::BLACK,
 			carrot_color: Colors::DARK_GREY,
@@ -44,8 +44,8 @@ impl TextInputStyle {
 impl Default for TextInputStyle {
 	fn default() -> Self {
 		Self {
-			background_color: Colors::WHITE,
-			background_hovered_color: darker(Colors::WHITE, HOVER),
+			color: Colors::WHITE,
+			hovered_color: darker(Colors::WHITE, HOVER),
 			focused_color: Colors::BLUE,
 			border_color: Colors::BLACK,
 			carrot_color: Colors::DARK_GREY,
@@ -58,7 +58,6 @@ impl Default for TextInputStyle {
 	}
 }
 
-#[derive(Default)]
 pub struct TextInput {
 	base: Base,
 	style: TextInputStyle,
@@ -292,7 +291,7 @@ impl Widget for TextInput {
 		&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool,
 	) {
 		// Box
-		let background_color = if hovered { self.style.background_hovered_color } else { self.style.background_color };
+		let background_color = if hovered { self.style.hovered_color } else { self.style.color };
 		let border_color = if focused { self.style.focused_color } else { self.style.border_color };
 		if let Some(corner_radius) = self.style.corner_radius {
 			if focused {

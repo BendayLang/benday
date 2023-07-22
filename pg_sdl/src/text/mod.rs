@@ -81,8 +81,8 @@ impl<'ttf, 'texture> TextDrawer<'ttf, 'texture> {
 			}
 		};
 
-		let size: Vector2<f64> = self.size_of_f64(text, font_size, style);
-		let target_position: nalgebra::Point2<f64> = position - Self::shift_from_align(align, size);
+		let size = self.size_of_f64(text, font_size, style);
+		let target_position = position - Self::shift_from_align(align, size);
 		let target = sdl2::rect::Rect::new(target_position.x as i32, target_position.y as i32, size.x as u32, size.y as u32);
 
 		canvas.copy(&texture, None, Some(target)).unwrap();

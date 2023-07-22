@@ -141,7 +141,7 @@ impl App for MyApp {
 fn main() {
 	let mut widgets_manager = WidgetsManager::default();
 
-	let root_id = Bloc::add(Point2::origin(), BlocType::Sequence, &mut widgets_manager);
+	let root_id = Bloc::add(Point2::origin(), BlocType::RootSequence, &mut widgets_manager);
 
 	let style = ButtonStyle::new(Colors::LIGHT_AZURE, Some(6.), 16.);
 	widgets_manager.add_widget(Box::new(Button::new(Rect::new(100., 100., 140., 80.), style.clone(), "Fn()".to_string())), false);
@@ -150,7 +150,15 @@ fn main() {
 	widgets_manager
 		.add_widget(Box::new(Button::new(Rect::new(500., 100., 140., 80.), style.clone(), "IfElse Bloc".to_string())), false);
 	widgets_manager.add_widget(Box::new(Button::new(Rect::new(700., 100., 140., 80.), style, "RUN".to_string())), false);
-	widgets_manager.add_widget(Box::new(Select::default()), true);
+	widgets_manager.add_widget(
+		Box::new(Select::new(
+			Rect::new(100., 250., 100., 100.),
+			Default::default(),
+			vec!["Alice".to_string(), "Bob".to_string(), "Charlie".to_string()],
+			"Name".to_string(),
+		)),
+		false,
+	);
 
 	let resolution = Vector2::new(1280, 720);
 	let ttf_context = sdl2::ttf::init().expect("SDL2 ttf could not be initialized");

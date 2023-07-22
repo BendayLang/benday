@@ -1,5 +1,7 @@
 use crate::blocs::containers::{Sequence, Slot};
-use crate::blocs::{new_if_else_bloc, new_variable_assignment_bloc, Container, FnRelativePositions, FnGetSize};
+use crate::blocs::{
+	new_if_else_bloc, new_root_sequence_bloc, new_variable_assignment_bloc, Container, FnGetSize, FnRelativePositions,
+};
 use crate::blocs::{BlocContainer, BlocType};
 use models::ast;
 use nalgebra::{Point2, Vector2};
@@ -78,9 +80,10 @@ impl Bloc {
 		let mut bloc = match bloc_type {
 			BlocType::VariableAssignment => new_variable_assignment_bloc(position, widgets_manager),
 			BlocType::IfElse => new_if_else_bloc(position, widgets_manager),
-			BlocType::Sequence => new_sequence_bloc(position, widgets_manager),
 			BlocType::FunctionCall => new_function_call_bloc(position, widgets_manager),
 			BlocType::FunctionDeclaration => todo!(),
+			BlocType::Sequence => new_sequence_bloc(position, widgets_manager),
+			BlocType::RootSequence => new_root_sequence_bloc(position, widgets_manager),
 			BlocType::While => todo!(),
 		};
 
@@ -288,6 +291,10 @@ impl AsAstNode for Bloc {
 		let data: ast::NodeData = match self.bloc_type {
 			BlocType::Sequence => {
 				// TODO pas sur...
+				widgets_manager.get::<Sequence>(&self.sequences_ids[0]).unwrap().as_ast_node(widgets_manager).data
+			}
+			BlocType::RootSequence => {
+				// TODO à mettre avec la séquence ?
 				widgets_manager.get::<Sequence>(&self.sequences_ids[0]).unwrap().as_ast_node(widgets_manager).data
 			}
 			BlocType::VariableAssignment => {

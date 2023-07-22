@@ -59,7 +59,6 @@ impl ButtonStyle {
 	}
 }
 
-#[derive(Default)]
 /// A button is a widget that it can be clicked.
 pub struct Button {
 	base: Base,
