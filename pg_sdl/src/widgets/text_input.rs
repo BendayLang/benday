@@ -58,6 +58,7 @@ impl Default for TextInputStyle {
 	}
 }
 
+#[derive(Default)]
 pub struct TextInput {
 	base: Base,
 	style: TextInputStyle,
@@ -65,6 +66,7 @@ pub struct TextInput {
 	text: String,
 	carrot_timer_sec: f64,
 	carrot_position: usize,
+	/// The selected text
 	selection: (usize, usize),
 }
 

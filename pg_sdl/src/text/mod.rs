@@ -1,6 +1,7 @@
 mod text_style;
 
 use crate::style::Align;
+use itertools::Itertools;
 use nalgebra::{Point2, Vector2};
 use sdl2::surface::Surface;
 use sdl2::{render::Canvas, video::Window};
@@ -30,7 +31,7 @@ impl<'ttf, 'texture> TextDrawer<'ttf, 'texture> {
 			return Vector2::zeros();
 		}
 		let TextStyle { font_path, .. } = style;
-		let font = self.fonts.get(&(font_path.to_path_buf(), font_size)).unwrap();
+		let font = self.fonts.get(&(font_path.to_path_buf(), font_size)).expect(&format!("Font size {font_size} not loaded"));
 		let (width, height) = font.size_of(text).unwrap();
 		Vector2::new(width, height)
 	}

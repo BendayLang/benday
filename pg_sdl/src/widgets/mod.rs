@@ -1,6 +1,7 @@
 pub mod blank_box;
 pub mod button;
 pub mod draggable;
+pub mod select;
 pub mod slider;
 pub mod switch;
 pub mod text_input;
@@ -33,6 +34,12 @@ pub struct Base {
 	pub rect: Rect,
 	pub state: KeyState,
 	visible: bool,
+}
+
+impl Default for Base {
+	fn default() -> Self {
+		Self { id: 0, state: KeyState::default(), visible: true, rect: Rect::new(0., 0., 200., 100.) }
+	}
 }
 
 /// An struct that every widget must have
