@@ -13,12 +13,7 @@ pub struct ErrorMessage {
 
 impl ErrorMessage {
 	pub fn new(id_path: IdPath, type_: ErrorType, custom_message: Option<&str>) -> Self {
-		Self {
-			id_path,
-			custom_message: custom_message.map(|s| s.to_string()),
-			error: type_,
-			level: ErrorLevel::Error,
-		}
+		Self { id_path, custom_message: custom_message.map(|s| s.to_string()), error: type_, level: ErrorLevel::Error }
 	}
 }
 

@@ -73,10 +73,10 @@ impl Slot {
 }
 
 impl AsAstNode for Slot {
-	fn as_ast_node(&self, blocs: &Vec<WidgetId>, widgets_manager: &WidgetsManager) -> ast::Node {
+	fn as_ast_node(&self, widgets_manager: &WidgetsManager) -> ast::Node {
 		if let Some(child_id) = self.child_id {
 			let value_bloc = widgets_manager.get::<Bloc>(&child_id).unwrap();
-			value_bloc.as_ast_node(blocs, widgets_manager)
+			value_bloc.as_ast_node(widgets_manager)
 		} else {
 			let value_bloc = widgets_manager.get::<TextInput>(&self.text_input_id).unwrap();
 			ast::Node { id: self.text_input_id, data: ast::NodeData::RawText(value_bloc.get_text().to_string()) }
@@ -161,13 +161,17 @@ impl Sequence {
 			.iter()
 			.enumerate()
 			.map(|(place, child_id)| {
-				let y = Self::GAP_HEIGHT
-					+ (0..place)
-						.map(|i| {
-							widgets_manager.get::<Bloc>(&self.childs_ids[i]).unwrap().get_base().rect.height() + Self::GAP_HEIGHT
-						})
-						.sum::<f64>();
-				origin + Vector2::new(0., y)
+				origin
+					+ Vector2::new(
+						0.,
+						Self::GAP_HEIGHT
+							+ (0..place)
+								.map(|i| {
+									widgets_manager.get::<Bloc>(&self.childs_ids[i]).unwrap().get_base().rect.height()
+										+ Self::GAP_HEIGHT
+								})
+								.sum::<f64>(),
+					)
 			})
 			.collect()
 	}
@@ -249,14 +253,11 @@ impl Widget for Sequence {
 }
 
 impl AsAstNode for Sequence {
-	fn as_ast_node(&self, blocs: &Vec<WidgetId>, widgets_manager: &WidgetsManager) -> ast::Node {
+	fn as_ast_node(&self, widgets_manager: &WidgetsManager) -> ast::Node {
 		ast::Node {
 			id: self.base.id,
 			data: ast::NodeData::Sequence(
-				self.childs_ids
-					.iter()
-					.map(|id| widgets_manager.get::<Bloc>(id).unwrap().as_ast_node(blocs, widgets_manager))
-					.collect(),
+				self.childs_ids.iter().map(|id| widgets_manager.get::<Bloc>(id).unwrap().as_ast_node(widgets_manager)).collect(),
 			),
 		}
 	}

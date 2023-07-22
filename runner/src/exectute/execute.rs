@@ -84,17 +84,19 @@ fn handle_if_else(
 	ifelse: &IfElse, variables: &mut VariableMap, id_path: &mut IdPath, stdout: &mut Vec<String>, actions: &mut Vec<Action>,
 ) -> AstResult {
 	let res = {
- 		actions.push(Action::ControlFlowEvaluateCondition);
- 		get_bool(execute_node(&ifelse.if_.condition, variables, id_path, stdout, actions)?)
- 	}; if res {
+		actions.push(Action::ControlFlowEvaluateCondition);
+		get_bool(execute_node(&ifelse.if_.condition, variables, id_path, stdout, actions)?)
+	};
+	if res {
 		return execute_node(&ifelse.if_.sequence, variables, id_path, stdout, actions);
 	}
 	if let Some(elifs) = &ifelse.elif {
 		for elif in elifs {
 			let res = {
-   				actions.push(Action::ControlFlowEvaluateCondition);
-   				get_bool(execute_node(&elif.condition, variables, id_path, stdout, actions)?)
-   			}; if res {
+				actions.push(Action::ControlFlowEvaluateCondition);
+				get_bool(execute_node(&elif.condition, variables, id_path, stdout, actions)?)
+			};
+			if res {
 				return execute_node(&elif.sequence, variables, id_path, stdout, actions);
 			}
 		}

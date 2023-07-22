@@ -29,9 +29,7 @@ pub fn expand_variables(expression: &str, variables: &VariableMap, id_path: &IdP
 			let result = expression[0..start].to_string() + &value.to_string() + &expression[end + 1..];
 			expand_variables(&result, variables, id_path)
 		}
-		None => {
-			Err(VariableExpansionError::VariableNotFound(variable_name.to_string()))
-		}
+		None => Err(VariableExpansionError::VariableNotFound(variable_name.to_string())),
 	}
 }
 

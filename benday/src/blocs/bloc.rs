@@ -286,25 +286,25 @@ impl Bloc {
 }
 
 impl AsAstNode for Bloc {
-	fn as_ast_node(&self, blocs: &Vec<WidgetId>, widgets_manager: &WidgetsManager) -> ast::Node {
+	fn as_ast_node(&self, widgets_manager: &WidgetsManager) -> ast::Node {
 		let id = self.base.id;
 		let data: ast::NodeData = match self.bloc_type {
 			BlocType::Sequence => {
 				// TODO pas sur...
-				widgets_manager.get::<Sequence>(&self.sequences_ids[0]).unwrap().as_ast_node(blocs, widgets_manager).data
+				widgets_manager.get::<Sequence>(&self.sequences_ids[0]).unwrap().as_ast_node(widgets_manager).data
 			}
 			BlocType::VariableAssignment => {
 				let name_text_input_id = self.widgets_ids.first().unwrap();
 				let name_text_input = widgets_manager.get::<TextInput>(name_text_input_id).unwrap();
 				let name = name_text_input.get_text().to_string();
-				let value: Box<ast::Node> = Box::new(self.slots.first().unwrap().as_ast_node(blocs, widgets_manager));
+				let value: Box<ast::Node> = Box::new(self.slots.first().unwrap().as_ast_node(widgets_manager));
 				ast::NodeData::VariableAssignment(ast::VariableAssignment { name, value })
 			}
 			BlocType::IfElse => ast::NodeData::IfElse(ast::IfElse {
 				if_: ast::If {
-					condition: Box::new(self.slots.first().unwrap().as_ast_node(blocs, widgets_manager)),
+					condition: Box::new(self.slots.first().unwrap().as_ast_node(widgets_manager)),
 					sequence: Box::new(
-						widgets_manager.get::<Sequence>(&self.sequences_ids[0]).unwrap().as_ast_node(blocs, widgets_manager),
+						widgets_manager.get::<Sequence>(&self.sequences_ids[0]).unwrap().as_ast_node(widgets_manager),
 					),
 				},
 				elif: None,  // TODO
@@ -312,17 +312,15 @@ impl AsAstNode for Bloc {
 			}),
 			BlocType::While => ast::NodeData::While(ast::While {
 				is_do: false, // TODO
-				condition: Box::new(self.slots.first().unwrap().as_ast_node(blocs, widgets_manager)),
-				sequence: Box::new(
-					widgets_manager.get::<Sequence>(&self.sequences_ids[0]).unwrap().as_ast_node(blocs, widgets_manager),
-				),
+				condition: Box::new(self.slots.first().unwrap().as_ast_node(widgets_manager)),
+				sequence: Box::new(widgets_manager.get::<Sequence>(&self.sequences_ids[0]).unwrap().as_ast_node(widgets_manager)),
 			}),
 			BlocType::FunctionCall => {
 				let name_text_input_id = self.widgets_ids.first().unwrap();
 				// TODO ca ne sera peut etre plus un text input...
 				let name_text_input = widgets_manager.get::<TextInput>(name_text_input_id).unwrap();
 				let name = name_text_input.get_text().to_string();
-				let argv: Vec<ast::Node> = self.slots.iter().map(|slot| slot.as_ast_node(blocs, widgets_manager)).collect();
+				let argv: Vec<ast::Node> = self.slots.iter().map(|slot| slot.as_ast_node(widgets_manager)).collect();
 				ast::NodeData::FunctionCall(ast::FunctionCall { name, argv })
 			}
 			BlocType::FunctionDeclaration => unimplemented!("Fn decl to ast"),

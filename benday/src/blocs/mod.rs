@@ -32,7 +32,7 @@ pub enum BlocType {
 	Sequence,
 }
 
-const WIDGET_SIZE: Vector2<f64> = Vector2::new(80., 20.);
+const TEXT_INPUT_SIZE: Vector2<f64> = Vector2::new(80., 20.);
 const MARGIN: f64 = 12.;
 const INNER_MARGIN: f64 = 6.;
 const RADIUS: f64 = 12.;
@@ -44,7 +44,7 @@ pub fn new_variable_assignment_bloc(position: Point2<f64>, widgets_manager: &mut
 
 	let widgets_ids = vec![widgets_manager.add_widget(
 		Box::new(TextInput::new(
-			Rect::from_origin(WIDGET_SIZE),
+			Rect::from_origin(TEXT_INPUT_SIZE),
 			TextInputStyle::new(paler(color, 0.2), None, 12.),
 			"name".to_string(),
 		)),
@@ -123,32 +123,53 @@ pub fn new_function_call_bloc(position: Point2<f64>, widgets_manager: &mut Widge
 
 	let widgets_ids = vec![widgets_manager.add_widget(
 		Box::new(TextInput::new(
-			Rect::from_origin(WIDGET_SIZE),
+			Rect::from_origin(TEXT_INPUT_SIZE),
 			TextInputStyle::new(paler(color, 0.2), None, 12.),
-			"name".to_string(),
+			"function".to_string(),
 		)),
 		true,
 	)];
 	let widgets_relative_positions = Box::new(|bloc: &Bloc, widgets_manager: &WidgetsManager, _| {
 		let widget_height = widgets_manager.get_widget(&bloc.widgets_ids[0]).unwrap().get_base().rect.height();
-		// let slot_height = bloc.slots[0].get_base(widgets_manager).rect.height();
-		Vector2::new(MARGIN, MARGIN + (widget_height) * 0.5)
+		let slots_height: f64 =
+			bloc.slots.iter().map(|slot| { slot.get_base(widgets_manager).rect.size.y } + INNER_MARGIN).sum::<f64>()
+				- INNER_MARGIN;
+		Vector2::new(MARGIN, MARGIN + (slots_height - widget_height) * 0.5)
 	});
 
-	let slots = Vec::new();
+	let mut slots = (0..5)
+		.map(|nth_slot| {
+			Slot::new(
+				color,
+				"value".to_string(),
+				Box::new(move |bloc: &Bloc, widgets_manager: &WidgetsManager| {
+					let widget_width = widgets_manager.get_widget(&bloc.widgets_ids[0]).unwrap().get_base().rect.width();
+					let y = INNER_MARGIN
+						+ (0..nth_slot)
+							.map(|i| bloc.slots[i].get_base(widgets_manager).rect.height() + INNER_MARGIN)
+							.sum::<f64>() - INNER_MARGIN;
+					Vector2::new(MARGIN + widget_width + INNER_MARGIN, MARGIN + y)
+				}),
+				widgets_manager,
+			)
+		})
+		.collect();
 
-	let fn_relative_position: FnRelativePosition = Box::new(|bloc: &Bloc, widgets_manager: &WidgetsManager| {
-		let sequence_0_height = widgets_manager.get::<Sequence>(&bloc.sequences_ids[0]).unwrap().get_base().rect.height();
-		let max_height = 200.;
-		Vector2::new(MARGIN + INNER_MARGIN, MARGIN + (max_height - sequence_0_height) * 0.5)
-	});
-	let sequence_id = Sequence::add(color, fn_relative_position, widgets_manager);
 	let get_size = Box::new(|bloc: &Bloc, widgets_manager: &WidgetsManager| {
-		let sequence_0_size = widgets_manager.get::<Sequence>(&bloc.sequences_ids[0]).unwrap().get_base().rect.size;
-		Vector2::new(2. * MARGIN, 2. * MARGIN) + sequence_0_size
+		let widget_width = widgets_manager.get_widget(&bloc.widgets_ids[0]).unwrap().get_base().rect.width();
+		let slots_width = bloc
+			.slots
+			.iter()
+			.map(|slot| slot.get_base(widgets_manager).rect.width())
+			.max_by(|a, b| a.partial_cmp(b).unwrap())
+			.unwrap();
+		let slots_height: f64 =
+			bloc.slots.iter().map(|slot| { slot.get_base(widgets_manager).rect.size.y } + INNER_MARGIN).sum::<f64>()
+				- INNER_MARGIN;
+		Vector2::new(2. * MARGIN + widget_width + INNER_MARGIN + slots_width, 2. * MARGIN + slots_height)
 	});
 
-	Bloc::new(position, style, widgets_ids, widgets_relative_positions, slots, vec![sequence_id], get_size, bloc_type)
+	Bloc::new(position, style, widgets_ids, widgets_relative_positions, slots, Vec::new(), get_size, bloc_type)
 }
 
 pub fn new_sequence_bloc(position: Point2<f64>, widgets_manager: &mut WidgetsManager) -> Bloc {

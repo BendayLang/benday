@@ -27,7 +27,6 @@ pub struct MyApp {
 	blocs: Vec<WidgetId>,
 	hovered_container: Option<Container>,
 	rect: Option<Rect>,
-	root_id: WidgetId,
 }
 
 impl App for MyApp {
@@ -47,8 +46,8 @@ impl App for MyApp {
 
 		// Run
 		if widgets_manager.get::<Button>(&5).unwrap().is_pressed() {
-			let root_bloc = widgets_manager.get::<Sequence>(&0).unwrap();
-			let ast = root_bloc.as_ast_node(&self.blocs, widgets_manager);
+			let root_sequence = widgets_manager.get::<Sequence>(&0).unwrap();
+			let ast = root_sequence.as_ast_node(widgets_manager);
 			let (return_value, stdout, variables, actions) = runner::exectute::runner(&ast);
 			println!("Actions : {:?}", actions);
 			for str in stdout {
@@ -156,7 +155,7 @@ fn main() {
 
 	let mut app = PgSdl::init("Benday", resolution, Some(120), true, Colors::LIGHT_GREY, widgets_manager);
 
-	let mut my_app = MyApp { blocs: vec![root_id], hovered_container: None, rect: None, root_id: 0 };
+	let mut my_app = MyApp { blocs: vec![root_id], hovered_container: None, rect: None };
 	let font_path = std::path::PathBuf::from(format!("{}/{}", pg_sdl::text::FONT_PATH, pg_sdl::text::DEFAULT_FONT_NAME));
 	for font in [(&font_path, 0, 30)] {
 		let (path, from, to) = font;
