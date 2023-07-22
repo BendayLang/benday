@@ -142,7 +142,7 @@ pub fn new_function_call_bloc(position: Point2<f64>, widgets_manager: &mut Widge
 		Vector2::new(MARGIN, MARGIN + (slots_height - widget_height) * 0.5)
 	});
 
-	let mut slots = (0..5)
+	let slots = (0..5)
 		.map(|nth_slot| {
 			Slot::new(
 				color,
