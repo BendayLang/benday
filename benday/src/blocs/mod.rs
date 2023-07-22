@@ -32,10 +32,15 @@ pub enum BlocType {
 	Sequence,
 }
 
+type FnRelativePositions = Box<dyn Fn(&Bloc, &WidgetsManager, usize) -> Vector2<f64>>;
+type FnGetSize = Box<dyn Fn(&Bloc, &WidgetsManager) -> Vector2<f64>>;
+
+
 const TEXT_INPUT_SIZE: Vector2<f64> = Vector2::new(80., 20.);
 const MARGIN: f64 = 12.;
 const INNER_MARGIN: f64 = 6.;
 const RADIUS: f64 = 12.;
+
 
 pub fn new_variable_assignment_bloc(position: Point2<f64>, widgets_manager: &mut WidgetsManager) -> Bloc {
 	let bloc_type = BlocType::VariableAssignment;
@@ -174,7 +179,7 @@ pub fn new_function_call_bloc(position: Point2<f64>, widgets_manager: &mut Widge
 
 pub fn new_sequence_bloc(position: Point2<f64>, widgets_manager: &mut WidgetsManager) -> Bloc {
 	let bloc_type = BlocType::Sequence;
-	let color = Colors::LIGHT_GREY;
+	let color = Colors::LIGHTER_GREY;
 	let style = BlocStyle::new(color, RADIUS);
 
 	let widgets_ids = Vec::new();
@@ -183,9 +188,9 @@ pub fn new_sequence_bloc(position: Point2<f64>, widgets_manager: &mut WidgetsMan
 	let fn_relative_position: FnRelativePosition = Box::new(|_: &Bloc, _: &WidgetsManager| Vector2::new(MARGIN, MARGIN));
 	let sequence_id = Sequence::add(color, fn_relative_position, widgets_manager);
 
-	let get_size = Box::new(|bloc: &Bloc, widgets_manager: &WidgetsManager| {
-		let sequence_0_size = widgets_manager.get::<Sequence>(&bloc.sequences_ids[0]).unwrap().get_base().rect.size;
-		Vector2::new(2. * MARGIN, 2. * MARGIN) + sequence_0_size
+	let get_size: FnGetSize = Box::new(|bloc: &Bloc, widgets_manager: &WidgetsManager| {
+		let sequence_size = widgets_manager.get::<Sequence>(&bloc.sequences_ids[0]).unwrap().get_base().rect.size;
+		Vector2::new(2. * MARGIN, 2. * MARGIN) + sequence_size
 	});
 
 	Bloc::new(position, style, widgets_ids, widgets_relative_positions, vec![], vec![sequence_id], get_size, bloc_type)

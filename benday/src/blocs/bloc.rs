@@ -1,5 +1,5 @@
 use crate::blocs::containers::{Sequence, Slot};
-use crate::blocs::{new_if_else_bloc, new_variable_assignment_bloc, Container};
+use crate::blocs::{new_if_else_bloc, new_variable_assignment_bloc, Container, FnRelativePositions, FnGetSize};
 use crate::blocs::{BlocContainer, BlocType};
 use models::ast;
 use nalgebra::{Point2, Vector2};
@@ -39,9 +39,6 @@ impl BlocStyle {
 		}
 	}
 }
-
-type FnRelativePositions = Box<dyn Fn(&Bloc, &WidgetsManager, usize) -> Vector2<f64>>;
-type FnGetSize = Box<dyn Fn(&Bloc, &WidgetsManager) -> Vector2<f64>>;
 
 pub struct Bloc {
 	base: Base,

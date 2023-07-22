@@ -98,7 +98,7 @@ impl SequenceStyle {
 			color,
 			hovered_color: darker(color, HOVER),
 			focused_color: Colors::BLACK,
-			border_color: darker(color, 0.5),
+			border_color: darker(color, 0.95),
 			corner_radius,
 		}
 	}
@@ -117,7 +117,7 @@ impl Sequence {
 	const GAP_HEIGHT: f64 = 10.;
 
 	pub fn add(color: Color, fn_relative_position: FnRelativePosition, widgets_manager: &mut WidgetsManager) -> WidgetId {
-		let style = SequenceStyle::new(darker(color, 0.9), Self::RADIUS);
+		let style = SequenceStyle::new(darker(color, 0.95), Self::RADIUS);
 		widgets_manager.add_widget(
 			Box::new(Self {
 				base: Base::new(Rect::from_origin(Self::SIZE)),
