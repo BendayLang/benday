@@ -1,4 +1,3 @@
-use crate::input::key_state::ChadKeyState;
 use nalgebra::{Point2, Vector2};
 use sdl2::mouse::MouseButton;
 
@@ -9,7 +8,7 @@ pub struct Mouse {
 	pub position: Point2<i32>,
 	pub delta: Vector2<i32>,
 	// left_button_last_release: Instant,
-	pub left_button: ChadKeyState,
+	pub left_button: KeyState,
 	pub right_button: KeyState,
 	pub middle_button: KeyState,
 	pub wheel: i32,
