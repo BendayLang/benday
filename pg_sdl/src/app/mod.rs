@@ -12,7 +12,7 @@ use sdl2::{pixels::Color, render::Canvas, video::Window};
 use std::time::{Duration, Instant};
 
 pub trait App {
-	fn update(&mut self, delta_sec: f64, input: &Input, widgets_manager: &mut WidgetsManager, camera: &mut Camera) -> bool;
+	fn update(&mut self, delta: Duration, input: &Input, widgets_manager: &mut WidgetsManager, camera: &mut Camera) -> bool;
 	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, widgets_manager: &WidgetsManager, camera: &Camera);
 }
 
@@ -66,7 +66,7 @@ impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 		}
 	}
 
-	fn update<U>(&mut self, user_app: &mut U, delta_sec: f64) -> bool
+	fn update<U>(&mut self, user_app: &mut U, delta: Duration) -> bool
 	where
 		U: App,
 	{
@@ -75,8 +75,8 @@ impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 			self.camera.resize(new_resolution);
 			change = true;
 		}
-		change |= self.widgets_manager.update(&self.input, delta_sec, &mut self.text_drawer, &self.camera);
-		change |= user_app.update(delta_sec, &self.input, &mut self.widgets_manager, &mut self.camera);
+		change |= self.widgets_manager.update(&self.input, delta, &mut self.text_drawer, &self.camera);
+		change |= user_app.update(delta, &self.input, &mut self.widgets_manager, &mut self.camera);
 		change
 	}
 
@@ -89,7 +89,7 @@ impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 		user_app.draw(&mut self.canvas, &mut self.text_drawer, &self.widgets_manager, &self.camera);
 	}
 
-	fn draw_fps(&mut self, delta_sec: f64) {
+	fn draw_fps(&mut self, delta: Duration) {
 		fill_rounded_rect(&mut self.canvas, None, Colors::WHITE, Rect::new(10.0, 2.0, 120.0, 32.0), 5.0);
 		// self.text_drawer.draw_text(
 		draw_text(
@@ -97,7 +97,7 @@ impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 			None,
 			&mut self.text_drawer,
 			Point2::new(65., 17.),
-			&format!("FPS: {0:.0}", 1.0 / delta_sec),
+			&format!("FPS: {0:.0}", 1.0 / delta.as_secs_f32()),
 			24.0,
 			&TextStyle::default(),
 			Align::Center,
@@ -109,18 +109,18 @@ impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 		U: App,
 	{
 		let mut frame_instant: Instant;
-		let mut frame_time: f64 = 0.02;
+		let mut frame_time = Duration::ZERO;
 
 		self.input.get_events(); // permet au draw de savoir ou placer les widgets la première fois
 		self.draw(user_app);
 
-		'running: loop {
+		loop {
 			// Time control
 			frame_instant = Instant::now();
 
 			self.input.get_events();
 			if self.input.window_closed {
-				break 'running;
+				break;
 			}
 
 			// Update
@@ -145,7 +145,7 @@ impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 				}
 			}
 
-			frame_time = frame_instant.elapsed().as_secs_f64();
+			frame_time = frame_instant.elapsed();
 		}
 	}
 }

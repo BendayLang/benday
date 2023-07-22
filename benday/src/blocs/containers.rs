@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use super::as_ast_node::AsAstNode;
 use crate::blocs::bloc::Bloc;
 use models::ast;
@@ -217,7 +219,7 @@ impl Sequence {
 
 impl Widget for Sequence {
 	fn update(
-		&mut self, input: &Input, _delta_sec: f64, _widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
+		&mut self, input: &Input, _delta: Duration, _widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
 		_camera: Option<&Camera>,
 	) -> bool {
 		self.base.update(input, Vec::new())

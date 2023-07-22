@@ -15,6 +15,7 @@ use sdl2::render::Canvas;
 use sdl2::video::Window;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::time::Duration;
 
 pub const HOVER: f32 = 0.92;
 pub const PUSH: f32 = 0.80;
@@ -95,7 +96,7 @@ impl Base {
 pub trait Widget: AsAny {
 	/// Update the widget based on the inputs
 	fn update(
-		&mut self, input: &Input, delta_sec: f64, widgets_manager: &mut WidgetsManager, text_drawer: &TextDrawer,
+		&mut self, input: &Input, delta: std::time::Duration, widgets_manager: &mut WidgetsManager, text_drawer: &TextDrawer,
 		camera: Option<&Camera>,
 	) -> bool;
 	/// Draw the widget on the canvas
@@ -118,7 +119,7 @@ pub struct WidgetsManager {
 }
 
 impl WidgetsManager {
-	pub fn update(&mut self, input: &Input, delta_sec: f64, text_drawer: &mut TextDrawer, camera: &Camera) -> bool {
+	pub fn update(&mut self, input: &Input, delta: Duration, text_drawer: &mut TextDrawer, camera: &Camera) -> bool {
 		let mut changed = false;
 
 		// Update witch widget is focused (Mouse click)
@@ -175,7 +176,7 @@ impl WidgetsManager {
 		if let Some(id) = self.focused_widget {
 			let camera = if self.widget_has_no_camera(id) { None } else { Some(camera) };
 			let mut focused_widget = self.widgets.remove(&id).unwrap();
-			changed |= focused_widget.update(input, delta_sec, self, text_drawer, camera);
+			changed |= focused_widget.update(input, delta, self, text_drawer, camera);
 			self.widgets.insert(id, focused_widget);
 		}
 

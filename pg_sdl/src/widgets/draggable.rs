@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::camera::Camera;
 use crate::color::{darker, with_alpha, Colors};
 use crate::custom_rect::Rect;
@@ -46,7 +48,7 @@ impl Draggable {
 
 impl Widget for Draggable {
 	fn update(
-		&mut self, input: &Input, _delta_sec: f64, widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
+		&mut self, input: &Input, _delta: Duration, widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
 		camera: Option<&Camera>,
 	) -> bool {
 		let mut changed = self.base.update(input, Vec::new());

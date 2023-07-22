@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use crate::camera::Camera;
 use crate::color::{darker, with_alpha, Colors};
 use crate::custom_rect::Rect;
@@ -63,15 +65,18 @@ pub struct TextInput {
 	style: TextInputStyle,
 	placeholder: String,
 	text: String,
-	carrot_timer_sec: f64,
+	carrot_timer_sec: Duration,
 	carrot_position: usize,
-	/// The selected text
-	selection: (usize, usize),
+	/// The selected text (from, to)
+	selection: Option<(usize, usize)>, // TODO en faire une Option
+	last_click: Instant,
+	click_count: u8,
 }
 
 impl TextInput {
 	const LEFT_SHIFT: f64 = 5.0;
-	const BLINKING_TIME_SEC: f64 = 0.4;
+	const BLINKING_TIME_SEC: Duration = Duration::from_millis(400);
+	const DOUBLE_CLICK_TIME: Duration = Duration::from_millis(300);
 
 	pub fn new(rect: Rect, style: TextInputStyle, placeholder: String) -> Self {
 		Self {
@@ -79,9 +84,11 @@ impl TextInput {
 			style,
 			placeholder,
 			text: String::new(),
-			carrot_timer_sec: 0.,
+			carrot_timer_sec: Duration::ZERO,
 			carrot_position: 0,
-			selection: (0, 0),
+			selection: None,
+			last_click: Instant::now(),
+			click_count: 0,
 		}
 	}
 
@@ -113,80 +120,173 @@ impl TextInput {
 	}
 }
 
+#[derive(PartialEq, Eq)]
+enum CharType {
+	Space,
+	AlphaNum,
+	Other,
+}
+
+impl CharType {
+	pub fn from_char(c: char) -> Self {
+		if c.is_alphanumeric() {
+			CharType::AlphaNum
+		} else if c.is_whitespace() {
+			CharType::Space
+		} else {
+			CharType::Other
+		}
+	}
+}
+
+fn get_word_position(text: &str, mut position: usize) -> (usize, usize) {
+	if text.is_empty() {
+		return (0, 0);
+	}
+	if position >= text.len() {
+		position = text.len() - 1;
+	}
+	let c: char = text.chars().nth(position).expect("position caca");
+	let char_type = CharType::from_char(c);
+
+	let mut end = position + 1;
+	loop {
+		if end >= text.len() {
+			break;
+		}
+		let c: char = text.chars().nth(end).expect("forward oups");
+		if CharType::from_char(c) != char_type {
+			break;
+		}
+		end += 1;
+	}
+
+	let mut start = if position == 0 { 0 } else { position - 1 };
+	loop {
+		if start <= 0 {
+			break;
+		}
+		let c: char = text.chars().nth(start).expect("back oups");
+		if CharType::from_char(c) != char_type {
+			start += 1;
+			break;
+		}
+		start -= 1;
+	}
+
+	(start, end)
+}
+
 impl Widget for TextInput {
 	#[allow(clippy::diverging_sub_expression)]
 	fn update(
-		&mut self, input: &Input, delta_sec: f64, _widgets_manager: &mut WidgetsManager, text_drawer: &TextDrawer,
+		&mut self, input: &Input, delta: Duration, _widgets_manager: &mut WidgetsManager, text_drawer: &TextDrawer,
 		camera: Option<&Camera>,
 	) -> bool {
 		let mut changed = false;
+		let now = Instant::now();
 		changed |= self.base.update(input, Vec::new());
 
 		// Carrot blinking
-		self.carrot_timer_sec += delta_sec;
-		if Self::BLINKING_TIME_SEC < self.carrot_timer_sec && self.carrot_timer_sec < Self::BLINKING_TIME_SEC + delta_sec {
+		self.carrot_timer_sec += delta;
+		if Self::BLINKING_TIME_SEC < self.carrot_timer_sec && self.carrot_timer_sec < Self::BLINKING_TIME_SEC + delta {
 			changed = true;
 		}
-		if self.carrot_timer_sec > 2.0 * Self::BLINKING_TIME_SEC {
-			self.carrot_timer_sec = 0.0;
+		if self.carrot_timer_sec > Self::BLINKING_TIME_SEC.mul_f32(2.0) {
+			self.carrot_timer_sec = Duration::ZERO;
 			changed = true;
 		}
 
 		// Carrot movement
+		let carrot_position_from_mouse = Some(self.get_carrot_position(text_drawer, input.mouse.position, camera));
 		let mut new_carrot_position = None;
-		if input.keys_state.left.is_pressed() {
-			if self.carrot_position > 0 {
-				if input.keys_state.lshift.is_down() || input.keys_state.rshift.is_down() {
-					new_carrot_position = Some(self.carrot_position - 1);
-				} else {
-					self.carrot_position -= 1;
-					self.selection = (self.carrot_position, self.carrot_position);
-				}
+		if input.keys_state.left.is_pressed() && self.carrot_position > 0 {
+			let n: usize = if input.keys_state.lctrl.is_down() || input.keys_state.rctrl.is_down() {
+				let pos = get_word_position(&self.text, self.carrot_position - 1);
+				pos.0
+			} else {
+				self.carrot_position - 1
+			};
+			if input.keys_state.lshift.is_down() || input.keys_state.rshift.is_down() {
+				new_carrot_position = Some(n);
+			} else {
+				self.carrot_position = n;
+				self.selection = None;
 			}
-			self.carrot_timer_sec = 0.0;
+			self.carrot_timer_sec = Duration::ZERO;
 			changed = true;
 		}
-		if input.keys_state.right.is_pressed() {
-			if self.carrot_position < self.text.len() {
-				if input.keys_state.lshift.is_down() || input.keys_state.rshift.is_down() {
-					new_carrot_position = Some(self.carrot_position + 1);
-				} else {
-					self.carrot_position += 1;
-					self.selection = (self.carrot_position, self.carrot_position);
-				}
+		if input.keys_state.right.is_pressed() && self.carrot_position < self.text.len() {
+			let n: usize = if input.keys_state.lctrl.is_down() || input.keys_state.rctrl.is_down() {
+				let pos = get_word_position(&self.text, self.carrot_position);
+				pos.1
+			} else {
+				self.carrot_position + 1
+			};
+			if input.keys_state.lshift.is_down() || input.keys_state.rshift.is_down() {
+				new_carrot_position = Some(n);
+			} else {
+				self.carrot_position = n;
+				self.selection = None;
 			}
-			self.carrot_timer_sec = 0.0;
+			self.carrot_timer_sec = Duration::ZERO;
 			changed = true;
 		}
-		if input.mouse.left_button.is_down() {
-			new_carrot_position = Some(self.get_carrot_position(text_drawer, input.mouse.position, camera));
+
+		if input.mouse.left_button.is_down() && self.click_count < 2 {
+			new_carrot_position = carrot_position_from_mouse;
+		}
+
+		if now.duration_since(self.last_click) > Self::DOUBLE_CLICK_TIME {
+			self.click_count = 0;
 		}
 
 		// Mouse click
-		if input.mouse.left_button.is_triple_pressed() {
-			self.selection = (0, self.text.len());
-			self.carrot_position = self.text.len();
-			changed = true;
-		} else if input.mouse.left_button.is_double_pressed() {
-			self.selection = todo!("selecting a single word");
-			self.carrot_position = todo!();
-			changed = true;
-		} else if input.mouse.left_button.is_pressed() {
-			// Carrot position
-			if input.keys_state.lshift.is_down() || input.keys_state.rshift.is_down() {
-				new_carrot_position = Some(self.get_carrot_position(text_drawer, input.mouse.position, camera));
-			} else {
-				self.carrot_position = self.get_carrot_position(text_drawer, input.mouse.position, camera);
-				self.selection = (self.carrot_position, self.carrot_position);
+		if input.mouse.left_button.is_pressed() {
+			self.click_count += 1;
+			self.last_click = now;
+			self.carrot_timer_sec = Duration::ZERO;
+
+			// check same position
+			if carrot_position_from_mouse != Some(self.carrot_position) {
+				self.click_count = 1;
 			}
-			self.carrot_timer_sec = 0.0;
+
+			match self.click_count {
+				0 => unreachable!(),
+				1 => {
+					if input.keys_state.lshift.is_down() || input.keys_state.rshift.is_down() {
+						new_carrot_position = carrot_position_from_mouse;
+					} else {
+						self.carrot_position = self.get_carrot_position(text_drawer, input.mouse.position, camera);
+						self.selection = None;
+					}
+				}
+				2 => {
+					if let Some(position) = carrot_position_from_mouse {
+						self.selection = Some(get_word_position(&self.text, position));
+						// self.carrot_position = self.text.len();
+						new_carrot_position = None;
+						changed = true;
+					} else {
+						panic!("hein ?");
+					}
+				}
+				_ => {
+					self.selection = Some((0, self.text.len()));
+					self.carrot_position = self.text.len();
+					new_carrot_position = None;
+					changed = true;
+				}
+			}
 		}
 
 		// Selection
 		if let Some(new_carrot_position) = new_carrot_position {
-			let (start, end) = self.selection;
+			let (start, end) =
+				if let Some((start, end)) = self.selection { (start, end) } else { (self.carrot_position, self.carrot_position) };
 			if new_carrot_position != self.carrot_position {
-				self.selection = if new_carrot_position > self.carrot_position {
+				self.selection = Some(if new_carrot_position > self.carrot_position {
 					if new_carrot_position > end {
 						(start, new_carrot_position)
 					} else {
@@ -196,30 +296,29 @@ impl Widget for TextInput {
 					(start, new_carrot_position)
 				} else {
 					(new_carrot_position, end)
-				};
+				});
 				self.carrot_position = new_carrot_position;
-				self.carrot_timer_sec = 0.;
+				self.carrot_timer_sec = Duration::ZERO;
 				changed = true;
 			}
+			// }
 		}
 
 		// Keyboard input
 		// Clipboard
 		if input.shortcut_pressed(&Shortcut::PASTE()) && input.clipboard.has_clipboard_text() {
-			let (start, end) = self.selection;
-			if start != end {
+			if let Some((start, end)) = self.selection {
 				self.text.drain(start..end);
 				self.carrot_position = start;
 			}
 			let clipboard_text = input.clipboard.clipboard_text().unwrap();
 			self.text.insert_str(self.carrot_position, &clipboard_text);
 			self.carrot_position += clipboard_text.len();
-			self.selection = (self.carrot_position, self.carrot_position);
+			self.selection = None;
 			return true;
 		}
 		if input.shortcut_pressed(&Shortcut::COPY()) {
-			let (start, end) = self.selection;
-			if start != end {
+			if let Some((start, end)) = self.selection {
 				let text = self.text[start..end].to_string();
 				input.clipboard.set_clipboard_text(&text).unwrap();
 				return true;
@@ -228,12 +327,11 @@ impl Widget for TextInput {
 			return true;
 		}
 		if input.shortcut_pressed(&Shortcut::CUT()) {
-			let (start, end) = self.selection;
-			if start != end {
+			if let Some((start, end)) = self.selection {
 				let text = self.text.drain(start..end).collect::<String>();
 				input.clipboard.set_clipboard_text(&text).unwrap();
 				self.carrot_position = start;
-				self.selection = (self.carrot_position, self.carrot_position);
+				self.selection = None;
 				return true;
 			}
 			input.clipboard.set_clipboard_text(&self.text).unwrap();
@@ -244,43 +342,49 @@ impl Widget for TextInput {
 
 		// Text input
 		if let Some(c) = input.last_char {
-			let (start, end) = self.selection;
-			if start != end {
+			if let Some((start, end)) = self.selection {
 				self.text.drain(start..end);
 				self.carrot_position = start;
 			}
 
 			self.text.insert(self.carrot_position, c);
 			self.carrot_position += 1;
-			self.selection = (self.carrot_position, self.carrot_position);
+			self.selection = None;
 			changed = true;
 		}
+
+		// Remove input (backspace / delete)
 		if input.keys_state.backspace.is_pressed() {
-			let (start, end) = self.selection;
-			if start != end {
+			if let Some((start, end)) = self.selection {
 				self.text.drain(start..end);
 				self.carrot_position = start;
 			} else if self.carrot_position > 0 {
 				if input.keys_state.lctrl.is_down() || input.keys_state.lctrl.is_down() {
-					todo!(" (TODO implement ctrl + backspace) ")
+					let pos = get_word_position(&self.text, self.carrot_position - 1);
+					self.text.drain(pos.0..self.carrot_position);
+					self.carrot_position = pos.0;
 				} else {
 					self.text.remove(self.carrot_position - 1);
 					self.carrot_position -= 1;
 				}
 			}
-			self.selection = (self.carrot_position, self.carrot_position);
-			self.carrot_timer_sec = 0.0;
+			self.selection = None;
+			self.carrot_timer_sec = Duration::ZERO;
 			changed = true;
 		} else if input.keys_state.delete.is_pressed() {
-			let (start, end) = self.selection;
-			if start != end {
+			if let Some((start, end)) = self.selection {
 				self.text.drain(start..end);
 				self.carrot_position = start;
-				self.selection = (self.carrot_position, self.carrot_position);
+				self.selection = None;
 			} else if self.carrot_position < self.text.len() {
-				self.text.remove(self.carrot_position);
+				if input.keys_state.lctrl.is_down() || input.keys_state.lctrl.is_down() {
+					let pos = get_word_position(&self.text, self.carrot_position);
+					self.text.drain(self.carrot_position..pos.1);
+				} else {
+					self.text.remove(self.carrot_position);
+				}
 			}
-			self.carrot_timer_sec = 0.0;
+			self.carrot_timer_sec = Duration::ZERO;
 			changed = true;
 		}
 
@@ -323,8 +427,7 @@ impl Widget for TextInput {
 
 		if focused {
 			// Selection
-			let (start, end) = self.selection;
-			if start != end {
+			if let Some((start, end)) = self.selection {
 				let selection_height = self.style.font_size * 1.3;
 				let selection_x =
 					get_text_size(camera, text_drawer, &self.text[..start], self.style.font_size, &self.style.text_style).x;

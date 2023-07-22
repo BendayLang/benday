@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::camera::Camera;
 use crate::color::with_alpha;
 use crate::custom_rect::Rect;
@@ -80,7 +82,7 @@ impl Button {
 
 impl Widget for Button {
 	fn update(
-		&mut self, input: &Input, _delta_sec: f64, _widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
+		&mut self, input: &Input, _delta: Duration, _widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
 		_camera: Option<&Camera>,
 	) -> bool {
 		self.base.update(input, vec![input.keys_state.enter])

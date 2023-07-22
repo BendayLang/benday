@@ -11,6 +11,7 @@ use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
 use std::f64::consts::PI;
+use std::time::Duration;
 
 pub struct SwitchStyle {
 	on_color: Color,
@@ -92,7 +93,7 @@ impl Switch {
 
 impl Widget for Switch {
 	fn update(
-		&mut self, input: &Input, _delta_sec: f64, _widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
+		&mut self, input: &Input, _delta: Duration, _widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
 		_camera: Option<&Camera>,
 	) -> bool {
 		let changed = self.base.update(input, Vec::new());

@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::camera::Camera;
 use crate::color::{darker, with_alpha, Colors};
 use crate::custom_rect::Rect;
@@ -43,7 +45,7 @@ impl BlankBox {
 
 impl Widget for BlankBox {
 	fn update(
-		&mut self, input: &Input, _delta_sec: f64, _widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
+		&mut self, input: &Input, _delta: Duration, _widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
 		_camera: Option<&Camera>,
 	) -> bool {
 		self.base.update(input, Vec::new())

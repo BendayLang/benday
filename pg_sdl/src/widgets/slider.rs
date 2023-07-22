@@ -12,6 +12,7 @@ use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
 use std::f64::consts::PI;
+use std::time::Duration;
 
 pub struct SliderStyle {
 	filled_track_color: Color,
@@ -127,12 +128,12 @@ impl Slider {
 		}
 	}
 
-	fn scroll_with_keys(&mut self, delta_sec: f64, plus_key: KeyState, minus_key: KeyState) {
+	fn scroll_with_keys(&mut self, delta: Duration, plus_key: KeyState, minus_key: KeyState) {
 		if plus_key.is_pressed() && self.value != 1. {
 			match self.slider_type {
 				SliderType::Discrete { snap, .. } => self.value += 1. / snap as f32,
 				SliderType::Continuous { .. } => {
-					self.value += delta_sec as f32 * Self::SPEED;
+					self.value += delta.as_secs_f32() * Self::SPEED;
 				}
 			}
 			self.value = self.value.min(1.);
@@ -141,7 +142,7 @@ impl Slider {
 			match self.slider_type {
 				SliderType::Discrete { snap, .. } => self.value -= 1. / snap as f32,
 				SliderType::Continuous { .. } => {
-					self.value -= delta_sec as f32 * Self::SPEED;
+					self.value -= delta.as_secs_f32() * Self::SPEED;
 				}
 			}
 			self.value = self.value.max(0.);
@@ -151,7 +152,7 @@ impl Slider {
 
 impl Widget for Slider {
 	fn update(
-		&mut self, input: &Input, delta_sec: f64, _widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
+		&mut self, input: &Input, delta: Duration, _widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
 		camera: Option<&Camera>,
 	) -> bool {
 		let mut changed = false;
@@ -159,11 +160,11 @@ impl Widget for Slider {
 		match self.orientation {
 			Orientation::Horizontal => {
 				changed |= self.base.update(input, vec![input.keys_state.right, input.keys_state.left]);
-				self.scroll_with_keys(delta_sec, input.keys_state.right, input.keys_state.left);
+				self.scroll_with_keys(delta, input.keys_state.right, input.keys_state.left);
 			}
 			Orientation::Vertical => {
 				changed |= self.base.update(input, vec![input.keys_state.up, input.keys_state.down]);
-				self.scroll_with_keys(delta_sec, input.keys_state.up, input.keys_state.down);
+				self.scroll_with_keys(delta, input.keys_state.up, input.keys_state.down);
 			}
 		}
 

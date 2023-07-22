@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::camera::Camera;
 use crate::color::{darker, with_alpha, Colors};
 use crate::custom_rect::Rect;
@@ -120,7 +122,7 @@ impl Select {
 
 impl Widget for Select {
 	fn update(
-		&mut self, input: &Input, delta_sec: f64, _widgets_manager: &mut WidgetsManager, text_drawer: &TextDrawer,
+		&mut self, input: &Input, delta: Duration, _widgets_manager: &mut WidgetsManager, text_drawer: &TextDrawer,
 		camera: Option<&Camera>,
 	) -> bool {
 		let mut changed = false;
@@ -145,7 +147,7 @@ impl Widget for Select {
 		}
 
 		if self.is_text_input_focused {
-			changed |= self.text_input.update(input, delta_sec, _widgets_manager, text_drawer, camera);
+			changed |= self.text_input.update(input, delta, _widgets_manager, text_drawer, camera);
 		}
 
 		changed

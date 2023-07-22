@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::blocs::containers::{Sequence, Slot};
 use crate::blocs::{
 	new_if_else_bloc, new_root_sequence_bloc, new_variable_assignment_bloc, Container, FnGetSize, FnRelativePositions,
@@ -335,7 +337,7 @@ impl AsAstNode for Bloc {
 
 impl Widget for Bloc {
 	fn update(
-		&mut self, input: &Input, _delta_sec: f64, widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
+		&mut self, input: &Input, _delta: Duration, widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
 		camera: Option<&Camera>,
 	) -> bool {
 		let camera = camera.unwrap();

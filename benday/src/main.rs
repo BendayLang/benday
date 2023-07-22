@@ -1,6 +1,8 @@
 #![allow(dead_code, unused_variables, unused_imports)]
 mod blocs;
 
+use std::time::Duration;
+
 use crate::blocs::bloc::Bloc;
 use crate::blocs::containers::Sequence;
 use crate::blocs::{BlocContainer, BlocType, Container};
@@ -31,7 +33,7 @@ pub struct MyApp {
 }
 
 impl App for MyApp {
-	fn update(&mut self, _delta_sec: f64, input: &Input, widgets_manager: &mut WidgetsManager, camera: &mut Camera) -> bool {
+	fn update(&mut self, _delta: Duration, input: &Input, widgets_manager: &mut WidgetsManager, camera: &mut Camera) -> bool {
 		let mut changed = false;
 		changed |= camera.update(input, widgets_manager.focused_widget().is_some());
 
