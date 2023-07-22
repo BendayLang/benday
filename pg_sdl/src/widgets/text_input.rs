@@ -1,3 +1,5 @@
+use std::time::{Duration, Instant};
+
 use crate::camera::Camera;
 use crate::color::{darker, with_alpha, Colors};
 use crate::custom_rect::Rect;
@@ -58,21 +60,21 @@ impl Default for TextInputStyle {
 	}
 }
 
-#[derive(Default)]
 pub struct TextInput {
 	base: Base,
 	style: TextInputStyle,
 	placeholder: String,
 	text: String,
-	carrot_timer_sec: f64,
+	carrot_timer_sec: Duration,
 	carrot_position: usize,
-	/// The selected text
+	/// The selected text (from, to)
 	selection: (usize, usize),
+	last_click: Instant,
 }
 
 impl TextInput {
 	const LEFT_SHIFT: f64 = 5.0;
-	const BLINKING_TIME_SEC: f64 = 0.4;
+	const BLINKING_TIME_SEC: Duration = Duration::from_millis(400);
 
 	pub fn new(rect: Rect, style: TextInputStyle, placeholder: String) -> Self {
 		Self {
@@ -80,9 +82,10 @@ impl TextInput {
 			style,
 			placeholder,
 			text: String::new(),
-			carrot_timer_sec: 0.,
+			carrot_timer_sec: Duration::ZERO,
 			carrot_position: 0,
 			selection: (0, 0),
+			last_click: Instant::now(),
 		}
 	}
 
@@ -117,23 +120,24 @@ impl TextInput {
 impl Widget for TextInput {
 	#[allow(clippy::diverging_sub_expression)]
 	fn update(
-		&mut self, input: &Input, delta_sec: f64, _widgets_manager: &mut WidgetsManager, text_drawer: &TextDrawer,
+		&mut self, input: &Input, delta: Duration, _widgets_manager: &mut WidgetsManager, text_drawer: &TextDrawer,
 		camera: Option<&Camera>,
 	) -> bool {
 		let mut changed = false;
 		changed |= self.base.update(input, Vec::new());
 
 		// Carrot blinking
-		self.carrot_timer_sec += delta_sec;
-		if Self::BLINKING_TIME_SEC < self.carrot_timer_sec && self.carrot_timer_sec < Self::BLINKING_TIME_SEC + delta_sec {
+		self.carrot_timer_sec += delta;
+		if Self::BLINKING_TIME_SEC < self.carrot_timer_sec && self.carrot_timer_sec < Self::BLINKING_TIME_SEC + delta {
 			changed = true;
 		}
-		if self.carrot_timer_sec > 2.0 * Self::BLINKING_TIME_SEC {
-			self.carrot_timer_sec = 0.0;
+		if self.carrot_timer_sec > Self::BLINKING_TIME_SEC.mul_f32(2.0) {
+			self.carrot_timer_sec = Duration::ZERO;
 			changed = true;
 		}
 
 		// Carrot movement
+		let carrot_position_from_mouse = Some(self.get_carrot_position(text_drawer, input.mouse.position, camera));
 		let mut new_carrot_position = None;
 		if input.keys_state.left.is_pressed() {
 			if self.carrot_position > 0 {
@@ -144,7 +148,7 @@ impl Widget for TextInput {
 					self.selection = (self.carrot_position, self.carrot_position);
 				}
 			}
-			self.carrot_timer_sec = 0.0;
+			self.carrot_timer_sec = Duration::ZERO;
 			changed = true;
 		}
 		if input.keys_state.right.is_pressed() {
@@ -156,31 +160,32 @@ impl Widget for TextInput {
 					self.selection = (self.carrot_position, self.carrot_position);
 				}
 			}
-			self.carrot_timer_sec = 0.0;
+			self.carrot_timer_sec = Duration::ZERO;
 			changed = true;
-		}
-		if input.mouse.left_button.is_down() {
-			new_carrot_position = Some(self.get_carrot_position(text_drawer, input.mouse.position, camera));
 		}
 
+		if input.mouse.left_button.is_down() {
+			new_carrot_position = carrot_position_from_mouse;
+		}
+
+		// if input.mouse.left_button.is_triple_pressed() {
+		// 	self.selection = (0, self.text.len());
+		// 	self.carrot_position = self.text.len();
+		// 	changed = true;
+		// } else if input.mouse.left_button.is_double_pressed() {
+		// 	self.selection = todo!("selecting a single word");
+		// 	self.carrot_position = todo!();
+		// 	changed = true;
+
 		// Mouse click
-		if input.mouse.left_button.is_triple_pressed() {
-			self.selection = (0, self.text.len());
-			self.carrot_position = self.text.len();
-			changed = true;
-		} else if input.mouse.left_button.is_double_pressed() {
-			self.selection = todo!("selecting a single word");
-			self.carrot_position = todo!();
-			changed = true;
-		} else if input.mouse.left_button.is_pressed() {
-			// Carrot position
+		if input.mouse.left_button.is_pressed() {
 			if input.keys_state.lshift.is_down() || input.keys_state.rshift.is_down() {
-				new_carrot_position = Some(self.get_carrot_position(text_drawer, input.mouse.position, camera));
+				new_carrot_position = carrot_position_from_mouse;
 			} else {
 				self.carrot_position = self.get_carrot_position(text_drawer, input.mouse.position, camera);
 				self.selection = (self.carrot_position, self.carrot_position);
 			}
-			self.carrot_timer_sec = 0.0;
+			self.carrot_timer_sec = Duration::ZERO;
 		}
 
 		// Selection
@@ -199,7 +204,7 @@ impl Widget for TextInput {
 					(new_carrot_position, end)
 				};
 				self.carrot_position = new_carrot_position;
-				self.carrot_timer_sec = 0.;
+				self.carrot_timer_sec = Duration::ZERO;
 				changed = true;
 			}
 		}
@@ -270,7 +275,7 @@ impl Widget for TextInput {
 				}
 			}
 			self.selection = (self.carrot_position, self.carrot_position);
-			self.carrot_timer_sec = 0.0;
+			self.carrot_timer_sec = Duration::ZERO;
 			changed = true;
 		} else if input.keys_state.delete.is_pressed() {
 			let (start, end) = self.selection;
@@ -281,7 +286,7 @@ impl Widget for TextInput {
 			} else if self.carrot_position < self.text.len() {
 				self.text.remove(self.carrot_position);
 			}
-			self.carrot_timer_sec = 0.0;
+			self.carrot_timer_sec = Duration::ZERO;
 			changed = true;
 		}
 

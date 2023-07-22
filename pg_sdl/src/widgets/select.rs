@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::camera::Camera;
 use crate::color::{darker, with_alpha, Colors};
 use crate::custom_rect::Rect;
@@ -54,13 +56,13 @@ impl Default for Select {
 
 impl Widget for Select {
 	fn update(
-		&mut self, input: &Input, delta_sec: f64, widgets_manager: &mut WidgetsManager, text_drawer: &TextDrawer,
+		&mut self, input: &Input, delta: Duration, widgets_manager: &mut WidgetsManager, text_drawer: &TextDrawer,
 		camera: Option<&Camera>,
 	) -> bool {
 		let mut changed = false;
 		changed |= self.base.update(input, Vec::new());
-		changed |= self.text_input.update(input, delta_sec, widgets_manager, text_drawer, camera);
-		changed |= self.drop_button.update(input, delta_sec, widgets_manager, text_drawer, camera);
+		changed |= self.text_input.update(input, delta, widgets_manager, text_drawer, camera);
+		changed |= self.drop_button.update(input, delta, widgets_manager, text_drawer, camera);
 
 		changed
 	}
