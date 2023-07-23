@@ -5,7 +5,7 @@ use crate::color::with_alpha;
 use crate::custom_rect::Rect;
 use crate::primitives::{draw_rect, draw_rounded_rect, draw_text, fill_rect, fill_rounded_rect};
 use crate::style::Align;
-use crate::widgets::{Base, WidgetsManager, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA};
+use crate::widgets::{WidgetsManager, Base, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA};
 use crate::{
 	color::{darker, Colors},
 	input::Input,

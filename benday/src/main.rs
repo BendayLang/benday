@@ -152,11 +152,12 @@ fn main() {
 	widgets_manager
 		.add_widget(Box::new(Button::new(Rect::new(500., 100., 140., 80.), style.clone(), "IfElse Bloc".to_string())), false);
 	widgets_manager.add_widget(Box::new(Button::new(Rect::new(700., 100., 140., 80.), style, "RUN".to_string())), false);
+	let names = vec!["Alice", "Bob", "Charlie", "David", "Emilie", "Florence", "Gary", "Hervé", "Inès"];
 	widgets_manager.add_widget(
 		Box::new(Select::new(
-			Rect::new(100., 250., 100., 100.),
+			Rect::new(100., 250., 100., 120.),
 			Default::default(),
-			vec!["Alice".to_string(), "Bob".to_string(), "Charlie".to_string()],
+			names.iter().map(|&str| str.to_string()).collect(),
 			"Name".to_string(),
 		)),
 		false,

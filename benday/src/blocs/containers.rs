@@ -34,7 +34,7 @@ impl Slot {
 		let text_input_id = widgets_manager.add_widget(
 			Box::new(TextInput::new(
 				Rect::from_origin(Self::SIZE),
-				TextInputStyle::new(paler(color, 0.4), Some(Self::RADIUS), 12.),
+				TextInputStyle::new(paler(color, 0.4), Some(Self::RADIUS), 12., true),
 				placeholder,
 			)),
 			true,

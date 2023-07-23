@@ -5,11 +5,11 @@ use crate::input::Input;
 use crate::primitives::{draw_text, fill_rounded_rect};
 use crate::style::Align;
 use crate::text::{TextDrawer, TextStyle};
-use crate::widgets::WidgetsManager;
 use nalgebra::{Point2, Vector2};
 use sdl2::mouse::MouseUtil;
 use sdl2::{pixels::Color, render::Canvas, video::Window};
 use std::time::{Duration, Instant};
+use crate::widgets::WidgetsManager;
 
 pub trait App {
 	fn update(&mut self, delta: Duration, input: &Input, widgets_manager: &mut WidgetsManager, camera: &mut Camera) -> bool;

@@ -6,7 +6,7 @@ use crate::primitives::{draw_circle, draw_polygon, draw_text, fill_circle, fill_
 use crate::style::Align;
 use crate::text::{TextDrawer, TextStyle};
 use crate::vector2::Vector2Plus;
-use crate::widgets::{Base, Orientation, Widget, WidgetsManager, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER, PUSH};
+use crate::widgets::{WidgetsManager, Base, Orientation, Widget, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER, PUSH};
 use nalgebra::{Point2, Vector2};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};

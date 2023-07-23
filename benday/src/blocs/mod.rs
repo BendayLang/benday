@@ -49,7 +49,7 @@ pub fn new_variable_assignment_bloc(position: Point2<f64>, widgets_manager: &mut
 	let widgets_ids = vec![widgets_manager.add_widget(
 		Box::new(TextInput::new(
 			Rect::from_origin(TEXT_INPUT_SIZE),
-			TextInputStyle::new(paler(color, 0.2), None, 12.),
+			TextInputStyle::new(paler(color, 0.2), None, 12., true),
 			"name".to_string(),
 		)),
 		true,
@@ -128,7 +128,7 @@ pub fn new_function_call_bloc(position: Point2<f64>, widgets_manager: &mut Widge
 	let widgets_ids = vec![widgets_manager.add_widget(
 		Box::new(TextInput::new(
 			Rect::from_origin(TEXT_INPUT_SIZE),
-			TextInputStyle::new(paler(color, 0.2), None, 12.),
+			TextInputStyle::new(paler(color, 0.2), None, 12., true),
 			"function".to_string(),
 		)),
 		true,

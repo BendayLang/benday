@@ -16,7 +16,7 @@ use sdl2::video::Window;
 pub struct TextInputStyle {
 	color: Color,
 	hovered_color: Color,
-	focused_color: Color,
+	focused_color: Option<Color>,
 	border_color: Color,
 	carrot_color: Color,
 	selection_color: Color,
@@ -27,11 +27,11 @@ pub struct TextInputStyle {
 }
 
 impl TextInputStyle {
-	pub fn new(color: Color, corner_radius: Option<f64>, font_size: f64) -> Self {
+	pub fn new(color: Color, corner_radius: Option<f64>, font_size: f64, focus: bool) -> Self {
 		Self {
 			color: color,
 			hovered_color: darker(color, HOVER),
-			focused_color: Colors::BLUE,
+			focused_color: if focus { Some(Colors::BLUE) } else { None },
 			border_color: Colors::BLACK,
 			carrot_color: Colors::DARK_GREY,
 			selection_color: with_alpha(Colors::LIGHT_BLUE, 127),
@@ -48,7 +48,7 @@ impl Default for TextInputStyle {
 		Self {
 			color: Colors::WHITE,
 			hovered_color: darker(Colors::WHITE, HOVER),
-			focused_color: Colors::BLUE,
+			focused_color: Some(Colors::BLUE),
 			border_color: Colors::BLACK,
 			carrot_color: Colors::DARK_GREY,
 			selection_color: with_alpha(Colors::LIGHT_BLUE, 127),
@@ -68,7 +68,7 @@ pub struct TextInput {
 	carrot_timer_sec: Duration,
 	carrot_position: usize,
 	/// The selected text (from, to)
-	selection: Option<(usize, usize)>, // TODO en faire une Option
+	selection: Option<(usize, usize)>,
 	last_click: Instant,
 	click_count: u8,
 }
@@ -94,6 +94,12 @@ impl TextInput {
 
 	pub fn get_text(&self) -> &str {
 		&self.text
+	}
+	
+	pub fn set_text(&mut self, text: String) {
+		self.text = text;
+		self.selection = None;
+		self.carrot_position = self.text.len();
 	}
 
 	fn get_carrot_position(&self, text_drawer: &TextDrawer, mouse_position: Point2<i32>, camera: Option<&Camera>) -> usize {
@@ -396,9 +402,13 @@ impl Widget for TextInput {
 	) {
 		// Box
 		let background_color = if hovered { self.style.hovered_color } else { self.style.color };
-		let border_color = if focused { self.style.focused_color } else { self.style.border_color };
+		let mut border_color = self.style.border_color;
+		if focused {
+			if let Some(focused_color) = self.style.focused_color { border_color = focused_color }
+		};
+		
 		if let Some(corner_radius) = self.style.corner_radius {
-			if focused {
+			if focused && self.style.focused_color.is_some() {
 				canvas.set_blend_mode(BlendMode::Blend);
 				fill_rounded_rect(
 					canvas,
@@ -411,7 +421,7 @@ impl Widget for TextInput {
 			fill_rounded_rect(canvas, camera, background_color, self.base.rect, corner_radius);
 			draw_rounded_rect(canvas, camera, border_color, self.base.rect, corner_radius);
 		} else {
-			if focused {
+			if focused && self.style.focused_color.is_some() {
 				canvas.set_blend_mode(BlendMode::Blend);
 				fill_rounded_rect(
 					canvas,

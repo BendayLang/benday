@@ -9,7 +9,7 @@ use sdl2::gfx::primitives::DrawRenderer;
 use sdl2::pixels::Color;
 use sdl2::{render::Canvas, video::Window};
 
-/// Draws a one pixel wide line
+/// Draws a one pixel wide line that links points start to end
 pub fn draw_line(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, start: Point2<f64>, end: Point2<f64>) {
 	if let Some(camera) = camera {
 		let start = camera.transform() * start;
@@ -19,6 +19,30 @@ pub fn draw_line(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Co
 		DrawRenderer::line(canvas, start.x as i16, start.y as i16, end.x as i16, end.y as i16, color).unwrap();
 	}
 }
+
+pub fn draw_hline(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, x1: f64, x2: f64, y: f64) {
+	if let Some(camera) = camera {
+		// TODO find a better way
+		let x1 = (camera.transform() * Point2::new(x1, 0.)).x;
+		let x2 = (camera.transform() * Point2::new(x2, 0.)).x;
+		let y = (camera.transform() * Point2::new(0., y)).y;
+		DrawRenderer::hline(canvas, x1 as i16, x2 as i16, y as i16, color).unwrap();
+	} else {
+		DrawRenderer::hline(canvas, x1 as i16, x2 as i16, y as i16, color).unwrap();
+	}
+}
+pub fn draw_vline(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, x: f64, y1: f64, y2: f64) {
+	if let Some(camera) = camera {
+		let x = (camera.transform() * Point2::new(x, 0.)).x;
+		let y1 = (camera.transform() * Point2::new(0., y1)).y;
+		let y2 = (camera.transform() * Point2::new(0., y2)).y;
+		
+		DrawRenderer::vline(canvas, x as i16, y1 as i16, y2 as i16, color).unwrap();
+	} else {
+		DrawRenderer::vline(canvas, x as i16, y1 as i16, y2 as i16, color).unwrap();
+	}
+}
+
 
 pub fn draw_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, rect: Rect) {
 	if let Some(camera) = camera {
