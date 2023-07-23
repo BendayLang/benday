@@ -12,3 +12,4 @@ serde_json = "1.0"
 pg_sdl = { path = "pg_sdl" }
 models = { path = "models" }
 runner = { path = "runner" }
+rand = "0.8.5"

@@ -13,6 +13,17 @@ pub fn ast_example() -> Node {
 				}),
 			},
 			Node {
+				id: 201,
+				data: NodeData::IfElse(IfElse {
+					r#if: If {
+						condition: Box::new(Node { id: 202, data: NodeData::RawText("1".to_string()) }),
+						sequence: Box::new(Node { id: 203, data: NodeData::Sequence(vec![]) }),
+					},
+					elif: None,
+					r#else: None,
+				}),
+			},
+			Node {
 				id: 3,
 				data: NodeData::While(While {
 					is_do: false,

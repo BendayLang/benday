@@ -85,10 +85,10 @@ fn handle_if_else(
 ) -> AstResult {
 	let res = {
 		actions.push(Action::ControlFlowEvaluateCondition);
-		get_bool(execute_node(&ifelse.if_.condition, variables, id_path, stdout, actions)?)
+		get_bool(execute_node(&ifelse.r#if.condition, variables, id_path, stdout, actions)?)
 	};
 	if res {
-		return execute_node(&ifelse.if_.sequence, variables, id_path, stdout, actions);
+		return execute_node(&ifelse.r#if.sequence, variables, id_path, stdout, actions);
 	}
 	if let Some(elifs) = &ifelse.elif {
 		for elif in elifs {
@@ -101,7 +101,7 @@ fn handle_if_else(
 			}
 		}
 	}
-	if let Some(else_) = &ifelse.else_ {
+	if let Some(else_) = &ifelse.r#else {
 		return execute_node(else_, variables, id_path, stdout, actions);
 	}
 	Ok(None)

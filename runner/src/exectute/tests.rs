@@ -273,7 +273,7 @@ fn sould_reassign_variable_if_condition_is_true() {
 			Node {
 				id: 3,
 				data: NodeData::IfElse(IfElse {
-					if_: If {
+					r#if: If {
 						condition: Box::new(Node { id: 4, data: NodeData::RawText("{x} > 10".to_string()) }),
 						sequence: Box::new(Node {
 							id: 200,
@@ -299,7 +299,7 @@ fn sould_reassign_variable_if_condition_is_true() {
 							}]),
 						}),
 					}]),
-					else_: Some(Box::new(Node {
+					r#else: Some(Box::new(Node {
 						id: 202,
 						data: NodeData::Sequence(vec![Node {
 							id: 11,
