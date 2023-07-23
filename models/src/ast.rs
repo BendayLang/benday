@@ -40,11 +40,9 @@ pub struct If {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct IfElse {
-	#[serde(rename = "if")]
-	pub if_: If,
+	pub r#if: If,
 	pub elif: Option<Vec<If>>,
-	#[serde(rename = "else")]
-	pub else_: Option<Box<Node>>,
+	pub r#else: Option<Box<Node>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]

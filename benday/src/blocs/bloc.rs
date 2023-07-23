@@ -307,14 +307,14 @@ impl AsAstNode for Bloc {
 				ast::NodeData::VariableAssignment(ast::VariableAssignment { name, value })
 			}
 			BlocType::IfElse => ast::NodeData::IfElse(ast::IfElse {
-				if_: ast::If {
+				r#if: ast::If {
 					condition: Box::new(self.slots.first().unwrap().as_ast_node(widgets_manager)),
 					sequence: Box::new(
 						widgets_manager.get::<Sequence>(&self.sequences_ids[0]).unwrap().as_ast_node(widgets_manager),
 					),
 				},
-				elif: None,  // TODO
-				else_: None, // TODO
+				elif: None,   // TODO
+				r#else: None, // TODO
 			}),
 			BlocType::While => ast::NodeData::While(ast::While {
 				is_do: false, // TODO
