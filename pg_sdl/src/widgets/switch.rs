@@ -93,7 +93,7 @@ impl Switch {
 
 impl Widget for Switch {
 	fn update(
-		&mut self, input: &Input, _delta: Duration, _widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
+		&mut self, input: &Input, _delta: Duration, _widgets_manager: &mut WidgetsManager, _text_drawer: &mut TextDrawer,
 		_camera: Option<&Camera>,
 	) -> bool {
 		let changed = self.base.update(input, Vec::new());

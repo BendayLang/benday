@@ -5,22 +5,24 @@ use crate::input::Input;
 use crate::primitives::{draw_text, fill_rounded_rect};
 use crate::style::Align;
 use crate::text::{TextDrawer, TextStyle};
+use crate::widgets::WidgetsManager;
 use nalgebra::{Point2, Vector2};
 use sdl2::mouse::MouseUtil;
+use sdl2::render::WindowCanvas;
+use sdl2::ttf::Sdl2TtfContext;
 use sdl2::{pixels::Color, render::Canvas, video::Window};
 use std::time::{Duration, Instant};
-use crate::widgets::WidgetsManager;
 
 pub trait App {
 	fn update(&mut self, delta: Duration, input: &Input, widgets_manager: &mut WidgetsManager, camera: &mut Camera) -> bool;
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, widgets_manager: &WidgetsManager, camera: &Camera);
+	fn draw(&self, canvas: &mut WindowCanvas, text_drawer: &mut TextDrawer, widgets_manager: &WidgetsManager, camera: &Camera);
 }
 
 pub struct PgSdl<'ttf, 'texture> {
 	mouse: MouseUtil,
 	input: Input,
-	canvas: Canvas<Window>,
-	pub text_drawer: TextDrawer<'ttf, 'texture>,
+	canvas: WindowCanvas,
+	text_drawer: TextDrawer<'ttf, 'texture>,
 	background_color: Color,
 	widgets_manager: WidgetsManager,
 	fps: Option<u32>,
@@ -51,11 +53,9 @@ impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 		// TODO mettre ca en paramettre ?
 		let camera = Camera::new(window_size, 6, 2.5, 5.0, -4000.0, 4000.0, -5000.0, 5000.0);
 
-		let text_drawer = TextDrawer::new(canvas.texture_creator());
-
 		PgSdl {
 			mouse: sdl_context.mouse(),
-			text_drawer,
+			text_drawer: TextDrawer::new(canvas.texture_creator()),
 			input: Input::new(sdl_context.event_pump().unwrap(), video_subsystem.clipboard()),
 			widgets_manager,
 			canvas,

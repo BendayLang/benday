@@ -6,7 +6,7 @@ use crate::custom_rect::Rect;
 use crate::input::Input;
 use crate::primitives::{draw_rounded_rect, fill_rounded_rect};
 use crate::text::TextDrawer;
-use crate::widgets::{WidgetsManager, Base, Widget, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER};
+use crate::widgets::{Base, Widget, WidgetsManager, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER};
 use nalgebra::Vector2;
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
@@ -48,7 +48,7 @@ impl Draggable {
 
 impl Widget for Draggable {
 	fn update(
-		&mut self, input: &Input, _delta: Duration, widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
+		&mut self, input: &Input, _delta: Duration, widgets_manager: &mut WidgetsManager, _text_drawer: &mut TextDrawer,
 		camera: Option<&Camera>,
 	) -> bool {
 		let mut changed = self.base.update(input, Vec::new());

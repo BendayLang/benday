@@ -164,20 +164,9 @@ fn main() {
 	);
 
 	let resolution = Vector2::new(1280, 720);
-	let ttf_context = sdl2::ttf::init().expect("SDL2 ttf could not be initialized");
 
 	let mut app = PgSdl::init("Benday", resolution, Some(120), true, Colors::LIGHT_GREY, widgets_manager);
-
 	let mut my_app = MyApp { blocs: vec![root_id], hovered_container: None, rect: None };
-	let font_path = std::path::PathBuf::from(format!("{}/{}", pg_sdl::text::FONT_PATH, pg_sdl::text::DEFAULT_FONT_NAME));
-	for font in [(&font_path, 0, 45)] {
-		let (path, from, to) = font;
-		for size in from..=to {
-			let font: sdl2::ttf::Font = ttf_context.load_font(path, size).unwrap();
-			app.text_drawer.fonts.insert((path.clone(), size), font);
-		}
-	}
-
 	app.run(&mut my_app);
 }
 

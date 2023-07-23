@@ -11,14 +11,14 @@ use crate::camera::Camera;
 use crate::custom_rect::Rect;
 use crate::input::{Input, KeyState};
 use crate::text::TextDrawer;
-pub use widgets_manager::WidgetsManager;
 use as_any::{AsAny, Downcast};
+use nalgebra::Point2;
 use sdl2::render::Canvas;
 use sdl2::video::Window;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::time::Duration;
-use nalgebra::Point2;
+pub use widgets_manager::WidgetsManager;
 
 pub const HOVER: f32 = 0.92;
 pub const PUSH: f32 = 0.80;
@@ -99,7 +99,7 @@ impl Base {
 pub trait Widget: AsAny {
 	/// Update the widget based on the inputs
 	fn update(
-		&mut self, input: &Input, delta: Duration, widgets_manager: &mut WidgetsManager, text_drawer: &TextDrawer,
+		&mut self, input: &Input, delta: Duration, widgets_manager: &mut WidgetsManager, text_drawer: &mut TextDrawer,
 		camera: Option<&Camera>,
 	) -> bool;
 	/// Draw the widget on the canvas
@@ -114,7 +114,7 @@ pub trait Widget: AsAny {
 	fn collide_point(&self, point: Point2<f64>) -> bool {
 		self.get_base().rect.collide_point(point)
 	}
-	
+
 	fn get_base(&self) -> Base;
 	fn get_base_mut(&mut self) -> &mut Base;
 }

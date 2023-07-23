@@ -337,7 +337,7 @@ impl AsAstNode for Bloc {
 
 impl Widget for Bloc {
 	fn update(
-		&mut self, input: &Input, _delta: Duration, widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
+		&mut self, input: &Input, _delta: Duration, widgets_manager: &mut WidgetsManager, _text_drawer: &mut TextDrawer,
 		camera: Option<&Camera>,
 	) -> bool {
 		let camera = camera.unwrap();

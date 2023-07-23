@@ -95,14 +95,14 @@ impl TextInput {
 	pub fn get_text(&self) -> &str {
 		&self.text
 	}
-	
+
 	pub fn set_text(&mut self, text: String) {
 		self.text = text;
 		self.selection = None;
 		self.carrot_position = self.text.len();
 	}
 
-	fn get_carrot_position(&self, text_drawer: &TextDrawer, mouse_position: Point2<i32>, camera: Option<&Camera>) -> usize {
+	fn get_carrot_position(&self, text_drawer: &mut TextDrawer, mouse_position: Point2<i32>, camera: Option<&Camera>) -> usize {
 		let mouse_x = ((if let Some(camera) = camera {
 			camera.transform().inverse() * mouse_position.cast()
 		} else {
@@ -186,7 +186,7 @@ fn get_word_position(text: &str, mut position: usize) -> (usize, usize) {
 impl Widget for TextInput {
 	#[allow(clippy::diverging_sub_expression)]
 	fn update(
-		&mut self, input: &Input, delta: Duration, _widgets_manager: &mut WidgetsManager, text_drawer: &TextDrawer,
+		&mut self, input: &Input, delta: Duration, _widgets_manager: &mut WidgetsManager, text_drawer: &mut TextDrawer,
 		camera: Option<&Camera>,
 	) -> bool {
 		let mut changed = false;
@@ -404,9 +404,11 @@ impl Widget for TextInput {
 		let background_color = if hovered { self.style.hovered_color } else { self.style.color };
 		let mut border_color = self.style.border_color;
 		if focused {
-			if let Some(focused_color) = self.style.focused_color { border_color = focused_color }
+			if let Some(focused_color) = self.style.focused_color {
+				border_color = focused_color
+			}
 		};
-		
+
 		if let Some(corner_radius) = self.style.corner_radius {
 			if focused && self.style.focused_color.is_some() {
 				canvas.set_blend_mode(BlendMode::Blend);

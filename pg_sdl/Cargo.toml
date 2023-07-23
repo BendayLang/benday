@@ -24,3 +24,5 @@ as-any = { workspace = true }
 rand = { workspace = true }
 itertools = "0.10.5"
 ndarray = "0.13.0"
+lazy_static = "1.4.0"
+num-traits = "0.2.16"

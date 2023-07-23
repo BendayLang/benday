@@ -1,14 +1,16 @@
-use std::time::Duration;
 use as_any::Downcast;
+use std::time::Duration;
 
 use crate::camera::Camera;
 use crate::color::{darker, with_alpha, Colors};
 use crate::custom_rect::Rect;
 use crate::input::{Input, Shortcut};
-use crate::primitives::{draw_hline, draw_rect, draw_rounded_rect, draw_text, draw_vline, fill_rect, fill_rounded_rect, get_text_size};
+use crate::primitives::{
+	draw_hline, draw_rect, draw_rounded_rect, draw_text, draw_vline, fill_rect, fill_rounded_rect, get_text_size,
+};
 use crate::style::Align;
 use crate::text::{TextDrawer, TextStyle};
-use crate::widgets::{WidgetsManager, Base, Widget, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER, PUSH};
+use crate::widgets::{Base, Widget, WidgetsManager, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER, PUSH};
 use nalgebra::{Point2, Vector2};
 use sdl2::mouse::SystemCursor::No;
 use sdl2::pixels::Color;
@@ -116,11 +118,11 @@ impl Select {
 	fn option_height(&self) -> f64 {
 		self.style.font_size + Self::HEIGHT_MARGIN
 	}
-	
+
 	fn get_height(&self) -> f64 {
 		self.max_height.min(self.option_height() * self.options.len() as f64 + self.text_input.get_base().rect.height())
 	}
-	
+
 	fn is_max_height(&self) -> bool {
 		self.max_height < self.option_height() * self.options.len() as f64 + self.text_input.get_base().rect.height()
 	}
@@ -132,7 +134,7 @@ impl Select {
 			self.base.rect.size - Vector2::new(0., text_input_height),
 		)
 	}
-	
+
 	fn get_options_zone_rect(&self) -> Rect {
 		let text_input_height = self.text_input.get_base().rect.height();
 		Rect::from(
@@ -140,14 +142,14 @@ impl Select {
 			self.base.rect.size - Vector2::new(self.style.slider_width, text_input_height),
 		)
 	}
-	
+
 	fn get_option_rect(&self, option: usize) -> Rect {
 		let width = self.base.rect.width() - if self.is_max_height() { self.style.slider_width } else { 0. };
 		let height = self.option_height();
 		let y = self.base.rect.bottom() + self.text_input.get_base().rect.height() + height * option as f64;
 		Rect::new(self.base.rect.left(), y, width, height)
 	}
-	
+
 	fn get_slider_rect(&self) -> Rect {
 		let text_input_height = self.text_input.get_base().rect.height();
 		Rect::from(
@@ -155,16 +157,16 @@ impl Select {
 			Vector2::new(self.style.slider_width, self.base.rect.height() - text_input_height),
 		)
 	}
-	
+
 	fn slider_course(&self) -> f64 {
 		self.get_slider_rect().height() - self.slider_height() - 2. * Self::SLIDER_MARGIN
 	}
-	
+
 	fn slider_height(&self) -> f64 {
 		let height = self.get_slider_rect().height();
 		height * height / (self.option_height() * self.options.len() as f64)
 	}
-	
+
 	fn set_slider_value(&mut self, value: f64, mouse_y: f64) {
 		self.slider_value = value;
 		if self.slider_value < 0. {
@@ -180,12 +182,12 @@ impl Select {
 
 impl Widget for Select {
 	fn update(
-		&mut self, input: &Input, delta: Duration, _widgets_manager: &mut WidgetsManager, text_drawer: &TextDrawer,
+		&mut self, input: &Input, delta: Duration, _widgets_manager: &mut WidgetsManager, text_drawer: &mut TextDrawer,
 		camera: Option<&Camera>,
 	) -> bool {
 		let mut changed = false;
 		changed |= self.base.update(input, vec![input.keys_state.up, input.keys_state.down]);
-		
+
 		if input.keys_state.up.is_pressed() {
 			if let Some(option) = self.selected_option {
 				self.selected_option = Some(if option == 0 { self.options.len() - 1 } else { option - 1 });
@@ -205,9 +207,11 @@ impl Widget for Select {
 		if !input.mouse.delta.is_empty() && !input.mouse.left_button.is_down() {
 			let mut new_hovered_element = None;
 			let mouse_position = if let Some(camera) = camera {
-					camera.transform().inverse() * input.mouse.position.cast()
-			} else { input.mouse.position.cast() };
-			
+				camera.transform().inverse() * input.mouse.position.cast()
+			} else {
+				input.mouse.position.cast()
+			};
+
 			if self.get_options_zone_rect().collide_point(mouse_position) {
 				let y = mouse_position.y - self.get_options_zone_rect().bottom();
 				let option = (y / self.option_height()).floor() as usize;
@@ -222,22 +226,24 @@ impl Widget for Select {
 				changed = true;
 			}
 		}
-		
+
 		// Mouse click
 		if input.mouse.left_button.is_pressed() {
 			match self.hovered_element {
 				SelectElement::TextInput => {
 					self.selected_option = None;
-				},
+				}
 				SelectElement::Options { option } => {
 					self.selected_option = Some(option);
 					self.text_input.set_text(self.options[option].clone());
 					self.is_on_text_input = false;
-				},
+				}
 				SelectElement::Slider => {
 					let mouse_y = if let Some(camera) = camera {
-							(camera.transform().inverse() * input.mouse.position.cast()).y
-					} else { input.mouse.position.cast().y };
+						(camera.transform().inverse() * input.mouse.position.cast()).y
+					} else {
+						input.mouse.position.cast().y
+					};
 					let course = self.slider_value * self.slider_course();
 					let value = mouse_y - self.get_slider_rect().y() - self.slider_height() * 0.5;
 					if value < course - self.slider_height() * 0.5 || course + self.slider_height() * 0.5 < value {
@@ -247,17 +253,18 @@ impl Widget for Select {
 					self.is_on_text_input = false;
 				}
 			}
-		}
-		else if input.mouse.left_button.is_released() {
+		} else if input.mouse.left_button.is_released() {
 			self.is_on_slider = None;
 			self.is_on_text_input = true;
 		}
-		
+
 		if input.mouse.delta.y != 0 {
 			if let Some(grab_delta_y) = self.is_on_slider {
 				let mouse_y = if let Some(camera) = camera {
-						(camera.transform().inverse() * input.mouse.position.cast()).y
-				} else { input.mouse.position.cast().y };
+					(camera.transform().inverse() * input.mouse.position.cast()).y
+				} else {
+					input.mouse.position.cast().y
+				};
 				self.set_slider_value((mouse_y - self.get_slider_rect().y() + grab_delta_y) / self.slider_course(), mouse_y);
 				changed = true;
 			}
@@ -268,11 +275,11 @@ impl Widget for Select {
 
 		changed
 	}
-	
+
 	fn on_select(&mut self, _text_drawer: &TextDrawer, _camera: Option<&Camera>) {
 		self.base.rect.size.y = self.get_height();
 	}
-	
+
 	fn on_unselect(&mut self, _text_drawer: &TextDrawer, _camera: Option<&Camera>) {
 		self.base.rect.size.y = self.text_input.get_base().rect.height();
 		self.is_on_text_input = false;
@@ -305,7 +312,7 @@ impl Widget for Select {
 				);
 				fill_rect(canvas, camera, self.style.color, bottom_rect);
 			}
-			
+
 			// Options
 			if hovered {
 				if let SelectElement::Options { option } = self.hovered_element {
@@ -318,7 +325,13 @@ impl Widget for Select {
 			}
 			if let Some(option) = self.selected_option {
 				if let Some(corner_radius) = self.style.corner_radius {
-					fill_rounded_rect(canvas, camera, self.style.selected_option_color, self.get_option_rect(option), corner_radius);
+					fill_rounded_rect(
+						canvas,
+						camera,
+						self.style.selected_option_color,
+						self.get_option_rect(option),
+						corner_radius,
+					);
 				} else {
 					fill_rect(canvas, camera, self.style.selected_option_color, self.get_option_rect(option));
 				}
@@ -329,21 +342,32 @@ impl Widget for Select {
 			let bottom = options_rect.bottom();
 			self.options.iter().enumerate().for_each(|(i, option)| {
 				let position = Point2::new(x1 + Self::HEIGHT_MARGIN, bottom + self.option_height() * (i as f64 + 0.5));
-				draw_text(canvas, camera, text_drawer, position, option, self.style.font_size, &TextStyle::default(), Align::Left);
+				draw_text(
+					canvas,
+					camera,
+					text_drawer,
+					position,
+					option,
+					self.style.font_size,
+					&TextStyle::default(),
+					Align::Left,
+				);
 			});
 			(1..self.options.len()).for_each(|i| {
 				let y = bottom + self.option_height() * i as f64;
 				draw_hline(canvas, camera, Colors::GREY, x1, x2, y - 1.0);
 				draw_hline(canvas, camera, Colors::GREY, x1, x2, y);
 			});
-			
+
 			// Slider
 			if self.is_max_height() {
 				let slider_color = if focused && self.is_on_slider.is_some() {
 					self.style.slider_pushed_color
 				} else if hovered && self.hovered_element == SelectElement::Slider {
 					self.style.slider_hovered_color
-				} else { self.style.slider_color };
+				} else {
+					self.style.slider_color
+				};
 				let mut slider_rect = self.get_slider_rect().enlarged(-Self::SLIDER_MARGIN);
 				slider_rect.size.y = self.slider_height();
 				slider_rect.position.y += self.slider_value * self.slider_course();
@@ -355,7 +379,7 @@ impl Widget for Select {
 					draw_rect(canvas, camera, self.style.border_color, slider_rect);
 				}
 			}
-			
+
 			// Contour
 			if let Some(corner_radius) = self.style.corner_radius {
 				draw_rounded_rect(canvas, camera, self.style.border_color, bottom_rect, corner_radius);
@@ -363,7 +387,7 @@ impl Widget for Select {
 				draw_rect(canvas, camera, self.style.border_color, bottom_rect);
 			}
 		}
-		
+
 		// Text input
 		let text_input_hovered = hovered && self.hovered_element == SelectElement::TextInput;
 		self.text_input.draw(canvas, text_drawer, camera, self.is_on_text_input, text_input_hovered);
