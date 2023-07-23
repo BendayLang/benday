@@ -1,4 +1,8 @@
 use models::ast;
+use python_parser::{
+	ast::{Argument, Bop, Expression, Statement},
+	visitors::printer::format_module,
+};
 use runner::transpile::python::ast_to_python;
 
 fn a() -> ast::Node {
@@ -124,7 +128,30 @@ fn b() -> ast::Node {
 	}
 }
 
+fn p() {
+	let ast = vec![Statement::Assignment(
+		vec![Expression::Call(
+			Box::new(Expression::Name("print".to_string())),
+			vec![
+				Argument::Positional(Expression::Bop(
+					Bop::Add,
+					Box::new(Expression::Int(2u32.into())),
+					Box::new(Expression::Int(3u32.into())),
+				)),
+				Argument::Keyword(
+					"fd".to_string(),
+					Expression::Attribute(Box::new(Expression::Name("sys".to_string())), "stderr".to_string()),
+				),
+			],
+		)],
+		vec![],
+	)];
+	println!("{}", format_module(&ast));
+}
+
 fn main() {
+	p();
+	return;
 	let a = ast_to_python(&b());
 	print!("{a}");
 

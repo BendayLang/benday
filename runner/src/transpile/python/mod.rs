@@ -2,6 +2,7 @@ use models::{
 	self,
 	ast::{FunctionCall, FunctionDeclaration, IfElse, Node, NodeData, VariableAssignment, While},
 };
+use python_parser::ast;
 use rand;
 use std::{
 	collections::{HashSet, VecDeque},
