@@ -1,6 +1,6 @@
 use models::ast;
 use python_parser::{
-	ast::{Argument, Bop, Expression, Statement},
+	ast::{Argument, Bop, Expression, PyString, Statement},
 	visitors::printer::format_module,
 };
 use runner::transpile::python::ast_to_python;
@@ -129,6 +129,17 @@ fn b() -> ast::Node {
 }
 
 fn p() {
+	let code = r#"
+def main():
+    print(2 + 3, fd=sys.stderr)
+if __name__ == "__main__":
+    main()
+"#;
+	let ast = python_parser::file_input(python_parser::make_strspan(code)).unwrap().1;
+	// println!("{:#?}", ast);
+	dbg!(ast.clone());
+	println!("{}", format_module(&ast));
+
 	let ast = vec![Statement::Assignment(
 		vec![Expression::Call(
 			Box::new(Expression::Name("print".to_string())),
@@ -145,6 +156,12 @@ fn p() {
 			],
 		)],
 		vec![],
+	)];
+	println!("{}", format_module(&ast));
+
+	let ast = vec![Statement::Assignment(
+		vec![Expression::Name("e".to_string())],
+		vec![vec![Expression::String(vec![PyString { prefix: "".to_string(), content: wtf8::Wtf8Buf::from_str("string") }])]],
 	)];
 	println!("{}", format_module(&ast));
 }
