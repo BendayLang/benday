@@ -48,7 +48,7 @@ impl Draggable {
 
 impl Widget for Draggable {
 	fn update(
-		&mut self, input: &Input, _delta: Duration, widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
+		&mut self, input: &Input, _delta: Duration, widgets_manager: &WidgetsManager, _text_drawer: &TextDrawer,
 		camera: Option<&Camera>,
 	) -> bool {
 		let mut changed = self.base.update(input, Vec::new());

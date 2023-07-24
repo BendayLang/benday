@@ -91,7 +91,6 @@ impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 
 	fn draw_fps(&mut self, delta: Duration) {
 		fill_rounded_rect(&mut self.canvas, None, Colors::WHITE, Rect::new(10.0, 2.0, 120.0, 32.0), 5.0);
-		// self.text_drawer.draw_text(
 		draw_text(
 			&mut self.canvas,
 			None,

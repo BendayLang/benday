@@ -72,9 +72,14 @@ impl Button {
 	pub fn new(rect: Rect, style: ButtonStyle, text: String) -> Self {
 		Self { base: Base::new(rect), style, text }
 	}
+	
+	pub fn get_text(&self) -> &String {
+		&self.text
+	}
 	pub fn set_text(&mut self, new_text: String) {
 		self.text = new_text;
 	}
+	
 	pub fn is_pressed(&self) -> bool {
 		self.base.state.is_pressed()
 	}
@@ -82,7 +87,7 @@ impl Button {
 
 impl Widget for Button {
 	fn update(
-		&mut self, input: &Input, _delta: Duration, _widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
+		&mut self, input: &Input, _delta: Duration, _widgets_manager: &WidgetsManager, _text_drawer: &TextDrawer,
 		_camera: Option<&Camera>,
 	) -> bool {
 		self.base.update(input, vec![input.keys_state.enter])

@@ -99,7 +99,7 @@ impl Base {
 pub trait Widget: AsAny {
 	/// Update the widget based on the inputs
 	fn update(
-		&mut self, input: &Input, delta: Duration, widgets_manager: &mut WidgetsManager, text_drawer: &TextDrawer,
+		&mut self, input: &Input, delta: Duration, widgets_manager: &WidgetsManager, text_drawer: &TextDrawer,
 		camera: Option<&Camera>,
 	) -> bool;
 	/// Draw the widget on the canvas
@@ -107,9 +107,9 @@ pub trait Widget: AsAny {
 		&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool,
 	);
 	/// (Optional) This method is called when the widget is selected
-	fn on_select(&mut self, text_drawer: &TextDrawer, camera: Option<&Camera>) {}
+	fn on_select(&mut self) {}
 	/// (Optional) This method is called when the widget is unselected
-	fn on_unselect(&mut self, text_drawer: &TextDrawer, camera: Option<&Camera>) {}
+	fn on_unselect(&mut self) {}
 	/// (Optional, the default is the base rect) The hit-box of the Widget
 	fn collide_point(&self, point: Point2<f64>) -> bool {
 		self.get_base().rect.collide_point(point)

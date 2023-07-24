@@ -186,7 +186,7 @@ fn get_word_position(text: &str, mut position: usize) -> (usize, usize) {
 impl Widget for TextInput {
 	#[allow(clippy::diverging_sub_expression)]
 	fn update(
-		&mut self, input: &Input, delta: Duration, _widgets_manager: &mut WidgetsManager, text_drawer: &TextDrawer,
+		&mut self, input: &Input, delta: Duration, _widgets_manager: &WidgetsManager, text_drawer: &TextDrawer,
 		camera: Option<&Camera>,
 	) -> bool {
 		let mut changed = false;
@@ -307,7 +307,6 @@ impl Widget for TextInput {
 				self.carrot_timer_sec = Duration::ZERO;
 				changed = true;
 			}
-			// }
 		}
 
 		// Keyboard input

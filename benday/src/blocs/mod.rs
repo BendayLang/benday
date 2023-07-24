@@ -55,7 +55,7 @@ pub fn new_variable_assignment_bloc(position: Point2<f64>, widgets_manager: &mut
 		true,
 	)];
 	let widgets_relative_positions = Box::new(|bloc: &Bloc, widgets_manager: &WidgetsManager, _| {
-		let widget_height = widgets_manager.get_widget(&bloc.widgets_ids[0]).unwrap().get_base().rect.height();
+		let widget_height = widgets_manager.get_widget(&bloc.widgets_ids[0]).get_base().rect.height();
 		let slot_height = bloc.slots[0].get_base(widgets_manager).rect.height();
 		Vector2::new(MARGIN, MARGIN + (slot_height - widget_height) * 0.5)
 	});
@@ -63,7 +63,7 @@ pub fn new_variable_assignment_bloc(position: Point2<f64>, widgets_manager: &mut
 	let mut slots = Vec::new();
 	(0..1).for_each(|nth_slot| {
 		let fn_relative_position = Box::new(|bloc: &Bloc, widgets_manager: &WidgetsManager| {
-			let widget_width = widgets_manager.get_widget(&bloc.widgets_ids[0]).unwrap().get_base().rect.width();
+			let widget_width = widgets_manager.get_widget(&bloc.widgets_ids[0]).get_base().rect.width();
 			Vector2::new(MARGIN + widget_width + INNER_MARGIN, MARGIN)
 		});
 		slots.push(Slot::new(color, "value".to_string(), fn_relative_position, widgets_manager));
@@ -72,7 +72,7 @@ pub fn new_variable_assignment_bloc(position: Point2<f64>, widgets_manager: &mut
 	let sequences = Vec::new();
 
 	let get_size = Box::new(|bloc: &Bloc, widgets_manager: &WidgetsManager| {
-		let widget_width = widgets_manager.get_widget(&bloc.widgets_ids[0]).unwrap().get_base().rect.width();
+		let widget_width = widgets_manager.get_widget(&bloc.widgets_ids[0]).get_base().rect.width();
 		let slot_size = bloc.slots[0].get_base(widgets_manager).rect.size;
 		Vector2::new(2. * MARGIN + widget_width + INNER_MARGIN + slot_size.x, 2. * MARGIN + slot_size.y)
 	});
@@ -92,7 +92,7 @@ pub fn new_if_else_bloc(position: Point2<f64>, widgets_manager: &mut WidgetsMana
 	(0..1).for_each(|nth_slot| {
 		let fn_relative_position = Box::new(|bloc: &Bloc, widgets_manager: &WidgetsManager| {
 			let slot_0_height = bloc.slots[0].get_base(widgets_manager).rect.height();
-			let sequence_0_height = widgets_manager.get::<Sequence>(&bloc.sequences_ids[0]).unwrap().get_base().rect.height();
+			let sequence_0_height = widgets_manager.get::<Sequence>(&bloc.sequences_ids[0]).get_base().rect.height();
 			let max_height = slot_0_height.max(sequence_0_height);
 			Vector2::new(MARGIN, MARGIN + (max_height - slot_0_height) * 0.5)
 		});
@@ -103,7 +103,7 @@ pub fn new_if_else_bloc(position: Point2<f64>, widgets_manager: &mut WidgetsMana
 	(0..1).for_each(|nth_slot| {
 		let fn_relative_position = Box::new(|bloc: &Bloc, widgets_manager: &WidgetsManager| {
 			let slot_0_size = bloc.slots[0].get_base(widgets_manager).rect.size;
-			let sequence_0_height = widgets_manager.get::<Sequence>(&bloc.sequences_ids[0]).unwrap().get_base().rect.height();
+			let sequence_0_height = widgets_manager.get::<Sequence>(&bloc.sequences_ids[0]).get_base().rect.height();
 			let max_height = slot_0_size.y.max(sequence_0_height);
 			Vector2::new(MARGIN + slot_0_size.x + INNER_MARGIN, MARGIN + (max_height - sequence_0_height) * 0.5)
 		});
@@ -112,7 +112,7 @@ pub fn new_if_else_bloc(position: Point2<f64>, widgets_manager: &mut WidgetsMana
 
 	let get_size = Box::new(|bloc: &Bloc, widgets_manager: &WidgetsManager| {
 		let slot_0_size = bloc.slots[0].get_base(widgets_manager).rect.size;
-		let sequence_0_size = widgets_manager.get::<Sequence>(&bloc.sequences_ids[0]).unwrap().get_base().rect.size;
+		let sequence_0_size = widgets_manager.get::<Sequence>(&bloc.sequences_ids[0]).get_base().rect.size;
 		let height = slot_0_size.y.max(sequence_0_size.y);
 		Vector2::new(2. * MARGIN + slot_0_size.x + INNER_MARGIN + sequence_0_size.x, 2. * MARGIN + height)
 	});
@@ -134,7 +134,7 @@ pub fn new_function_call_bloc(position: Point2<f64>, widgets_manager: &mut Widge
 		true,
 	)];
 	let widgets_relative_positions = Box::new(|bloc: &Bloc, widgets_manager: &WidgetsManager, _| {
-		let widget_height = widgets_manager.get_widget(&bloc.widgets_ids[0]).unwrap().get_base().rect.height();
+		let widget_height = widgets_manager.get_widget(&bloc.widgets_ids[0]).get_base().rect.height();
 		let slots_height: f64 =
 			bloc.slots.iter().map(|slot| { slot.get_base(widgets_manager).rect.size.y } + INNER_MARGIN).sum::<f64>()
 				- INNER_MARGIN;
@@ -147,7 +147,7 @@ pub fn new_function_call_bloc(position: Point2<f64>, widgets_manager: &mut Widge
 				color,
 				"value".to_string(),
 				Box::new(move |bloc: &Bloc, widgets_manager: &WidgetsManager| {
-					let widget_width = widgets_manager.get_widget(&bloc.widgets_ids[0]).unwrap().get_base().rect.width();
+					let widget_width = widgets_manager.get_widget(&bloc.widgets_ids[0]).get_base().rect.width();
 					let y = INNER_MARGIN
 						+ (0..nth_slot)
 							.map(|i| bloc.slots[i].get_base(widgets_manager).rect.height() + INNER_MARGIN)
@@ -160,7 +160,7 @@ pub fn new_function_call_bloc(position: Point2<f64>, widgets_manager: &mut Widge
 		.collect();
 
 	let get_size = Box::new(|bloc: &Bloc, widgets_manager: &WidgetsManager| {
-		let widget_width = widgets_manager.get_widget(&bloc.widgets_ids[0]).unwrap().get_base().rect.width();
+		let widget_width = widgets_manager.get_widget(&bloc.widgets_ids[0]).get_base().rect.width();
 		let slots_width = bloc
 			.slots
 			.iter()
@@ -188,7 +188,7 @@ pub fn new_sequence_bloc(position: Point2<f64>, widgets_manager: &mut WidgetsMan
 	let sequence_id = Sequence::add(color, fn_relative_position, widgets_manager);
 
 	let get_size: FnGetSize = Box::new(|bloc: &Bloc, widgets_manager: &WidgetsManager| {
-		let sequence_size = widgets_manager.get::<Sequence>(&bloc.sequences_ids[0]).unwrap().get_base().rect.size;
+		let sequence_size = widgets_manager.get::<Sequence>(&bloc.sequences_ids[0]).get_base().rect.size;
 		Vector2::new(2. * MARGIN, 2. * MARGIN) + sequence_size
 	});
 
@@ -207,7 +207,7 @@ pub fn new_root_sequence_bloc(position: Point2<f64>, widgets_manager: &mut Widge
 	let sequence_id = Sequence::add(color, fn_relative_position, widgets_manager);
 
 	let get_size: FnGetSize = Box::new(|bloc: &Bloc, widgets_manager: &WidgetsManager| {
-		let sequence_size = widgets_manager.get::<Sequence>(&bloc.sequences_ids[0]).unwrap().get_base().rect.size;
+		let sequence_size = widgets_manager.get::<Sequence>(&bloc.sequences_ids[0]).get_base().rect.size;
 		sequence_size
 	});
 

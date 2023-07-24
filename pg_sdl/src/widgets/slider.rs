@@ -152,7 +152,7 @@ impl Slider {
 
 impl Widget for Slider {
 	fn update(
-		&mut self, input: &Input, delta: Duration, _widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
+		&mut self, input: &Input, delta: Duration, _widgets_manager: &WidgetsManager, _text_drawer: &TextDrawer,
 		camera: Option<&Camera>,
 	) -> bool {
 		let mut changed = false;

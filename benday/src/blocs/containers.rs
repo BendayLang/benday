@@ -67,20 +67,17 @@ impl Slot {
 	}
 
 	pub fn get_base(&self, widgets_manager: &WidgetsManager) -> Base {
-		widgets_manager.get_widget(&self.get_id()).unwrap().get_base()
-	}
-	pub fn get_base_mut<'a>(&'a self, widgets_manager: &'a mut WidgetsManager) -> &mut Base {
-		widgets_manager.get_widget_mut(&self.get_id()).unwrap().get_base_mut()
+		widgets_manager.get_widget(&self.get_id()).get_base()
 	}
 }
 
 impl AsAstNode for Slot {
 	fn as_ast_node(&self, widgets_manager: &WidgetsManager) -> ast::Node {
 		if let Some(child_id) = self.child_id {
-			let value_bloc = widgets_manager.get::<Bloc>(&child_id).unwrap();
+			let value_bloc = widgets_manager.get::<Bloc>(&child_id);
 			value_bloc.as_ast_node(widgets_manager)
 		} else {
-			let value_bloc = widgets_manager.get::<TextInput>(&self.text_input_id).unwrap();
+			let value_bloc = widgets_manager.get::<TextInput>(&self.text_input_id);
 			ast::Node { id: self.text_input_id, data: ast::NodeData::RawText(value_bloc.get_text().to_string()) }
 		}
 	}
@@ -143,13 +140,13 @@ impl Sequence {
 			let width = self
 				.childs_ids
 				.iter()
-				.map(|child_id| widgets_manager.get::<Bloc>(child_id).unwrap().get_base().rect.width())
+				.map(|child_id| widgets_manager.get::<Bloc>(child_id).get_base().rect.width())
 				.max_by(|a, b| a.partial_cmp(b).unwrap())
 				.unwrap();
 			let height = (self
 				.childs_ids
 				.iter()
-				.map(|child_id| widgets_manager.get::<Bloc>(child_id).unwrap().get_base().rect.height())
+				.map(|child_id| widgets_manager.get::<Bloc>(child_id).get_base().rect.height())
 				.sum::<f64>())
 			.max(Self::SIZE.y);
 			let nb_blocs = self.childs_ids.len();
@@ -169,7 +166,7 @@ impl Sequence {
 						Self::GAP_HEIGHT
 							+ (0..place)
 								.map(|i| {
-									widgets_manager.get::<Bloc>(&self.childs_ids[i]).unwrap().get_base().rect.height()
+									widgets_manager.get::<Bloc>(&self.childs_ids[i]).get_base().rect.height()
 										+ Self::GAP_HEIGHT
 								})
 								.sum::<f64>(),
@@ -181,7 +178,7 @@ impl Sequence {
 	pub fn get_recursive_childs(&self, widgets_manager: &WidgetsManager) -> Vec<WidgetId> {
 		let mut childs = Vec::new();
 		self.childs_ids.iter().for_each(|child_id| {
-			childs.extend(widgets_manager.get::<Bloc>(child_id).unwrap().get_recursive_childs(widgets_manager));
+			childs.extend(widgets_manager.get::<Bloc>(child_id).get_recursive_childs(widgets_manager));
 		});
 		childs
 	}
@@ -190,7 +187,7 @@ impl Sequence {
 	pub fn get_recursive_widget_childs(&self, widgets_manager: &WidgetsManager) -> Vec<WidgetId> {
 		let mut childs = Vec::new();
 		self.childs_ids.iter().for_each(|child_id| {
-			childs.extend(widgets_manager.get::<Bloc>(child_id).unwrap().get_recursive_widget_childs(widgets_manager));
+			childs.extend(widgets_manager.get::<Bloc>(child_id).get_recursive_widget_childs(widgets_manager));
 		});
 		childs.push(self.base.id);
 		childs
@@ -210,7 +207,7 @@ impl Sequence {
 			let y = if place == 0 {
 				self.base.rect.bottom()
 			} else {
-				widgets_manager.get::<Bloc>(&self.childs_ids[place - 1]).unwrap().get_base().rect.top()
+				widgets_manager.get::<Bloc>(&self.childs_ids[place - 1]).get_base().rect.top()
 			};
 			Rect::new(self.base.rect.left(), y, self.base.rect.width(), Self::GAP_HEIGHT)
 		}
@@ -219,7 +216,7 @@ impl Sequence {
 
 impl Widget for Sequence {
 	fn update(
-		&mut self, input: &Input, _delta: Duration, _widgets_manager: &mut WidgetsManager, _text_drawer: &TextDrawer,
+		&mut self, input: &Input, _delta: Duration, _widgets_manager: &WidgetsManager, _text_drawer: &TextDrawer,
 		_camera: Option<&Camera>,
 	) -> bool {
 		self.base.update(input, Vec::new())
@@ -259,7 +256,7 @@ impl AsAstNode for Sequence {
 		ast::Node {
 			id: self.base.id,
 			data: ast::NodeData::Sequence(
-				self.childs_ids.iter().map(|id| widgets_manager.get::<Bloc>(id).unwrap().as_ast_node(widgets_manager)).collect(),
+				self.childs_ids.iter().map(|id| widgets_manager.get::<Bloc>(id).as_ast_node(widgets_manager)).collect(),
 			),
 		}
 	}

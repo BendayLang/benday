@@ -36,20 +36,20 @@ impl App for MyApp {
 	fn update(&mut self, _delta: Duration, input: &Input, widgets_manager: &mut WidgetsManager, camera: &mut Camera) -> bool {
 		let mut changed = false;
 		changed |= camera.update(input, widgets_manager.focused_widget().is_some());
-
+		
 		// Add new bloc
 		let position = Point2::new(8., 10.) * self.blocs.len() as f64;
-		if widgets_manager.get::<Button>(&2).unwrap().is_pressed() {
+		if widgets_manager.get::<Button>(&2).is_pressed() {
 			self.blocs.push(Bloc::add(position, BlocType::FunctionCall, widgets_manager));
-		} else if widgets_manager.get::<Button>(&3).unwrap().is_pressed() {
+		} else if widgets_manager.get::<Button>(&3).is_pressed() {
 			self.blocs.push(Bloc::add(position, BlocType::VariableAssignment, widgets_manager));
-		} else if widgets_manager.get::<Button>(&4).unwrap().is_pressed() {
+		} else if widgets_manager.get::<Button>(&4).is_pressed() {
 			self.blocs.push(Bloc::add(position, BlocType::IfElse, widgets_manager));
 		}
 
 		// Run
-		if widgets_manager.get::<Button>(&5).unwrap().is_pressed() {
-			let root_sequence = widgets_manager.get::<Sequence>(&0).unwrap();
+		if widgets_manager.get::<Button>(&5).is_pressed() {
+			let root_sequence = widgets_manager.get::<Sequence>(&0);
 			let ast = root_sequence.as_ast_node(widgets_manager);
 			let (return_value, stdout, variables, actions) = runner::exectute::runner(&ast);
 			println!("Actions : {:?}", actions);
@@ -60,29 +60,35 @@ impl App for MyApp {
 
 		if let Some(focused_widget) = widgets_manager.focused_widget() {
 			if self.blocs.contains(&focused_widget) {
-				let bloc = widgets_manager.get::<Bloc>(&focused_widget).unwrap();
+				let bloc_base = widgets_manager.get::<Bloc>(&focused_widget).get_base();
 				// Take a bloc
-				if bloc.get_base().state.is_pressed() {
-					let parent = bloc.get_parent();
+				if bloc_base.state.is_pressed() {
+					let parent = widgets_manager.get::<Bloc>(&focused_widget).get_parent().clone();
 					if let Some(container) = parent.clone() {
 						Bloc::set_parent_and_child(&container, &focused_widget, false, widgets_manager);
-						// Update layout and childs positions
-						let root_id = widgets_manager.get::<Bloc>(&container.bloc_id).unwrap().get_root(widgets_manager);
-						update_layout(root_id, widgets_manager);
+						Bloc::update_size_and_layout(widgets_manager);
 					}
 				}
+				// Release the moving bloc
+				else if bloc_base.state.is_released() {
+					if let Some(container) = self.hovered_container.clone() {
+						Bloc::set_parent_and_child(&container, &focused_widget, true, widgets_manager);
+						Bloc::update_size_and_layout(widgets_manager);
+					}
+					self.hovered_container = None;
+					self.rect = None;
+				}
 				// Update the (moving bloc) hovered container
-				else if bloc.get_base().state.is_down() && !input.mouse.delta.is_empty() {
+				else if bloc_base.state.is_down() && !input.mouse.delta.is_empty() {
 					// iter through all blocs to get the bloc with the biggest 'ratio'
-					let moving_bloc_childs = bloc.get_recursive_childs(widgets_manager);
+					let moving_bloc_childs = widgets_manager.get::<Bloc>(&focused_widget).get_recursive_childs(widgets_manager);
 					let (mut new_hovered_container, mut ratio) = (None, 0.);
 
 					widgets_manager.get_cam_order().iter().for_each(|bloc_id| {
 						if self.blocs.contains(bloc_id) && !moving_bloc_childs.contains(bloc_id) {
 							if let Some((new_bloc_container, new_ratio)) = widgets_manager
 								.get::<Bloc>(bloc_id)
-								.unwrap()
-								.collide_container(bloc.get_base().rect, widgets_manager)
+								.collide_container(bloc_base.rect, widgets_manager)
 							{
 								if new_ratio >= ratio {
 									new_hovered_container =
@@ -96,32 +102,16 @@ impl App for MyApp {
 						self.hovered_container = new_hovered_container;
 						// spé
 						self.rect = if let Some(Container { bloc_id, bloc_container }) = &self.hovered_container {
-							let bloc = widgets_manager.get::<Bloc>(bloc_id).unwrap();
+							let bloc = widgets_manager.get::<Bloc>(bloc_id);
 							match bloc_container {
 								BlocContainer::Slot { nth_slot } => Some(bloc.slots[*nth_slot].get_base(widgets_manager).rect),
 								BlocContainer::Sequence { nth_sequence, place } => Some(
-									widgets_manager
-										.get::<Sequence>(&bloc.sequences_ids[*nth_sequence])
-										.unwrap()
-										.get_gap_rect(*place, widgets_manager),
+									widgets_manager.get::<Sequence>(&bloc.sequences_ids[*nth_sequence]).get_gap_rect(*place, widgets_manager),
 								),
 							}
-						} else {
-							None
-						};
+						} else { None };
 						// spé
 					}
-				}
-				// Release the moving bloc
-				else if bloc.get_base().state.is_released() {
-					if let Some(container) = self.hovered_container.clone() {
-						Bloc::set_parent_and_child(&container, &focused_widget, true, widgets_manager);
-						// Update layout and childs positions
-						let root_id = widgets_manager.get::<Bloc>(&container.bloc_id).unwrap().get_root(widgets_manager);
-						update_layout(root_id, widgets_manager);
-					}
-					self.hovered_container = None;
-					self.rect = None;
 				}
 			}
 		};
@@ -144,6 +134,7 @@ fn main() {
 	let mut widgets_manager = WidgetsManager::default();
 
 	let root_id = Bloc::add(Point2::origin(), BlocType::RootSequence, &mut widgets_manager);
+	widgets_manager.get_widget_mut(&root_id).get_base_mut().set_invisible();
 
 	let style = ButtonStyle::new(Colors::LIGHT_AZURE, Some(6.), 16.);
 	widgets_manager.add_widget(Box::new(Button::new(Rect::new(100., 100., 140., 80.), style.clone(), "Fn()".to_string())), false);
@@ -179,20 +170,4 @@ fn main() {
 	}
 
 	app.run(&mut my_app);
-}
-
-fn update_layout(bloc_id: WidgetId, widgets_manager: &mut WidgetsManager) {
-	let childs = widgets_manager.get::<Bloc>(&bloc_id).unwrap().get_recursive_childs(widgets_manager);
-	childs.iter().for_each(|child_id| {
-		let mut bloc_w = widgets_manager.remove(child_id).unwrap();
-		let bloc = bloc_w.as_mut().downcast_mut::<Bloc>().unwrap();
-		bloc.update_size(widgets_manager);
-		widgets_manager.insert(*child_id, bloc_w);
-	});
-	childs.iter().rev().for_each(|child_id| {
-		let mut bloc_w = widgets_manager.remove(child_id).unwrap();
-		let bloc = bloc_w.as_mut().downcast_mut::<Bloc>().unwrap();
-		bloc.update_layout(widgets_manager);
-		widgets_manager.insert(*child_id, bloc_w);
-	});
 }
