@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use super::as_ast_node::AsAstNode;
 use crate::blocs::bloc::Bloc;
+use crate::blocs::FnRelativePosition;
 use models::ast;
 use nalgebra::{Point2, Vector2};
 use pg_sdl::camera::Camera;
@@ -11,12 +12,21 @@ use pg_sdl::input::Input;
 use pg_sdl::primitives::{draw_rounded_rect, fill_rounded_rect};
 use pg_sdl::text::TextDrawer;
 use pg_sdl::widgets::text_input::{TextInput, TextInputStyle};
-use pg_sdl::widgets::{Base, Widget, WidgetId, WidgetsManager, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER};
+use pg_sdl::widgets::{Base, Manager, Widget, WidgetId, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
+use sdl2::surface::Surface;
 use sdl2::video::Window;
 
-pub type FnRelativePosition = Box<dyn Fn(&Bloc, &WidgetsManager) -> Vector2<f64>>;
+#[macro_export]
+macro_rules! get_base_ {
+	($self:ident, $manager:ident) => {
+		$manager.get_widget(&$self.get_id()).get_base()
+	};
+	($self:expr, $manager:ident) => {
+		$manager.get_widget(&$self.get_id()).get_base()
+	};
+}
 
 pub struct Slot {
 	text_input_id: WidgetId,
@@ -28,10 +38,8 @@ impl Slot {
 	const SIZE: Vector2<f64> = Vector2::new(80., 22.);
 	const RADIUS: f64 = 4.;
 
-	pub fn new(
-		color: Color, placeholder: String, fn_relative_position: FnRelativePosition, widgets_manager: &mut WidgetsManager,
-	) -> Self {
-		let text_input_id = widgets_manager.add_widget(
+	pub fn new(color: Color, placeholder: String, fn_relative_position: FnRelativePosition, manager: &mut Manager) -> Self {
+		let text_input_id = manager.add_widget(
 			Box::new(TextInput::new(
 				Rect::from_origin(Self::SIZE),
 				TextInputStyle::new(paler(color, 0.4), Some(Self::RADIUS), 12., true),
@@ -42,8 +50,8 @@ impl Slot {
 		Self { text_input_id, child_id: None, fn_relative_position }
 	}
 
-	pub fn get_relative_position(&self, bloc: &Bloc, widgets_manager: &WidgetsManager) -> Vector2<f64> {
-		(self.fn_relative_position)(bloc, widgets_manager)
+	pub fn get_relative_position(&self, bloc: &Bloc, manager: &Manager) -> Vector2<f64> {
+		(self.fn_relative_position)(bloc, manager)
 	}
 
 	pub fn has_child(&self) -> bool {
@@ -54,30 +62,26 @@ impl Slot {
 		self.child_id = child_id;
 	}
 
-	pub fn get_id(&self) -> WidgetId {
-		if let Some(child_id) = self.child_id {
+	pub fn get_id(&self) -> &WidgetId {
+		if let Some(child_id) = &self.child_id {
 			child_id
 		} else {
-			self.text_input_id
+			&self.text_input_id
 		}
 	}
 
 	pub fn get_text_input_id(&self) -> WidgetId {
 		self.text_input_id
 	}
-
-	pub fn get_base(&self, widgets_manager: &WidgetsManager) -> Base {
-		widgets_manager.get_widget(&self.get_id()).get_base()
-	}
 }
 
 impl AsAstNode for Slot {
-	fn as_ast_node(&self, widgets_manager: &WidgetsManager) -> ast::Node {
+	fn as_ast_node(&self, manager: &Manager) -> ast::Node {
 		if let Some(child_id) = self.child_id {
-			let value_bloc = widgets_manager.get::<Bloc>(&child_id);
-			value_bloc.as_ast_node(widgets_manager)
+			let value_bloc = manager.get::<Bloc>(&child_id);
+			value_bloc.as_ast_node(manager)
 		} else {
-			let value_bloc = widgets_manager.get::<TextInput>(&self.text_input_id);
+			let value_bloc = manager.get::<TextInput>(&self.text_input_id);
 			ast::Node { id: self.text_input_id, data: ast::NodeData::RawText(value_bloc.get_text().to_string()) }
 		}
 	}
@@ -115,9 +119,9 @@ impl Sequence {
 	const RADIUS: f64 = 3.;
 	const GAP_HEIGHT: f64 = 10.;
 
-	pub fn add(color: Color, fn_relative_position: FnRelativePosition, widgets_manager: &mut WidgetsManager) -> WidgetId {
+	pub fn add(color: Color, fn_relative_position: FnRelativePosition, manager: &mut Manager) -> WidgetId {
 		let style = SequenceStyle::new(darker(color, 0.95), Self::RADIUS);
-		widgets_manager.add_widget(
+		manager.add_widget(
 			Box::new(Self {
 				base: Base::new(Rect::from_origin(Self::SIZE)),
 				style,
@@ -128,33 +132,30 @@ impl Sequence {
 		)
 	}
 
-	pub fn get_relative_position(&self, bloc: &Bloc, widgets_manager: &WidgetsManager) -> Vector2<f64> {
-		(self.fn_relative_position)(bloc, widgets_manager)
+	pub fn get_relative_position(&self, bloc: &Bloc, manager: &Manager) -> Vector2<f64> {
+		(self.fn_relative_position)(bloc, manager)
 	}
 
 	/// Met à jour la taille de la séquence
-	pub fn get_updated_size(&self, widgets_manager: &WidgetsManager) -> Vector2<f64> {
+	pub fn get_updated_size(&self, manager: &Manager) -> Vector2<f64> {
 		if self.childs_ids.is_empty() {
 			Self::SIZE
 		} else {
 			let width = self
 				.childs_ids
 				.iter()
-				.map(|child_id| widgets_manager.get::<Bloc>(child_id).get_base().rect.width())
+				.map(|child_id| manager.get::<Bloc>(child_id).get_base().rect.width())
 				.max_by(|a, b| a.partial_cmp(b).unwrap())
 				.unwrap();
-			let height = (self
-				.childs_ids
-				.iter()
-				.map(|child_id| widgets_manager.get::<Bloc>(child_id).get_base().rect.height())
-				.sum::<f64>())
-			.max(Self::SIZE.y);
+			let height =
+				(self.childs_ids.iter().map(|child_id| manager.get::<Bloc>(child_id).get_base().rect.height()).sum::<f64>())
+					.max(Self::SIZE.y);
 			let nb_blocs = self.childs_ids.len();
 			Vector2::new(width, height) + Vector2::new(1, nb_blocs + 1).cast() * Self::GAP_HEIGHT
 		}
 	}
 
-	pub fn get_updated_layout(&self, widgets_manager: &WidgetsManager) -> Vec<Point2<f64>> {
+	pub fn get_updated_layout(&self, manager: &Manager) -> Vec<Point2<f64>> {
 		let origin = self.base.rect.position;
 		self.childs_ids
 			.iter()
@@ -165,31 +166,28 @@ impl Sequence {
 						0.,
 						Self::GAP_HEIGHT
 							+ (0..place)
-								.map(|i| {
-									widgets_manager.get::<Bloc>(&self.childs_ids[i]).get_base().rect.height()
-										+ Self::GAP_HEIGHT
-								})
+								.map(|i| manager.get::<Bloc>(&self.childs_ids[i]).get_base().rect.height() + Self::GAP_HEIGHT)
 								.sum::<f64>(),
 					)
 			})
 			.collect()
 	}
 	/// Returns a vec of the bloc's childs ids from leaf to root (including itself)
-	pub fn get_recursive_childs(&self, widgets_manager: &WidgetsManager) -> Vec<WidgetId> {
+	pub fn get_recursive_childs(&self, manager: &Manager) -> Vec<WidgetId> {
 		let mut childs = Vec::new();
 		self.childs_ids.iter().for_each(|child_id| {
-			childs.extend(widgets_manager.get::<Bloc>(child_id).get_recursive_childs(widgets_manager));
+			childs.extend(manager.get::<Bloc>(child_id).get_recursive_childs(manager));
 		});
 		childs
 	}
 
 	/// Returns a vec of the bloc's childs ids, including widgets, from leaf to root (including itself)
-	pub fn get_recursive_widget_childs(&self, widgets_manager: &WidgetsManager) -> Vec<WidgetId> {
+	pub fn get_recursive_widget_childs(&self, manager: &Manager) -> Vec<WidgetId> {
 		let mut childs = Vec::new();
-		self.childs_ids.iter().for_each(|child_id| {
-			childs.extend(widgets_manager.get::<Bloc>(child_id).get_recursive_widget_childs(widgets_manager));
+		self.childs_ids.iter().rev().for_each(|child_id| {
+			childs.extend(manager.get::<Bloc>(child_id).get_recursive_widget_childs(manager));
 		});
-		childs.push(self.base.id);
+		childs.push(*self.get_id());
 		childs
 	}
 
@@ -200,14 +198,14 @@ impl Sequence {
 		&mut self.childs_ids
 	}
 
-	pub fn get_gap_rect(&self, place: usize, widgets_manager: &WidgetsManager) -> Rect {
+	pub fn get_gap_rect(&self, place: usize, manager: &Manager) -> Rect {
 		if self.childs_ids.is_empty() {
 			self.base.rect
 		} else {
 			let y = if place == 0 {
 				self.base.rect.bottom()
 			} else {
-				widgets_manager.get::<Bloc>(&self.childs_ids[place - 1]).get_base().rect.top()
+				manager.get::<Bloc>(&self.childs_ids[place - 1]).get_base().rect.top()
 			};
 			Rect::new(self.base.rect.left(), y, self.base.rect.width(), Self::GAP_HEIGHT)
 		}
@@ -215,20 +213,15 @@ impl Sequence {
 }
 
 impl Widget for Sequence {
-	fn update(
-		&mut self, input: &Input, _delta: Duration, _widgets_manager: &WidgetsManager, _text_drawer: &TextDrawer,
-		_camera: Option<&Camera>,
-	) -> bool {
+	fn update(&mut self, input: &Input, _delta: Duration, _: &mut Manager, _: &TextDrawer, _: Option<&Camera>) -> bool {
 		self.base.update(input, Vec::new())
 	}
 
-	fn draw(
-		&self, canvas: &mut Canvas<Window>, _text_drawer: &mut TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool,
-	) {
-		let color = if hovered { self.style.hovered_color } else { self.style.color };
-		let border_color = if focused { self.style.focused_color } else { self.style.border_color };
+	fn draw(&self, canvas: &mut Canvas<Surface>, _text_drawer: &mut TextDrawer, camera: Option<&Camera>) {
+		let color = if self.is_hovered() { self.style.hovered_color } else { self.style.color };
+		let border_color = if self.is_focused() { self.style.focused_color } else { self.style.border_color };
 
-		if focused {
+		if self.is_focused() {
 			canvas.set_blend_mode(BlendMode::Blend);
 			fill_rounded_rect(
 				canvas,
@@ -242,8 +235,8 @@ impl Widget for Sequence {
 		draw_rounded_rect(canvas, camera, border_color, self.base.rect, self.style.corner_radius);
 	}
 
-	fn get_base(&self) -> Base {
-		self.base
+	fn get_base(&self) -> &Base {
+		&self.base
 	}
 
 	fn get_base_mut(&mut self) -> &mut Base {
@@ -252,11 +245,11 @@ impl Widget for Sequence {
 }
 
 impl AsAstNode for Sequence {
-	fn as_ast_node(&self, widgets_manager: &WidgetsManager) -> ast::Node {
+	fn as_ast_node(&self, manager: &Manager) -> ast::Node {
 		ast::Node {
-			id: self.base.id,
+			id: *self.get_id(),
 			data: ast::NodeData::Sequence(
-				self.childs_ids.iter().map(|id| widgets_manager.get::<Bloc>(id).as_ast_node(widgets_manager)).collect(),
+				self.childs_ids.iter().map(|id| manager.get::<Bloc>(id).as_ast_node(manager)).collect(),
 			),
 		}
 	}

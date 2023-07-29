@@ -3,10 +3,11 @@ mod text_style;
 use crate::style::Align;
 use itertools::Itertools;
 use nalgebra::{Point2, Vector2};
-use sdl2::surface::Surface;
+use sdl2::surface::{Surface, SurfaceContext};
 use sdl2::{render::Canvas, video::Window};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use sdl2::render::TextureCreator;
 pub use text_style::TextStyle;
 pub use text_style::{DEFAULT_FONT_NAME, FONT_PATH};
 
@@ -16,13 +17,13 @@ type Key = (String, TextStyle, u16);
 pub type TextureCache<'surface> = HashMap<Key, Surface<'surface>>;
 
 pub struct TextDrawer<'ttf, 'surface> {
-	texture_creator: sdl2::render::TextureCreator<sdl2::video::WindowContext>,
+	pub texture_creator: TextureCreator<SurfaceContext<'ttf>>,
 	pub fonts: HashMap<FontInfos, sdl2::ttf::Font<'ttf, 'static>>,
 	texture_cache: TextureCache<'surface>,
 }
 
 impl<'ttf, 'texture> TextDrawer<'ttf, 'texture> {
-	pub fn new(texture_creator: sdl2::render::TextureCreator<sdl2::video::WindowContext>) -> Self {
+	pub fn new(texture_creator: TextureCreator<SurfaceContext<'ttf>>) -> Self {
 		TextDrawer { texture_creator, fonts: HashMap::new(), texture_cache: HashMap::new() }
 	}
 
@@ -61,7 +62,7 @@ impl<'ttf, 'texture> TextDrawer<'ttf, 'texture> {
 	}
 
 	pub fn draw(
-		&mut self, canvas: &mut Canvas<Window>, position: Point2<f64>, text: &str, font_size: FontSize, style: &TextStyle,
+		&mut self, canvas: &mut Canvas<Surface>, position: Point2<f64>, text: &str, font_size: FontSize, style: &TextStyle,
 		align: Align,
 	) {
 		let TextStyle { font_path, color, .. } = style;

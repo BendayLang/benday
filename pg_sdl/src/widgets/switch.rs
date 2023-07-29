@@ -5,13 +5,16 @@ use crate::input::Input;
 use crate::primitives::{draw_circle, draw_polygon, fill_circle, fill_polygon};
 use crate::text::TextDrawer;
 use crate::vector2::Vector2Plus;
-use crate::widgets::{Base, Orientation, Widget, WidgetsManager, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER, PUSH};
+use crate::widgets::{Base, Manager, Orientation, SignalHandler, Widget, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER, PUSH};
 use nalgebra::{Point2, Vector2};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
+use std::any::Any;
+use std::collections::HashMap;
 use std::f64::consts::PI;
 use std::time::Duration;
+use sdl2::surface::Surface;
 
 pub struct SwitchStyle {
 	on_color: Color,
@@ -92,25 +95,20 @@ impl Switch {
 }
 
 impl Widget for Switch {
-	fn update(
-		&mut self, input: &Input, _delta: Duration, _widgets_manager: &WidgetsManager, _text_drawer: &TextDrawer,
-		_camera: Option<&Camera>,
-	) -> bool {
-		let changed = self.base.update(input, Vec::new());
+	fn update(&mut self, input: &Input, _delta: Duration, _: &mut Manager, _: &TextDrawer, _: Option<&Camera>) -> bool {
+		let changed = self.base.update(input, vec![input.keys_state.enter]);
 		if self.base.state.is_released() {
 			self.switched = !self.switched;
 		}
 		changed
 	}
 
-	fn draw(
-		&self, canvas: &mut Canvas<Window>, _text_drawer: &mut TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool,
-	) {
+	fn draw(&self, canvas: &mut Canvas<Surface>, _text_drawer: &mut TextDrawer, camera: Option<&Camera>) {
 		let color = if self.switched { self.style.on_color } else { self.style.off_color };
-		let border_color = if focused { self.style.thumb_focused_color } else { self.style.border_color };
+		let border_color = if self.is_focused() { self.style.thumb_focused_color } else { self.style.border_color };
 		let thumb_color = if self.base.is_pushed() {
 			self.style.thumb_pushed_color
-		} else if hovered {
+		} else if self.is_hovered() {
 			self.style.thumb_hovered_color
 		} else {
 			self.style.thumb_color
@@ -169,7 +167,7 @@ impl Widget for Switch {
 			Orientation::Horizontal => self.base.rect.mid_left() + Vector2::new(radius + self.thumb_position(), 0.),
 			Orientation::Vertical => self.base.rect.mid_top() - Vector2::new(0., radius + self.thumb_position()),
 		};
-		if focused {
+		if self.is_focused() {
 			canvas.set_blend_mode(BlendMode::Blend);
 			fill_circle(canvas, camera, with_alpha(border_color, FOCUS_HALO_ALPHA), dot_position, FOCUS_HALO_DELTA + b * radius);
 		}
@@ -177,8 +175,8 @@ impl Widget for Switch {
 		draw_circle(canvas, camera, border_color, dot_position, b * radius);
 	}
 
-	fn get_base(&self) -> Base {
-		self.base
+	fn get_base(&self) -> &Base {
+		&self.base
 	}
 	fn get_base_mut(&mut self) -> &mut Base {
 		&mut self.base

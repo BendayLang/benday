@@ -8,9 +8,10 @@ use nalgebra::{Matrix3, Point2, Transform2, Vector2};
 use sdl2::gfx::primitives::DrawRenderer;
 use sdl2::pixels::Color;
 use sdl2::{render::Canvas, video::Window};
+use sdl2::surface::Surface;
 
 /// Draws a one pixel wide line that links points start to end
-pub fn draw_line(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, start: Point2<f64>, end: Point2<f64>) {
+pub fn draw_line(canvas: &mut Canvas<Surface>, camera: Option<&Camera>, color: Color, start: Point2<f64>, end: Point2<f64>) {
 	if let Some(camera) = camera {
 		let start = camera.transform() * start;
 		let end = camera.transform() * end;
@@ -20,7 +21,7 @@ pub fn draw_line(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Co
 	}
 }
 
-pub fn draw_hline(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, x1: f64, x2: f64, y: f64) {
+pub fn draw_hline(canvas: &mut Canvas<Surface>, camera: Option<&Camera>, color: Color, x1: f64, x2: f64, y: f64) {
 	if let Some(camera) = camera {
 		// TODO find a better way
 		let x1 = (camera.transform() * Point2::new(x1, 0.)).x;
@@ -31,20 +32,19 @@ pub fn draw_hline(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: C
 		DrawRenderer::hline(canvas, x1 as i16, x2 as i16, y as i16, color).unwrap();
 	}
 }
-pub fn draw_vline(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, x: f64, y1: f64, y2: f64) {
+pub fn draw_vline(canvas: &mut Canvas<Surface>, camera: Option<&Camera>, color: Color, x: f64, y1: f64, y2: f64) {
 	if let Some(camera) = camera {
 		let x = (camera.transform() * Point2::new(x, 0.)).x;
 		let y1 = (camera.transform() * Point2::new(0., y1)).y;
 		let y2 = (camera.transform() * Point2::new(0., y2)).y;
-		
+
 		DrawRenderer::vline(canvas, x as i16, y1 as i16, y2 as i16, color).unwrap();
 	} else {
 		DrawRenderer::vline(canvas, x as i16, y1 as i16, y2 as i16, color).unwrap();
 	}
 }
 
-
-pub fn draw_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, rect: Rect) {
+pub fn draw_rect(canvas: &mut Canvas<Surface>, camera: Option<&Camera>, color: Color, rect: Rect) {
 	if let Some(camera) = camera {
 		let rect = camera.transform() * rect;
 		if camera.is_in_scope(rect) {
@@ -56,7 +56,7 @@ pub fn draw_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Co
 		canvas.draw_rect(rect.into_rect()).unwrap();
 	}
 }
-pub fn fill_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, rect: Rect) {
+pub fn fill_rect(canvas: &mut Canvas<Surface>, camera: Option<&Camera>, color: Color, rect: Rect) {
 	if let Some(camera) = camera {
 		let rect = camera.transform() * rect;
 		if camera.is_in_scope(rect) {
@@ -69,7 +69,7 @@ pub fn fill_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Co
 	}
 }
 
-pub fn draw_rounded_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, rect: Rect, radius: f64) {
+pub fn draw_rounded_rect(canvas: &mut Canvas<Surface>, camera: Option<&Camera>, color: Color, rect: Rect, radius: f64) {
 	if let Some(camera) = camera {
 		let rect = camera.transform() * rect;
 		let radius = (camera.scale() * radius) as i16;
@@ -84,23 +84,23 @@ pub fn draw_rounded_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, c
 		DrawRenderer::rounded_rectangle(canvas, x1, y1, x2, y2, radius as i16, color).unwrap();
 	}
 }
-pub fn fill_rounded_rect(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, rect: Rect, radius: f64) {
+pub fn fill_rounded_rect(canvas: &mut Canvas<Surface>, camera: Option<&Camera>, color: Color, rect: Rect, radius: f64) {
 	if let Some(camera) = camera {
 		let rect = camera.transform() * rect;
 		let radius = (camera.scale() * radius) as i16;
 		if camera.is_in_scope(rect) {
 			let (x1, x2) = (rect.left() as i16, rect.right() as i16 - 1);
 			let (y1, y2) = (rect.top() as i16, rect.bottom() as i16 - 1);
-			DrawRenderer::rounded_box(canvas, x1, y1, x2, y2, radius, color).unwrap();
+			DrawRenderer::rounded_box(canvas, x1, y1, x2, y2, radius, color).expect("Negative Radius");
 		};
 	} else {
 		let (x1, x2) = (rect.left() as i16, rect.right() as i16 - 1);
 		let (y1, y2) = (rect.top() as i16, rect.bottom() as i16 - 1);
-		DrawRenderer::rounded_box(canvas, x1, y1, x2, y2, radius as i16, color).unwrap();
+		DrawRenderer::rounded_box(canvas, x1, y1, x2, y2, radius as i16, color).expect("Negative Radius");
 	}
 }
 
-pub fn draw_ellipse(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, rect: Rect) {
+pub fn draw_ellipse(canvas: &mut Canvas<Surface>, camera: Option<&Camera>, color: Color, rect: Rect) {
 	if let Some(camera) = camera {
 		let rect = camera.transform() * rect;
 		if camera.is_in_scope(Rect::from(rect.position - rect.size, 2.0 * rect.size)) {
@@ -112,7 +112,7 @@ pub fn draw_ellipse(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color:
 			.unwrap();
 	}
 }
-pub fn fill_ellipse(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, rect: Rect) {
+pub fn fill_ellipse(canvas: &mut Canvas<Surface>, camera: Option<&Camera>, color: Color, rect: Rect) {
 	if let Some(camera) = camera {
 		let rect = camera.transform() * rect;
 		if camera.is_in_scope(Rect::from(rect.position - rect.size, 2.0 * rect.size)) {
@@ -132,7 +132,7 @@ pub fn fill_ellipse(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color:
 	}
 }
 
-pub fn draw_circle(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, position: Point2<f64>, radius: f64) {
+pub fn draw_circle(canvas: &mut Canvas<Surface>, camera: Option<&Camera>, color: Color, position: Point2<f64>, radius: f64) {
 	if let Some(camera) = camera {
 		let position = camera.transform() * position;
 		let radius = camera.scale() * radius;
@@ -144,7 +144,7 @@ pub fn draw_circle(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: 
 		DrawRenderer::circle(canvas, position.x as i16, position.y as i16, radius as i16, color).unwrap()
 	}
 }
-pub fn fill_circle(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, position: Point2<f64>, radius: f64) {
+pub fn fill_circle(canvas: &mut Canvas<Surface>, camera: Option<&Camera>, color: Color, position: Point2<f64>, radius: f64) {
 	if let Some(camera) = camera {
 		let position = camera.transform() * position;
 		let radius = camera.scale() * radius;
@@ -157,7 +157,7 @@ pub fn fill_circle(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: 
 	}
 }
 
-pub fn draw_polygon(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, vertices: &[Point2<f64>]) {
+pub fn draw_polygon(canvas: &mut Canvas<Surface>, camera: Option<&Camera>, color: Color, vertices: &[Point2<f64>]) {
 	if let Some(camera) = camera {
 		let vertices = vertices.iter().map(|point| camera.transform() * point).collect::<Vec<Point2<f64>>>();
 		let vx: Vec<i16> = vertices.iter().map(|point| point.x as i16).collect();
@@ -176,7 +176,7 @@ pub fn draw_polygon(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color:
 		DrawRenderer::polygon(canvas, &vx, &vy, color).unwrap();
 	}
 }
-pub fn fill_polygon(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, vertices: &[Point2<f64>]) {
+pub fn fill_polygon(canvas: &mut Canvas<Surface>, camera: Option<&Camera>, color: Color, vertices: &[Point2<f64>]) {
 	if let Some(camera) = camera {
 		let vertices = vertices.iter().map(|point| camera.transform() * point).collect::<Vec<Point2<f64>>>();
 		let vx: Vec<i16> = vertices.iter().map(|point| point.x as i16).collect();
@@ -197,7 +197,7 @@ pub fn fill_polygon(canvas: &mut Canvas<Window>, camera: Option<&Camera>, color:
 }
 
 pub fn draw_arrow(
-	canvas: &mut Canvas<Window>, camera: Option<&Camera>, color: Color, start: Point2<f64>, end: Point2<f64>, width: f64,
+	canvas: &mut Canvas<Surface>, camera: Option<&Camera>, color: Color, start: Point2<f64>, end: Point2<f64>, width: f64,
 ) {
 	if start == end {
 		return;
@@ -239,7 +239,7 @@ pub fn get_text_size(
 
 #[allow(clippy::too_many_arguments)]
 pub fn draw_text(
-	canvas: &mut Canvas<Window>, camera: Option<&Camera>, text_drawer: &mut TextDrawer, position: Point2<f64>, text: &str,
+	canvas: &mut Canvas<Surface>, camera: Option<&Camera>, text_drawer: &mut TextDrawer, position: Point2<f64>, text: &str,
 	font_size: f64, style: &TextStyle, align: Align,
 ) {
 	if text.is_empty() {

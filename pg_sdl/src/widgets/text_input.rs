@@ -7,10 +7,11 @@ use crate::input::{Input, Shortcut};
 use crate::primitives::{draw_rect, draw_rounded_rect, draw_text, fill_rect, fill_rounded_rect, get_text_size};
 use crate::style::Align;
 use crate::text::{TextDrawer, TextStyle};
-use crate::widgets::{Base, Widget, WidgetsManager, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER};
+use crate::widgets::{Base, Manager, Widget, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER};
 use nalgebra::{Point2, Vector2};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
+use sdl2::surface::Surface;
 use sdl2::video::Window;
 
 pub struct TextInputStyle {
@@ -95,7 +96,7 @@ impl TextInput {
 	pub fn get_text(&self) -> &str {
 		&self.text
 	}
-	
+
 	pub fn set_text(&mut self, text: String) {
 		self.text = text;
 		self.selection = None;
@@ -186,8 +187,7 @@ fn get_word_position(text: &str, mut position: usize) -> (usize, usize) {
 impl Widget for TextInput {
 	#[allow(clippy::diverging_sub_expression)]
 	fn update(
-		&mut self, input: &Input, delta: Duration, _widgets_manager: &WidgetsManager, text_drawer: &TextDrawer,
-		camera: Option<&Camera>,
+		&mut self, input: &Input, delta: Duration, _: &mut Manager, text_drawer: &TextDrawer, camera: Option<&Camera>,
 	) -> bool {
 		let mut changed = false;
 		let now = Instant::now();
@@ -396,18 +396,18 @@ impl Widget for TextInput {
 		changed
 	}
 
-	fn draw(
-		&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool,
-	) {
+	fn draw(&self, canvas: &mut Canvas<Surface>, text_drawer: &mut TextDrawer, camera: Option<&Camera>) {
 		// Box
-		let background_color = if hovered { self.style.hovered_color } else { self.style.color };
+		let background_color = if self.is_hovered() { self.style.hovered_color } else { self.style.color };
 		let mut border_color = self.style.border_color;
-		if focused {
-			if let Some(focused_color) = self.style.focused_color { border_color = focused_color }
+		if self.is_focused() {
+			if let Some(focused_color) = self.style.focused_color {
+				border_color = focused_color
+			}
 		};
-		
+
 		if let Some(corner_radius) = self.style.corner_radius {
-			if focused && self.style.focused_color.is_some() {
+			if self.is_focused() && self.style.focused_color.is_some() {
 				canvas.set_blend_mode(BlendMode::Blend);
 				fill_rounded_rect(
 					canvas,
@@ -420,7 +420,7 @@ impl Widget for TextInput {
 			fill_rounded_rect(canvas, camera, background_color, self.base.rect, corner_radius);
 			draw_rounded_rect(canvas, camera, border_color, self.base.rect, corner_radius);
 		} else {
-			if focused && self.style.focused_color.is_some() {
+			if self.is_focused() && self.style.focused_color.is_some() {
 				canvas.set_blend_mode(BlendMode::Blend);
 				fill_rounded_rect(
 					canvas,
@@ -434,7 +434,7 @@ impl Widget for TextInput {
 			draw_rect(canvas, camera, border_color, self.base.rect);
 		}
 
-		if focused {
+		if self.is_focused() {
 			// Selection
 			if let Some((start, end)) = self.selection {
 				let selection_height = self.style.font_size * 1.3;
@@ -499,8 +499,8 @@ impl Widget for TextInput {
 		}
 	}
 
-	fn get_base(&self) -> Base {
-		self.base
+	fn get_base(&self) -> &Base {
+		&self.base
 	}
 	fn get_base_mut(&mut self) -> &mut Base {
 		&mut self.base

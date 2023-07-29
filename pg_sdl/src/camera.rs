@@ -8,6 +8,7 @@ use nalgebra::{Point2, Similarity2, Translation2, Vector2};
 use sdl2::gfx::primitives::DrawRenderer;
 use sdl2::pixels::Color;
 use sdl2::render::Canvas;
+use sdl2::surface::Surface;
 use sdl2::ttf::FontStyle;
 use sdl2::video::Window;
 
@@ -154,7 +155,7 @@ impl Camera {
 
 	/// Draws a grid
 	pub fn draw_grid(
-		&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, color: Color, axes: bool, graduations: bool,
+		&self, canvas: &mut Canvas<Surface>, text_drawer: &mut TextDrawer, color: Color, axes: bool, graduations: bool,
 	) {
 		let max_depth = 2;
 

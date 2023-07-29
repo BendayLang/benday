@@ -32,7 +32,7 @@ impl Bloc {
 		Self { color, rect, corner_radius: None, parent: None, child: None }
 	}
 
-	pub fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer) {
+	pub fn draw(&self, canvas: &mut Canvas<Surface>, text_drawer: &mut TextDrawer) {
 		let texture_creator = canvas.texture_creator();
 
 		let mut surface =
@@ -75,7 +75,7 @@ impl Bloc {
 }
 
 pub fn draw_bloc<'a>(
-	bloc: &Bloc, blocs: &HashMap<u32, Bloc>, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer,
+	bloc: &Bloc, blocs: &HashMap<u32, Bloc>, canvas: &mut Canvas<Surface>, text_drawer: &mut TextDrawer,
 	texture_creator: &'a TextureCreator<WindowContext>,
 ) -> Surface<'a> {
 	let mut surface =

@@ -5,24 +5,27 @@ use crate::input::Input;
 use crate::primitives::{draw_text, fill_rounded_rect};
 use crate::style::Align;
 use crate::text::{TextDrawer, TextStyle};
+use crate::widgets::Manager;
 use nalgebra::{Point2, Vector2};
 use sdl2::mouse::MouseUtil;
 use sdl2::{pixels::Color, render::Canvas, video::Window};
 use std::time::{Duration, Instant};
-use crate::widgets::WidgetsManager;
+use sdl2::pixels::PixelFormatEnum;
+use sdl2::surface::Surface;
 
 pub trait App {
-	fn update(&mut self, delta: Duration, input: &Input, widgets_manager: &mut WidgetsManager, camera: &mut Camera) -> bool;
-	fn draw(&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, widgets_manager: &WidgetsManager, camera: &Camera);
+	fn update(&mut self, delta: Duration, input: &Input, manager: &mut Manager, camera: &mut Camera) -> bool;
+	fn draw(&self, canvas: &mut Canvas<Surface>, text_drawer: &mut TextDrawer, manager: &Manager, camera: &Camera);
 }
 
 pub struct PgSdl<'ttf, 'texture> {
 	mouse: MouseUtil,
-	input: Input,
-	canvas: Canvas<Window>,
 	pub text_drawer: TextDrawer<'ttf, 'texture>,
+	input: Input,
+	manager: Manager,
+	window_canvas: Canvas<Window>,
+	canvas_surface: Canvas<Surface<'ttf>>,
 	background_color: Color,
-	widgets_manager: WidgetsManager,
 	fps: Option<u32>,
 	draw_fps: bool,
 	camera: Camera,
@@ -30,8 +33,7 @@ pub struct PgSdl<'ttf, 'texture> {
 
 impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 	pub fn init(
-		window_title: &str, window_size: Vector2<u32>, fps: Option<u32>, draw_fps: bool, background_color: Color,
-		widgets_manager: WidgetsManager,
+		window_title: &str, window_size: Vector2<u32>, fps: Option<u32>, draw_fps: bool, background_color: Color, manager: Manager,
 	) -> Self {
 		let sdl_context = sdl2::init().expect("SDL2 could not be initialized");
 
@@ -46,19 +48,22 @@ impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 			.build()
 			.expect("Window could not be created");
 
-		let canvas = window.into_canvas().build().expect("Canvas could not be created");
+		let window_canvas = window.into_canvas().build().expect("Canvas could not be created");
+		let surface = Surface::new(window_size.x, window_size.y, PixelFormatEnum::RGBA32).unwrap();
+		let canvas_surface = surface.into_canvas().unwrap();
 
 		// TODO mettre ca en paramettre ?
 		let camera = Camera::new(window_size, 6, 2.5, 5.0, -4000.0, 4000.0, -5000.0, 5000.0);
 
-		let text_drawer = TextDrawer::new(canvas.texture_creator());
+		let text_drawer = TextDrawer::new(canvas_surface.texture_creator());
 
 		PgSdl {
 			mouse: sdl_context.mouse(),
 			text_drawer,
 			input: Input::new(sdl_context.event_pump().unwrap(), video_subsystem.clipboard()),
-			widgets_manager,
-			canvas,
+			manager,
+			window_canvas,
+			canvas_surface,
 			background_color,
 			fps,
 			draw_fps,
@@ -75,32 +80,18 @@ impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 			self.camera.resize(new_resolution);
 			change = true;
 		}
-		change |= self.widgets_manager.update(&self.input, delta, &mut self.text_drawer, &self.camera);
-		change |= user_app.update(delta, &self.input, &mut self.widgets_manager, &mut self.camera);
+		change |= self.manager.update(&self.input, delta, &mut self.text_drawer, &self.camera);
+		change |= user_app.update(delta, &self.input, &mut self.manager, &mut self.camera);
 		change
 	}
 
-	fn draw<U>(&mut self, user_app: &U)
+	fn draw<U>(&mut self, user_app: &U, frame_time: Duration)
 	where
 		U: App,
 	{
-		self.canvas.set_draw_color(self.background_color);
-		self.canvas.clear();
-		user_app.draw(&mut self.canvas, &mut self.text_drawer, &self.widgets_manager, &self.camera);
-	}
-
-	fn draw_fps(&mut self, delta: Duration) {
-		fill_rounded_rect(&mut self.canvas, None, Colors::WHITE, Rect::new(10.0, 2.0, 120.0, 32.0), 5.0);
-		draw_text(
-			&mut self.canvas,
-			None,
-			&mut self.text_drawer,
-			Point2::new(65., 17.),
-			&format!("FPS: {0:.0}", 1.0 / delta.as_secs_f32()),
-			24.0,
-			&TextStyle::default(),
-			Align::Center,
-		);
+		self.canvas_surface.set_draw_color(self.background_color);
+		self.canvas_surface.clear();
+		user_app.draw(&mut self.canvas_surface, &mut self.text_drawer, &self.manager, &self.camera);
 	}
 
 	pub fn run<U>(&mut self, user_app: &mut U)
@@ -111,7 +102,7 @@ impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 		let mut frame_time = Duration::ZERO;
 
 		self.input.get_events(); // permet au draw de savoir ou placer les widgets la première fois
-		self.draw(user_app);
+		self.draw(user_app, frame_time);
 
 		loop {
 			// Time control
@@ -121,20 +112,39 @@ impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 			if self.input.window_closed {
 				break;
 			}
+			if let Some(new_size) = self.input.window_resized {
+				// TODO ca marche pas
+				self.canvas_surface.set_logical_size(new_size.x, new_size.y).unwrap();
+			}
 
 			// Update
 			// Draw
 			if self.update(user_app, frame_time) {
-				self.draw(user_app);
+				self.draw(user_app, frame_time);
 			}
-
-			// FPS
+			
+			// fps
 			if self.draw_fps {
-				self.draw_fps(frame_time);
+				fill_rounded_rect(&mut self.canvas_surface, None, Colors::WHITE, Rect::new(10.0, 2.0, 120.0, 32.0), 5.0);
+				draw_text(
+					&mut self.canvas_surface,
+					None,
+					&mut self.text_drawer,
+					Point2::new(65., 17.),
+					&format!("FPS: {0:.0}", 1.0 / frame_time.as_secs_f32()),
+					24.0,
+					&TextStyle::default(),
+					Align::Center,
+				);
 			}
 
 			// Render to screen
-			self.canvas.present();
+			let texture_creator = self.window_canvas.texture_creator();
+			let texture = texture_creator.create_texture_from_surface(self.canvas_surface.surface()).unwrap();
+			let (width, height) = self.window_canvas.window().size();
+			let target = Rect::from_origin(Vector2::new(width, height).cast()).into_rect();
+			self.window_canvas.copy(&texture, None, Some(target)).unwrap();
+			self.window_canvas.present();
 
 			// Sleep
 			if let Some(fps) = &self.fps {

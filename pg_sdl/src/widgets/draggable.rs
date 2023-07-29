@@ -6,10 +6,12 @@ use crate::custom_rect::Rect;
 use crate::input::Input;
 use crate::primitives::{draw_rounded_rect, fill_rounded_rect};
 use crate::text::TextDrawer;
-use crate::widgets::{WidgetsManager, Base, Widget, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER};
+use crate::widgets::manager::Command;
+use crate::widgets::{Base, Manager, Widget, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER};
 use nalgebra::Vector2;
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
+use sdl2::surface::Surface;
 use sdl2::video::Window;
 
 pub struct DraggableStyle {
@@ -48,16 +50,15 @@ impl Draggable {
 
 impl Widget for Draggable {
 	fn update(
-		&mut self, input: &Input, _delta: Duration, widgets_manager: &WidgetsManager, _text_drawer: &TextDrawer,
-		camera: Option<&Camera>,
+		&mut self, input: &Input, _delta: Duration, manager: &mut Manager, _: &TextDrawer, camera: Option<&Camera>,
 	) -> bool {
 		let mut changed = self.base.update(input, Vec::new());
 
 		if self.base.state.is_pressed() {
 			if camera.is_some() {
-				widgets_manager.put_on_top_cam(&self.base.id)
+				manager.push_command(Command::PutOnTopCam { id: *self.get_id() });
 			} else {
-				widgets_manager.put_on_top_no_cam(&self.base.id)
+				manager.push_command(Command::PutOnTopNoCam { id: *self.get_id() });
 			};
 			self.grab_delta = if let Some(camera) = camera {
 				Some(self.base.rect.position - camera.transform().inverse() * input.mouse.position.cast())
@@ -81,11 +82,10 @@ impl Widget for Draggable {
 		changed
 	}
 
-	fn draw(
-		&self, canvas: &mut Canvas<Window>, _text_drawer: &mut TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool,
-	) {
-		let color = if hovered { self.style.hovered_color } else { self.style.color };
-		let border_color = if focused && !self.base.is_pushed() { self.style.focused_color } else { self.style.border_color };
+	fn draw(&self, canvas: &mut Canvas<Surface>, _text_drawer: &mut TextDrawer, camera: Option<&Camera>) {
+		let color = if self.is_hovered() { self.style.hovered_color } else { self.style.color };
+		let border_color =
+			if self.is_focused() && !self.base.is_pushed() { self.style.focused_color } else { self.style.border_color };
 		let rect = if self.base.is_pushed() { self.base.rect.translated(-Self::SHADOW) } else { self.base.rect };
 
 		if self.base.is_pushed() {
@@ -97,7 +97,7 @@ impl Widget for Draggable {
 				self.base.rect,
 				self.style.corner_radius,
 			);
-		} else if focused {
+		} else if self.is_focused() {
 			canvas.set_blend_mode(BlendMode::Blend);
 			fill_rounded_rect(
 				canvas,
@@ -112,8 +112,8 @@ impl Widget for Draggable {
 		draw_rounded_rect(canvas, camera, border_color, rect, self.style.corner_radius);
 	}
 
-	fn get_base(&self) -> Base {
-		self.base
+	fn get_base(&self) -> &Base {
+		&self.base
 	}
 	fn get_base_mut(&mut self) -> &mut Base {
 		&mut self.base

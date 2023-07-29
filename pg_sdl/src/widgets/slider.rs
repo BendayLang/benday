@@ -6,13 +6,14 @@ use crate::primitives::{draw_circle, draw_polygon, draw_text, fill_circle, fill_
 use crate::style::Align;
 use crate::text::{TextDrawer, TextStyle};
 use crate::vector2::Vector2Plus;
-use crate::widgets::{WidgetsManager, Base, Orientation, Widget, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER, PUSH};
+use crate::widgets::{Base, Manager, Orientation, Widget, FOCUS_HALO_ALPHA, FOCUS_HALO_DELTA, HOVER, PUSH};
 use nalgebra::{Point2, Vector2};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::video::Window;
 use std::f64::consts::PI;
 use std::time::Duration;
+use sdl2::surface::Surface;
 
 pub struct SliderStyle {
 	filled_track_color: Color,
@@ -151,10 +152,7 @@ impl Slider {
 }
 
 impl Widget for Slider {
-	fn update(
-		&mut self, input: &Input, delta: Duration, _widgets_manager: &WidgetsManager, _text_drawer: &TextDrawer,
-		camera: Option<&Camera>,
-	) -> bool {
+	fn update(&mut self, input: &Input, delta: Duration, _: &mut Manager, _: &TextDrawer, camera: Option<&Camera>) -> bool {
 		let mut changed = false;
 
 		match self.orientation {
@@ -197,9 +195,7 @@ impl Widget for Slider {
 		changed
 	}
 
-	fn draw(
-		&self, canvas: &mut Canvas<Window>, text_drawer: &mut TextDrawer, camera: Option<&Camera>, focused: bool, hovered: bool,
-	) {
+	fn draw(&self, canvas: &mut Canvas<Surface>, text_drawer: &mut TextDrawer, camera: Option<&Camera>) {
 		let thumb_radius = self.thickness() * 0.5;
 		let bar_radius = thumb_radius * 0.6;
 		let margin = thumb_radius - bar_radius;
@@ -209,12 +205,12 @@ impl Widget for Slider {
 		};
 		let thumb_color = if self.base.is_pushed() {
 			self.style.thumb_pushed_color
-		} else if hovered {
+		} else if self.is_hovered() {
 			self.style.thumb_hovered_color
 		} else {
 			self.style.thumb_color
 		};
-		let border_color = if focused { self.style.focused_color } else { self.style.border_color };
+		let border_color = if self.is_focused() { self.style.focused_color } else { self.style.border_color };
 
 		let faces_nb = 7;
 		let (mut empty_track, mut filled_track, track_center) = match self.orientation {
@@ -271,7 +267,7 @@ impl Widget for Slider {
 				Orientation::Vertical => Vector2::new(thumb_radius, thumb_position),
 			};
 
-		if focused {
+		if self.is_focused() {
 			canvas.set_blend_mode(BlendMode::Blend);
 			fill_circle(
 				canvas,
@@ -309,8 +305,8 @@ impl Widget for Slider {
 		}
 	}
 
-	fn get_base(&self) -> Base {
-		self.base
+	fn get_base(&self) -> &Base {
+		&self.base
 	}
 	fn get_base_mut(&mut self) -> &mut Base {
 		&mut self.base
