@@ -72,6 +72,7 @@ pub struct TextInput {
 	selection: Option<(usize, usize)>,
 	last_click: Instant,
 	click_count: u8,
+	click_position: usize,
 }
 
 impl TextInput {
@@ -81,7 +82,7 @@ impl TextInput {
 
 	pub fn new(rect: Rect, style: TextInputStyle, placeholder: String) -> Self {
 		Self {
-			base: Base::new(rect),
+			base: Base::new(rect, false),
 			style,
 			placeholder,
 			text: String::new(),
@@ -90,6 +91,7 @@ impl TextInput {
 			selection: None,
 			last_click: Instant::now(),
 			click_count: 0,
+			click_position: 0,
 		}
 	}
 
@@ -204,7 +206,7 @@ impl Widget for TextInput {
 		}
 
 		// Carrot movement
-		let carrot_position_from_mouse = Some(self.get_carrot_position(text_drawer, input.mouse.position, camera));
+		let mouse_carrot_position = self.get_carrot_position(text_drawer, input.mouse.position, camera);
 		let mut new_carrot_position = None;
 		if input.keys_state.left.is_pressed() && self.carrot_position > 0 {
 			let n: usize = if input.keys_state.lctrl.is_down() || input.keys_state.rctrl.is_down() {
@@ -240,7 +242,7 @@ impl Widget for TextInput {
 		}
 
 		if input.mouse.left_button.is_down() && self.click_count < 2 {
-			new_carrot_position = carrot_position_from_mouse;
+			new_carrot_position = Some(mouse_carrot_position);
 		}
 
 		if now.duration_since(self.last_click) > Self::DOUBLE_CLICK_TIME {
@@ -249,34 +251,34 @@ impl Widget for TextInput {
 
 		// Mouse click
 		if input.mouse.left_button.is_pressed() {
+			let mouse_carrot_position = self.get_carrot_position(text_drawer, input.mouse.position, camera);
 			self.click_count += 1;
 			self.last_click = now;
 			self.carrot_timer_sec = Duration::ZERO;
 
 			// check same position
-			if carrot_position_from_mouse != Some(self.carrot_position) {
+
+			if mouse_carrot_position != self.click_position {
 				self.click_count = 1;
+				self.click_position = mouse_carrot_position;
 			}
 
 			match self.click_count {
 				0 => unreachable!(),
 				1 => {
 					if input.keys_state.lshift.is_down() || input.keys_state.rshift.is_down() {
-						new_carrot_position = carrot_position_from_mouse;
+						new_carrot_position = Some(mouse_carrot_position);
 					} else {
-						self.carrot_position = self.get_carrot_position(text_drawer, input.mouse.position, camera);
+						self.carrot_position = mouse_carrot_position;
 						self.selection = None;
 					}
 				}
 				2 => {
-					if let Some(position) = carrot_position_from_mouse {
-						self.selection = Some(get_word_position(&self.text, position));
-						// self.carrot_position = self.text.len();
-						new_carrot_position = None;
-						changed = true;
-					} else {
-						panic!("hein ?");
-					}
+					let (start, end) = get_word_position(&self.text, mouse_carrot_position);
+					self.selection = Some((start, end));
+					self.carrot_position = end;
+					new_carrot_position = None;
+					changed = true;
 				}
 				_ => {
 					self.selection = Some((0, self.text.len()));

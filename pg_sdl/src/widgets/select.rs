@@ -102,7 +102,7 @@ impl Select {
 		let text_input_rect = Rect::from(rect.position, Vector2::new(rect.width(), style.font_size + 2. * Self::HEIGHT_MARGIN));
 		let text_input_style = TextInputStyle::new(style.color, style.corner_radius, style.font_size, false);
 		let mut select = Self {
-			base: Base::new(rect),
+			base: Base::new(rect, true),
 			max_height: rect.height(),
 			style,
 			base_options: options.clone(),
@@ -117,12 +117,16 @@ impl Select {
 		select
 	}
 
+	pub fn get_option(&self) -> &str {
+		self.text_input.get_text()
+	}
+
 	fn option_height(&self) -> f64 {
 		self.style.font_size + Self::HEIGHT_MARGIN
 	}
 
 	fn get_height(&self) -> f64 {
-		self.max_height.min(self.option_height() * self.options.len() as f64 + self.text_input.get_base().rect.height())
+		self.max_height.min(self.option_height() * self.options.len() as f64)
 	}
 
 	fn is_max_height(&self) -> bool {
@@ -143,14 +147,6 @@ impl Select {
 			self.base.rect.position + Vector2::new(0., text_input_height),
 			self.base.rect.size - Vector2::new(self.style.slider_width, text_input_height),
 		)
-	}
-
-	fn get_option_rect(&self, option_index: usize) -> Rect {
-		let width = self.base.rect.width() - if self.is_max_height() { self.style.slider_width } else { 0. };
-		let height = self.option_height();
-		let y = self.base.rect.bottom() + self.text_input.get_base().rect.height() + height * option_index as f64
-			- self.slider_value * self.options_course();
-		Rect::new(self.base.rect.left(), y, width, height)
 	}
 
 	fn get_slider_rect(&self) -> Rect {
@@ -185,6 +181,17 @@ impl Select {
 	fn options_course(&self) -> f64 {
 		self.option_height() * self.options.len() as f64 - self.get_options_zone_rect().height()
 	}
+
+	/// Makes the selected option visible when we move with the arrow keys
+	fn reframe(&mut self) {
+		let y_min = self.option_height() * (self.selected_option as f64 - 1.5) / self.options_course();
+		let y_max = (self.option_height() * (self.selected_option as f64 + 2.5) - self.get_height()) / self.options_course();
+		if y_min < self.slider_value {
+			self.slider_value = y_min.max(0.);
+		} else if self.slider_value < y_max {
+			self.slider_value = y_max.min(1.);
+		}
+	}
 }
 
 impl Widget for Select {
@@ -195,21 +202,26 @@ impl Widget for Select {
 		changed |= self.base.update(input, vec![input.keys_state.up, input.keys_state.down]);
 		let mut text_change = false;
 
+		if self.is_hovered() && input.mouse.wheel != 0 {
+			self.slider_value -= input.mouse.wheel as f64 * self.option_height() / self.options_course() * 0.5;
+			self.slider_value = self.slider_value.clamp(0., 1.);
+			changed = true;
+		}
+
+		// Arrow keys
 		if input.keys_state.up.is_pressed() {
 			self.selected_option = if self.selected_option == 0 { self.options.len() - 1 } else { self.selected_option - 1 };
+			self.reframe();
 			self.text_input.set_text(self.options[self.selected_option].clone());
 		}
 		if input.keys_state.down.is_pressed() {
 			self.selected_option = if self.selected_option == self.options.len() - 1 { 0 } else { self.selected_option + 1 };
+			self.reframe();
 			self.text_input.set_text(self.options[self.selected_option].clone());
 		}
-		if input.keys_state.enter.is_pressed() {
-			if self.text_input.get_text() == self.options[self.selected_option] {
-				manager.push_command(Command::UnfocusWidget);
-			} else {
-				self.text_input.set_text(self.options[self.selected_option].clone());
-				text_change = true;
-			}
+		if input.keys_state.enter.is_pressed() && !self.options.is_empty() {
+			self.text_input.set_text(self.options[self.selected_option].clone());
+			manager.push_command(Command::UnfocusWidget);
 			changed = true;
 		}
 
@@ -249,7 +261,7 @@ impl Widget for Select {
 				SelectElement::Options { option_index } => {
 					self.selected_option = option_index;
 					self.text_input.set_text(self.options[self.selected_option].clone());
-					text_change = true;
+					manager.push_command(Command::UnfocusWidget);
 					self.text_input.get_base_mut().focused = false;
 				}
 				SelectElement::Slider => {
@@ -264,7 +276,7 @@ impl Widget for Select {
 						self.set_slider_value(value / self.slider_course(), mouse_y);
 					}
 					self.is_on_slider = Some(self.get_slider_rect().y() - mouse_y + self.slider_value * self.slider_course());
-				self.text_input.get_base_mut().focused = false;
+					self.text_input.get_base_mut().focused = false;
 				}
 			}
 		} else if input.mouse.left_button.is_released() {
@@ -290,21 +302,21 @@ impl Widget for Select {
 				text_change = true;
 			}
 		}
-		
+
 		if text_change {
 			let new_options = fuzzy_find(self.base_options.clone(), self.text_input.get_text());
 			if new_options != self.options {
 				self.options = new_options;
 				self.selected_option = 0;
-				self.base.rect.size.y = self.get_height();
+				self.base.rect.size.y = self.get_height() + self.text_input.get_base().rect.height();
 			}
 		}
 
 		changed
 	}
-	
+
 	fn on_focus(&mut self, manager: &mut Manager) {
-		self.base.rect.size.y = self.get_height();
+		self.base.rect.size.y = self.get_height() + self.text_input.get_base().rect.height();
 		self.text_input.get_base_mut().focused = true;
 	}
 
@@ -313,10 +325,17 @@ impl Widget for Select {
 		self.text_input.get_base_mut().focused = false;
 	}
 
+	fn on_hover(&mut self, manager: &mut Manager) {
+		self.text_input.get_base_mut().hovered = true;
+	}
+
+	fn on_unhover(&mut self, manager: &mut Manager) {
+		self.text_input.get_base_mut().hovered = false;
+	}
+
 	fn draw(&self, canvas: &mut Canvas<Surface>, text_drawer: &mut TextDrawer, camera: Option<&Camera>) {
 		if self.is_focused() {
-			// Box
-			let bottom_rect = self.get_bottom_rect();
+			// Focus
 			if let Some(corner_radius) = self.style.corner_radius {
 				canvas.set_blend_mode(BlendMode::Blend);
 				fill_rounded_rect(
@@ -326,7 +345,6 @@ impl Widget for Select {
 					self.base.rect.enlarged(FOCUS_HALO_DELTA),
 					FOCUS_HALO_DELTA + corner_radius,
 				);
-				fill_rounded_rect(canvas, camera, self.style.color, bottom_rect, corner_radius);
 			} else {
 				canvas.set_blend_mode(BlendMode::Blend);
 				fill_rounded_rect(
@@ -336,21 +354,30 @@ impl Widget for Select {
 					self.base.rect.enlarged(FOCUS_HALO_DELTA),
 					FOCUS_HALO_DELTA,
 				);
+			}
+		}
+
+		if self.is_focused() && !self.options.is_empty() {
+			// Background
+			let bottom_rect = self.get_bottom_rect();
+			if let Some(corner_radius) = self.style.corner_radius {
+				fill_rounded_rect(canvas, camera, self.style.color, bottom_rect, corner_radius);
+			} else {
 				fill_rect(canvas, camera, self.style.color, bottom_rect);
 			}
 
 			// Options
 			let options_rect = if self.is_max_height() { self.get_options_zone_rect() } else { self.get_bottom_rect() };
-			let surface = Surface::new(options_rect.width() as u32, options_rect.height() as u32, PixelFormatEnum::RGBA32).unwrap();
+			let surface =
+				Surface::new(options_rect.width() as u32, options_rect.height() as u32, PixelFormatEnum::RGBA32).unwrap();
 			let mut surface = surface.into_canvas().unwrap();
-			
+
 			let width = self.base.rect.width() - if self.is_max_height() { self.style.slider_width } else { 0. };
-			let height = self.option_height();
-			
+
 			if self.is_hovered() {
 				if let SelectElement::Options { option_index } = self.hovered_element {
-					let y = height * option_index as f64 - self.slider_value * self.options_course();
-					let rect = Rect::new(0., y, width, height);
+					let y = self.option_height() * option_index as f64 - self.slider_value * self.options_course();
+					let rect = Rect::new(0., y, width, self.option_height());
 					if let Some(corner_radius) = self.style.corner_radius {
 						fill_rounded_rect(&mut surface, camera, self.style.hovered_color, rect, corner_radius);
 					} else {
@@ -358,8 +385,8 @@ impl Widget for Select {
 					}
 				}
 			}
-			let y = height * self.selected_option as f64 - self.slider_value * self.options_course();
-			let rect = Rect::new(0., y, width, height);
+			let y = self.option_height() * self.selected_option as f64 - self.slider_value * self.options_course();
+			let rect = Rect::new(0., y, width, self.option_height());
 			if let Some(corner_radius) = self.style.corner_radius {
 				fill_rounded_rect(&mut surface, camera, self.style.selected_option_color, rect, corner_radius);
 			} else {
@@ -368,7 +395,7 @@ impl Widget for Select {
 			let options_rect = if self.is_max_height() { self.get_options_zone_rect() } else { self.get_bottom_rect() };
 			let x1 = 0.;
 			let x2 = width;
-			let bottom = - self.slider_value * self.options_course();
+			let bottom = -self.slider_value * self.options_course();
 			self.options.iter().enumerate().for_each(|(option_index, option)| {
 				let position = Point2::new(x1 + Self::HEIGHT_MARGIN, bottom + self.option_height() * (option_index as f64 + 0.5));
 				draw_text(
@@ -423,7 +450,7 @@ impl Widget for Select {
 
 		// Text input
 		let text_input_hovered = self.is_hovered() && self.hovered_element == SelectElement::TextInput;
-		self.text_input.draw(canvas, text_drawer, camera); // todo: text_input_hovered
+		self.text_input.draw(canvas, text_drawer, camera);
 	}
 
 	fn get_base(&self) -> &Base {
@@ -433,7 +460,6 @@ impl Widget for Select {
 		&mut self.base
 	}
 }
-
 
 /// This fuzzy finder will return all the elements that match the simple pattern of the query. // TODO clarify
 pub fn fuzzy_find(elements: Vec<String>, query: &str) -> Vec<String> {

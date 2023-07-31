@@ -8,10 +8,10 @@ use crate::text::{TextDrawer, TextStyle};
 use crate::widgets::Manager;
 use nalgebra::{Point2, Vector2};
 use sdl2::mouse::MouseUtil;
-use sdl2::{pixels::Color, render::Canvas, video::Window};
-use std::time::{Duration, Instant};
 use sdl2::pixels::PixelFormatEnum;
 use sdl2::surface::Surface;
+use sdl2::{pixels::Color, render::Canvas, video::Window};
+use std::time::{Duration, Instant};
 
 pub trait App {
 	fn update(&mut self, delta: Duration, input: &Input, manager: &mut Manager, camera: &mut Camera) -> bool;
@@ -33,7 +33,8 @@ pub struct PgSdl<'ttf, 'texture> {
 
 impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 	pub fn init(
-		window_title: &str, window_size: Vector2<u32>, fps: Option<u32>, draw_fps: bool, background_color: Color, manager: Manager,
+		window_title: &str, window_size: Vector2<u32>, fps: Option<u32>, draw_fps: bool, background_color: Color,
+		manager: Manager,
 	) -> Self {
 		let sdl_context = sdl2::init().expect("SDL2 could not be initialized");
 
@@ -55,7 +56,7 @@ impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 		// TODO mettre ca en paramettre ?
 		let camera = Camera::new(window_size, 6, 2.5, 5.0, -4000.0, 4000.0, -5000.0, 5000.0);
 
-		let text_drawer = TextDrawer::new(canvas_surface.texture_creator());
+		let text_drawer = TextDrawer::new();
 
 		PgSdl {
 			mouse: sdl_context.mouse(),
@@ -80,7 +81,7 @@ impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 			self.camera.resize(new_resolution);
 			change = true;
 		}
-		change |= self.manager.update(&self.input, delta, &mut self.text_drawer, &self.camera);
+		change |= self.manager.update(&self.input, delta, &mut self.text_drawer, &mut self.camera);
 		change |= user_app.update(delta, &self.input, &mut self.manager, &mut self.camera);
 		change
 	}
@@ -122,7 +123,7 @@ impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 			if self.update(user_app, frame_time) {
 				self.draw(user_app, frame_time);
 			}
-			
+
 			// fps
 			if self.draw_fps {
 				fill_rounded_rect(&mut self.canvas_surface, None, Colors::WHITE, Rect::new(10.0, 2.0, 120.0, 32.0), 5.0);

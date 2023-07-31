@@ -40,7 +40,7 @@ pub struct BlankBox {
 
 impl BlankBox {
 	pub fn new(rect: Rect, style: BlankBoxStyle) -> Self {
-		Self { base: Base::new(rect), style }
+		Self { base: Base::new(rect, false), style }
 	}
 }
 

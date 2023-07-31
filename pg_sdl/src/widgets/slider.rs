@@ -10,10 +10,10 @@ use crate::widgets::{Base, Manager, Orientation, Widget, FOCUS_HALO_ALPHA, FOCUS
 use nalgebra::{Point2, Vector2};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
+use sdl2::surface::Surface;
 use sdl2::video::Window;
 use std::f64::consts::PI;
 use std::time::Duration;
-use sdl2::surface::Surface;
 
 pub struct SliderStyle {
 	filled_track_color: Color,
@@ -85,7 +85,7 @@ impl Slider {
 	pub fn new(rect: Rect, style: SliderStyle, slider_type: SliderType) -> Self {
 		let orientation = if rect.width() > rect.height() { Orientation::Horizontal } else { Orientation::Vertical };
 		Self {
-			base: Base::new(rect),
+			base: Base::new(rect, false),
 			style,
 			orientation,
 			value: match slider_type {

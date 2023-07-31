@@ -15,12 +15,12 @@ use as_any::{AsAny, Downcast};
 pub use manager::Manager;
 use nalgebra::Point2;
 use sdl2::render::Canvas;
+use sdl2::surface::Surface;
 use sdl2::video::Window;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::time::Duration;
-use sdl2::surface::Surface;
 
 pub const HOVER: f32 = 0.92;
 pub const PUSH: f32 = 0.80;
@@ -49,6 +49,7 @@ pub struct Base {
 	hovered: bool,
 	visible: bool,
 	pub parent_id: Option<WidgetId>,
+	has_scroll: bool,
 }
 
 /// An struct that every widget must have
@@ -57,7 +58,7 @@ pub struct Base {
 /// - state
 /// - visible
 impl Base {
-	pub fn new(rect: Rect) -> Self {
+	pub fn new(rect: Rect, has_scroll: bool) -> Self {
 		Self {
 			id: 0,
 			rect,
@@ -66,6 +67,7 @@ impl Base {
 			hovered: false,
 			visible: true,
 			parent_id: None,
+			has_scroll,
 		}
 	}
 

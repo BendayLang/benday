@@ -44,7 +44,7 @@ impl Draggable {
 	const SHADOW: Vector2<f64> = Vector2::new(6.0, 8.0);
 
 	pub fn new(rect: Rect, style: DraggableStyle) -> Self {
-		Self { base: Base::new(rect), style, grab_delta: None }
+		Self { base: Base::new(rect, false), style, grab_delta: None }
 	}
 }
 

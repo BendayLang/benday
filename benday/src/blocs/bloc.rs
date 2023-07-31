@@ -2,15 +2,14 @@ use std::time::Duration;
 
 use crate::blocs::containers::{Sequence, Slot};
 use crate::blocs::{
-	new_if_else_bloc, new_root_sequence_bloc, new_variable_assignment_bloc, Container, FnGetSize, FnRelativePosition, WigBloc,
-	TOP_BOX_BT_MARGIN, TOP_BOX_BT_RADIUS, TOP_BOX_BT_SIZE,
+	new_if_else_bloc, new_variable_assignment_bloc, Container, FnGetSize, WigBloc, TOP_BOX_BT_MARGIN, TOP_BOX_BT_RADIUS, TOP_BOX_BT_SIZE,
 };
 use crate::blocs::{BlocContainer, BlocType};
 use crate::get_base_;
 use models::ast;
 use nalgebra::{Point2, Vector2};
 use pg_sdl::camera::Camera;
-use pg_sdl::color::{darker, paler, with_alpha, Colors};
+use pg_sdl::color::{darker, with_alpha, Colors};
 use pg_sdl::custom_rect::Rect;
 use pg_sdl::input::Input;
 use pg_sdl::primitives::{draw_rounded_rect, draw_text, fill_rounded_rect};
@@ -23,7 +22,6 @@ use pg_sdl::widgets::{Base, Manager, Widget, WidgetId, FOCUS_HALO_ALPHA, FOCUS_H
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::surface::Surface;
-use sdl2::video::Window;
 
 use super::as_ast_node::AsAstNode;
 use super::{new_function_call_bloc, new_sequence_bloc};
@@ -55,97 +53,93 @@ pub struct Bloc {
 	pub widgets: Vec<WigBloc>,
 	pub slots: Vec<Slot>,
 	pub sequences_ids: Vec<WidgetId>,
-	get_size: FnGetSize,
+	pub get_size: FnGetSize,
 	parent: Option<Container>,
 	bloc_type: BlocType,
 }
 
 impl Bloc {
-	const SHADOW: Vector2<f64> = Vector2::new(6., 8.);
+	pub const SHADOW: Vector2<f64> = Vector2::new(6., 8.);
 
 	pub fn new(
-		position: Point2<f64>, style: BlocStyle, widgets: Vec<WigBloc>, slots: Vec<Slot>, sequences_ids: Vec<WidgetId>,
-		get_size: FnGetSize, bloc_type: BlocType,
+		style: BlocStyle, widgets: Vec<WigBloc>, slots: Vec<Slot>, sequences_ids: Vec<WidgetId>, get_size: FnGetSize,
+		bloc_type: BlocType,
 	) -> Self {
-		Self {
-			base: Base::new(Rect::from(position, Vector2::zeros())),
-			style,
-			grab_delta: None,
-			widgets,
-			slots,
-			sequences_ids,
-			get_size,
-			parent: None,
-			bloc_type,
-		}
+		let mut base = Base::new(Rect::zeros(), false);
+		Self { base, style, grab_delta: None, widgets, slots, sequences_ids, get_size, parent: None, bloc_type }
 	}
 
-	pub fn add(position: Point2<f64>, bloc_type: BlocType, manager: &mut Manager) -> WidgetId {
-		let mut bloc = match bloc_type {
-			BlocType::VariableAssignment => new_variable_assignment_bloc(position, manager),
-			BlocType::IfElse => new_if_else_bloc(position, manager),
-			BlocType::FunctionCall => new_function_call_bloc(position, manager),
+	pub fn add(container: &Container, bloc_type: BlocType, manager: &mut Manager) -> WidgetId {
+		let bloc = match bloc_type {
+			BlocType::VariableAssignment => new_variable_assignment_bloc(manager),
+			BlocType::IfElse => new_if_else_bloc(manager),
+			BlocType::FunctionCall => new_function_call_bloc(manager),
 			BlocType::FunctionDeclaration => todo!(),
-			BlocType::Sequence => new_sequence_bloc(position, manager),
-			BlocType::RootSequence => new_root_sequence_bloc(position, manager),
+			BlocType::Sequence => new_sequence_bloc(manager),
 			BlocType::While => todo!(),
 		};
-
-		bloc.update_size(manager);
-		bloc.update_layout(manager);
 
 		let id = manager.add_widget(Box::new(bloc), true);
 
 		let rect = Rect::from_origin(Vector2::new(TOP_BOX_BT_SIZE, TOP_BOX_BT_SIZE));
 		let corner_radius = Some(TOP_BOX_BT_RADIUS - TOP_BOX_BT_MARGIN);
+		let y = -TOP_BOX_BT_SIZE - TOP_BOX_BT_MARGIN;
 		let top_box_widgets = vec![
 			WigBloc {
 				id: manager.add_widget(
 					Box::new(Button::new(rect, ButtonStyle::new(Colors::LIGHT_YELLOW, corner_radius, 12.), "i".to_string())),
 					true,
 				),
-				fn_relative_position: Box::new(|bloc: &Bloc, _: &Manager| {
-					Vector2::new(bloc.base.rect.width() * 0.5 - 2. * TOP_BOX_BT_SIZE - 1.5 * TOP_BOX_BT_MARGIN, -TOP_BOX_BT_SIZE - TOP_BOX_BT_MARGIN)
-				})
-			},
-			WigBloc {
-				id: manager.add_widget(
-					Box::new(Button::new(rect, ButtonStyle::new(Colors::LIGHT_GREEN, corner_radius, 12.), ">".to_string())),
-					true,
-				),
-				fn_relative_position: Box::new(|bloc: &Bloc, _: &Manager| {
-					Vector2::new(bloc.base.rect.width() * 0.5 - 1. * TOP_BOX_BT_SIZE - 0.5 * TOP_BOX_BT_MARGIN, -TOP_BOX_BT_SIZE - TOP_BOX_BT_MARGIN)
-				})
+				fn_relative_position: Box::new(move |bloc: &Bloc, _: &Manager| {
+					Vector2::new(bloc.base.rect.width() * 0.5 - 1.5 * TOP_BOX_BT_SIZE - 1. * TOP_BOX_BT_MARGIN, y)
+				}),
 			},
 			WigBloc {
 				id: manager.add_widget(
 					Box::new(Button::new(rect, ButtonStyle::new(Colors::LIGHTER_GREY, corner_radius, 12.), "c".to_string())),
 					true,
 				),
-				fn_relative_position: Box::new(|bloc: &Bloc, _: &Manager| {
-					Vector2::new(bloc.base.rect.width() * 0.5 - 0. * TOP_BOX_BT_SIZE + 0.5 * TOP_BOX_BT_MARGIN, -TOP_BOX_BT_SIZE - TOP_BOX_BT_MARGIN)
-				})
+				fn_relative_position: Box::new(move |bloc: &Bloc, _: &Manager| {
+					Vector2::new(bloc.base.rect.width() * 0.5 - 0.5 * TOP_BOX_BT_SIZE, y)
+				}),
 			},
 			WigBloc {
 				id: manager.add_widget(
-					Box::new(Button::new(rect, ButtonStyle::new(Colors::LIGHT_RED, corner_radius, 12.), "X".to_string())),
+					Box::new(Button::new(rect, ButtonStyle::new(Colors::LIGHT_GREEN, corner_radius, 12.), ">".to_string())),
 					true,
 				),
-				fn_relative_position: Box::new(|bloc: &Bloc, _: &Manager| {
-					Vector2::new(bloc.base.rect.width() * 0.5 + 1. * TOP_BOX_BT_SIZE + 1.5 * TOP_BOX_BT_MARGIN, -TOP_BOX_BT_SIZE - TOP_BOX_BT_MARGIN)
-				})
+				fn_relative_position: Box::new(move |bloc: &Bloc, _: &Manager| {
+					Vector2::new(bloc.base.rect.width() * 0.5 + 0.5 * TOP_BOX_BT_SIZE + 1. * TOP_BOX_BT_MARGIN, y)
+				}),
 			},
 		];
+		top_box_widgets.iter().for_each(|top_box_widget| manager.get_widget_mut(&top_box_widget.id).set_invisible());
+
 		manager.get_mut::<Bloc>(&id).widgets.extend(top_box_widgets);
-		manager.get_mut::<Bloc>(&id).widgets.iter().for_each(|widget| manager.get_widget_mut(&widget.id).get_base_mut().parent_id = Some(id));
-		manager.get_mut::<Bloc>(&id).slots.iter().for_each(|slot| manager.get_widget_mut(slot.get_id()).get_base_mut().parent_id = Some(id));
-		manager.get_mut::<Bloc>(&id).sequences_ids.iter().for_each(|sequence_id| manager.get_widget_mut(sequence_id).get_base_mut().parent_id = Some(id));
+		manager
+			.get_mut::<Bloc>(&id)
+			.widgets
+			.iter()
+			.for_each(|widget| manager.get_widget_mut(&widget.id).get_base_mut().parent_id = Some(id));
+		manager
+			.get_mut::<Bloc>(&id)
+			.slots
+			.iter()
+			.for_each(|slot| manager.get_widget_mut(slot.get_id()).get_base_mut().parent_id = Some(id));
+		manager
+			.get_mut::<Bloc>(&id)
+			.sequences_ids
+			.iter()
+			.for_each(|sequence_id| manager.get_widget_mut(sequence_id).get_base_mut().parent_id = Some(id));
 
 		let mut childs_ids = Vec::new();
 		childs_ids.extend(manager.get::<Bloc>(&id).widgets.iter().map(|widget| widget.id).collect::<Vec<WidgetId>>());
 		childs_ids.extend(manager.get::<Bloc>(&id).slots.iter().map(|slot| *slot.get_id()).collect::<Vec<WidgetId>>());
 		childs_ids.extend(manager.get::<Bloc>(&id).sequences_ids.clone());
 		childs_ids.iter().for_each(|child_id| manager.put_on_top_cam(child_id));
+
+		Self::set_parent_and_child(container, &id, true, manager);
+		Self::update_size_and_layout(manager);
 
 		id
 	}
@@ -304,8 +298,35 @@ impl Bloc {
 		childs
 	}
 
+	pub fn collide_point_container(&self, point: Point2<f64>, manager: &Manager) -> Option<Container> {
+		if !self.base.rect.collide_point(point) {
+			return None;
+		}
+
+		for (nth_slot, slot) in self.slots.iter().enumerate() {
+			if !slot.has_child() && get_base_!(slot, manager).rect.collide_point(point) {
+				return Some(Container { bloc_id: *self.get_id(), bloc_container: BlocContainer::Slot { nth_slot } });
+			}
+		}
+
+		for (nth_sequence, sequence_id) in self.sequences_ids.iter().enumerate() {
+			let sequence = manager.get::<Sequence>(sequence_id);
+			if sequence.get_base().rect.collide_point(point) {
+				for place in (0..=sequence.get_childs_ids().len()) {
+					if sequence.get_gap_rect(place, manager).collide_point(point) {
+						return Some(Container {
+							bloc_id: *self.get_id(),
+							bloc_container: BlocContainer::Sequence { nth_sequence, place },
+						});
+					}
+				}
+			}
+		}
+		None
+	}
+
 	/// Checks if a rect is hovering on a container and checks the 'ratio'
-	pub fn collide_container(&self, rect: Rect, manager: &Manager) -> Option<(BlocContainer, f64)> {
+	pub fn collide_rect_container(&self, rect: Rect, manager: &Manager) -> Option<(Container, f64)> {
 		if !self.base.rect.collide_rect(rect) {
 			return None;
 		}
@@ -316,7 +337,8 @@ impl Bloc {
 			if !slot.has_child() {
 				if let Some(new_ratio) = get_ratio(rect, get_base_!(slot, manager).rect) {
 					if new_ratio > ratio {
-						bloc_container = Some(BlocContainer::Slot { nth_slot });
+						bloc_container =
+							Some(Container { bloc_id: *self.get_id(), bloc_container: BlocContainer::Slot { nth_slot } });
 						ratio = new_ratio;
 					}
 				}
@@ -328,7 +350,10 @@ impl Bloc {
 				(0..=sequence.get_childs_ids().len()).for_each(|place| {
 					if let Some(new_ratio) = get_ratio(rect, sequence.get_gap_rect(place, manager)) {
 						if new_ratio > ratio {
-							bloc_container = Some(BlocContainer::Sequence { nth_sequence, place });
+							bloc_container = Some(Container {
+								bloc_id: *self.get_id(),
+								bloc_container: BlocContainer::Sequence { nth_sequence, place },
+							});
 							ratio = new_ratio;
 						}
 					}
@@ -411,25 +436,16 @@ impl Widget for Bloc {
 		if self.is_hovered() || self.is_focused() {
 			// Top box
 			let size =
-				Vector2::new(4. * TOP_BOX_BT_SIZE + 5. * TOP_BOX_BT_MARGIN, 2. * (TOP_BOX_BT_SIZE + 2. * TOP_BOX_BT_MARGIN));
+				Vector2::new(3. * TOP_BOX_BT_SIZE + 4. * TOP_BOX_BT_MARGIN, 2. * (TOP_BOX_BT_SIZE + 2. * TOP_BOX_BT_MARGIN));
 			let top_rect = Rect::from(Point2::new(rect.h_mid() - size.x * 0.5, rect.bottom() - size.y * 0.5), size);
 			fill_rounded_rect(canvas, camera, color, top_rect, TOP_BOX_BT_RADIUS);
 			draw_rounded_rect(canvas, camera, border_color, top_rect, TOP_BOX_BT_RADIUS);
-
-			(0..4).for_each(|i| {
-				let lr = Rect::from(
-					top_rect.position
-						+ Vector2::new(TOP_BOX_BT_MARGIN + i as f64 * (TOP_BOX_BT_SIZE + TOP_BOX_BT_MARGIN), TOP_BOX_BT_MARGIN),
-					Vector2::new(TOP_BOX_BT_SIZE, TOP_BOX_BT_SIZE),
-				);
-				fill_rounded_rect(canvas, camera, Colors::GREY, lr, TOP_BOX_BT_RADIUS - TOP_BOX_BT_MARGIN);
-			})
 		}
 
 		fill_rounded_rect(canvas, camera, color, rect, self.style.corner_radius);
 		draw_rounded_rect(canvas, camera, border_color, rect, self.style.corner_radius);
 
-		let text = format!("{}", self.get_id()); // format!("{} {:?}", self.base.id, self.parent);
+		let text = format!("{}", self.get_id());
 		let position = rect.position + Vector2::new(6., 3.);
 		draw_text(canvas, camera, text_drawer, position, &text, 10., &TextStyle::default(), Align::Left);
 	}
@@ -447,7 +463,7 @@ impl Widget for Bloc {
 		}
 		if self.is_hovered() || self.is_focused() {
 			let size =
-				Vector2::new(4. * TOP_BOX_BT_SIZE + 5. * TOP_BOX_BT_MARGIN, 2. * (TOP_BOX_BT_SIZE + 2. * TOP_BOX_BT_MARGIN));
+				Vector2::new(3. * TOP_BOX_BT_SIZE + 4. * TOP_BOX_BT_MARGIN, 2. * (TOP_BOX_BT_SIZE + 2. * TOP_BOX_BT_MARGIN));
 			let top_rect =
 				Rect::from(Point2::new(self.base.rect.h_mid() - size.x * 0.5, self.base.rect.bottom() - size.y * 0.5), size);
 			top_rect.collide_point(point)
@@ -455,41 +471,41 @@ impl Widget for Bloc {
 			false
 		}
 	}
-	
+
 	fn on_focus(&mut self, manager: &mut Manager) {
 		let nb_widgets = self.widgets.len();
-		self.widgets[(nb_widgets - 4)..nb_widgets].iter().for_each(|WigBloc{id, ..}| {
-			manager.get_widget_mut(id).set_visible()
-		});
+		self.widgets[(nb_widgets - 3)..nb_widgets].iter().for_each(|WigBloc { id, .. }| manager.get_widget_mut(id).set_visible());
 	}
-	
+
 	fn on_unfocus(&mut self, manager: &mut Manager) {
-		if self.is_hovered() { return; }
+		if self.is_hovered() {
+			return;
+		}
 		let nb_widgets = self.widgets.len();
-		self.widgets[(nb_widgets - 4)..nb_widgets].iter().for_each(|WigBloc{id, ..}| {
-			manager.get_widget_mut(id).set_invisible()
-		});
+		self.widgets[(nb_widgets - 3)..nb_widgets]
+			.iter()
+			.for_each(|WigBloc { id, .. }| manager.get_widget_mut(id).set_invisible());
 	}
-	
+
 	fn on_hover(&mut self, manager: &mut Manager) {
 		let nb_widgets = self.widgets.len();
-		self.widgets[(nb_widgets - 4)..nb_widgets].iter().for_each(|WigBloc{id, ..}| {
-			manager.get_widget_mut(id).set_visible()
-		});
+		self.widgets[(nb_widgets - 3)..nb_widgets].iter().for_each(|WigBloc { id, .. }| manager.get_widget_mut(id).set_visible());
 	}
-	
+
 	fn on_unhover(&mut self, manager: &mut Manager) {
-		if self.is_focused() { return; }
+		if self.is_focused() {
+			return;
+		}
 		let nb_widgets = self.widgets.len();
-		self.widgets[(nb_widgets - 4)..nb_widgets].iter().for_each(|WigBloc{id, ..}| {
-			manager.get_widget_mut(id).set_invisible()
-		});
+		self.widgets[(nb_widgets - 3)..nb_widgets]
+			.iter()
+			.for_each(|WigBloc { id, .. }| manager.get_widget_mut(id).set_invisible());
 	}
 }
 
-fn get_ratio(moving_rect: Rect, fixed_rect: Rect) -> Option<f64> {
-	if moving_rect.collide_rect(fixed_rect) {
-		Some(1000. - (fixed_rect.center() - moving_rect.center()).norm())
+fn get_ratio(bloc_rect: Rect, container_rect: Rect) -> Option<f64> {
+	if bloc_rect.collide_rect(container_rect) {
+		Some(1000. - (container_rect.center() - bloc_rect.bottom_left()).norm())
 	} else {
 		None
 	}
@@ -501,10 +517,6 @@ impl AsAstNode for Bloc {
 		let data: ast::NodeData = match self.bloc_type {
 			BlocType::Sequence => {
 				// TODO pas sur...
-				manager.get::<Sequence>(&self.sequences_ids[0]).as_ast_node(manager).data
-			}
-			BlocType::RootSequence => {
-				// TODO à mettre avec la séquence ?
 				manager.get::<Sequence>(&self.sequences_ids[0]).as_ast_node(manager).data
 			}
 			BlocType::VariableAssignment => {

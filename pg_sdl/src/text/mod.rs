@@ -3,11 +3,11 @@ mod text_style;
 use crate::style::Align;
 use itertools::Itertools;
 use nalgebra::{Point2, Vector2};
+use sdl2::render::TextureCreator;
 use sdl2::surface::{Surface, SurfaceContext};
 use sdl2::{render::Canvas, video::Window};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use sdl2::render::TextureCreator;
 pub use text_style::TextStyle;
 pub use text_style::{DEFAULT_FONT_NAME, FONT_PATH};
 
@@ -17,14 +17,13 @@ type Key = (String, TextStyle, u16);
 pub type TextureCache<'surface> = HashMap<Key, Surface<'surface>>;
 
 pub struct TextDrawer<'ttf, 'surface> {
-	pub texture_creator: TextureCreator<SurfaceContext<'ttf>>,
 	pub fonts: HashMap<FontInfos, sdl2::ttf::Font<'ttf, 'static>>,
 	texture_cache: TextureCache<'surface>,
 }
 
 impl<'ttf, 'texture> TextDrawer<'ttf, 'texture> {
-	pub fn new(texture_creator: TextureCreator<SurfaceContext<'ttf>>) -> Self {
-		TextDrawer { texture_creator, fonts: HashMap::new(), texture_cache: HashMap::new() }
+	pub fn new() -> Self {
+		TextDrawer { fonts: HashMap::new(), texture_cache: HashMap::new() }
 	}
 
 	pub fn size_of_u32(&self, text: &str, font_size: FontSize, style: &TextStyle) -> Vector2<u32> {
@@ -69,14 +68,16 @@ impl<'ttf, 'texture> TextDrawer<'ttf, 'texture> {
 		let font = self.fonts.get_mut(&(font_path.to_path_buf(), font_size)).expect("font not loaded at init");
 		// font.set_style(*font_style);
 
+		let texture_creator = canvas.texture_creator();
 		let texture = {
 			let key: Key = (text.to_string(), style.clone(), font_size);
+
 			if let Some(surface) = self.texture_cache.get(&key) {
-				self.texture_creator.create_texture_from_surface(surface).unwrap()
+				texture_creator.create_texture_from_surface(surface).unwrap()
 			} else {
 				// println!("new len of texture cache: {}. Created for '{}'", self.texture_cache.len(), text);
 				let surface = font.render(text).blended(*color).expect("text texture rendering error");
-				let texture = self.texture_creator.create_texture_from_surface(&surface).unwrap();
+				let texture = texture_creator.create_texture_from_surface(&surface).unwrap();
 				self.texture_cache.insert(key, surface);
 				texture
 			}

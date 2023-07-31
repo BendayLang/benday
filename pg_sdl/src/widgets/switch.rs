@@ -9,12 +9,12 @@ use crate::widgets::{Base, Manager, Orientation, SignalHandler, Widget, FOCUS_HA
 use nalgebra::{Point2, Vector2};
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
+use sdl2::surface::Surface;
 use sdl2::video::Window;
 use std::any::Any;
 use std::collections::HashMap;
 use std::f64::consts::PI;
 use std::time::Duration;
-use sdl2::surface::Surface;
 
 pub struct SwitchStyle {
 	on_color: Color,
@@ -71,7 +71,7 @@ impl Switch {
 				Orientation::Vertical
 			}
 		};
-		Self { base: Base::new(rect), style, orientation, switched: false }
+		Self { base: Base::new(rect, false), style, orientation, switched: false }
 	}
 
 	pub fn set_switched(&mut self, switched: bool) {

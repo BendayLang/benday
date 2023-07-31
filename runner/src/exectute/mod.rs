@@ -5,7 +5,7 @@ mod user_prefs {
 #[cfg(test)]
 mod tests;
 
-use self::execute::Action;
+pub use self::execute::Action;
 use crate::math;
 use execute::execute_node;
 use models::{

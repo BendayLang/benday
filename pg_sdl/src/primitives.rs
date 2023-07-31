@@ -7,8 +7,8 @@ use crate::vector2::Vector2Plus;
 use nalgebra::{Matrix3, Point2, Transform2, Vector2};
 use sdl2::gfx::primitives::DrawRenderer;
 use sdl2::pixels::Color;
-use sdl2::{render::Canvas, video::Window};
 use sdl2::surface::Surface;
+use sdl2::{render::Canvas, video::Window};
 
 /// Draws a one pixel wide line that links points start to end
 pub fn draw_line(canvas: &mut Canvas<Surface>, camera: Option<&Camera>, color: Color, start: Point2<f64>, end: Point2<f64>) {

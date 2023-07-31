@@ -16,7 +16,6 @@ use pg_sdl::widgets::{Base, Manager, Widget, WidgetId, FOCUS_HALO_ALPHA, FOCUS_H
 use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::surface::Surface;
-use sdl2::video::Window;
 
 #[macro_export]
 macro_rules! get_base_ {
@@ -123,7 +122,7 @@ impl Sequence {
 		let style = SequenceStyle::new(darker(color, 0.95), Self::RADIUS);
 		manager.add_widget(
 			Box::new(Self {
-				base: Base::new(Rect::from_origin(Self::SIZE)),
+				base: Base::new(Rect::from_origin(Self::SIZE), false),
 				style,
 				childs_ids: Vec::new(),
 				fn_relative_position,
@@ -157,18 +156,13 @@ impl Sequence {
 
 	pub fn get_updated_layout(&self, manager: &Manager) -> Vec<Point2<f64>> {
 		let origin = self.base.rect.position;
-		self.childs_ids
-			.iter()
-			.enumerate()
-			.map(|(place, child_id)| {
-				origin
-					+ Vector2::new(
-						0.,
-						Self::GAP_HEIGHT
-							+ (0..place)
-								.map(|i| manager.get::<Bloc>(&self.childs_ids[i]).get_base().rect.height() + Self::GAP_HEIGHT)
-								.sum::<f64>(),
-					)
+		(0..self.childs_ids.len())
+			.map(|place| {
+				let y = Self::GAP_HEIGHT
+					+ (0..place)
+						.map(|i| manager.get::<Bloc>(&self.childs_ids[i]).get_base().rect.height() + Self::GAP_HEIGHT)
+						.sum::<f64>();
+				origin + Vector2::new(0., y)
 			})
 			.collect()
 	}
@@ -202,12 +196,18 @@ impl Sequence {
 		if self.childs_ids.is_empty() {
 			self.base.rect
 		} else {
-			let y = if place == 0 {
+			let bottom = if place == 0 {
 				self.base.rect.bottom()
 			} else {
-				manager.get::<Bloc>(&self.childs_ids[place - 1]).get_base().rect.top()
+				manager.get::<Bloc>(&self.childs_ids[place - 1]).get_base().rect.v_mid()
 			};
-			Rect::new(self.base.rect.left(), y, self.base.rect.width(), Self::GAP_HEIGHT)
+			let top = if place == self.childs_ids.len() {
+				self.base.rect.top()
+			} else {
+				manager.get::<Bloc>(&self.childs_ids[place]).get_base().rect.v_mid()
+			};
+
+			Rect::new(self.base.rect.left(), bottom, self.base.rect.width(), top - bottom)
 		}
 	}
 }

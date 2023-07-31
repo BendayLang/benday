@@ -71,7 +71,7 @@ pub struct Button {
 
 impl Button {
 	pub fn new(rect: Rect, style: ButtonStyle, text: String) -> Self {
-		Self { base: Base::new(rect), style, text }
+		Self { base: Base::new(rect, false), style, text }
 	}
 
 	pub fn get_text(&self) -> &String {
