@@ -85,7 +85,7 @@ impl Slider {
 	pub fn new(rect: Rect, style: SliderStyle, slider_type: SliderType) -> Self {
 		let orientation = if rect.width() > rect.height() { Orientation::Horizontal } else { Orientation::Vertical };
 		Self {
-			base: Base::new(rect, false),
+			base: Base::new(rect, true),
 			style,
 			orientation,
 			value: match slider_type {
@@ -154,6 +154,17 @@ impl Slider {
 impl Widget for Slider {
 	fn update(&mut self, input: &Input, delta: Duration, _: &mut Manager, _: &TextDrawer, camera: Option<&Camera>) -> bool {
 		let mut changed = false;
+		
+		if input.mouse.wheel != 0 && self.is_hovered() {
+			match self.slider_type {
+				SliderType::Discrete { snap, .. } => self.value -= input.mouse.wheel as f32 / snap as f32,
+				SliderType::Continuous { .. } => {
+					self.value -= input.mouse.wheel as f32 * Self::SPEED * 0.004;
+				}
+			}
+			self.value = self.value.clamp(0., 1.);
+			changed = true;
+		}
 
 		match self.orientation {
 			Orientation::Horizontal => {

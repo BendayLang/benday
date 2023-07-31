@@ -168,7 +168,8 @@ impl App for BendayFront {
 				if !manager.get::<Select>(widget_id).is_focused() {
 					let option = manager.get::<Select>(widget_id).get_option().to_string();
 					if let Some(bloc_type) = BlocType::from_string(option) {
-						self.blocs.push(Bloc::add(container, bloc_type, manager));
+						let bloc = bloc_type.new_bloc(manager);
+						self.blocs.push(bloc.add(container, manager));
 					}
 					manager.remove_widget(widget_id);
 					self.state = AppState::Idle;
@@ -208,10 +209,12 @@ fn main() {
 	let root_id = manager.add_widget(Box::new(bloc), true);
 	manager.get_widget_mut(&root_id).set_invisible();
 
+	// Run button
 	let style = ButtonStyle::new(Colors::LIGHT_GREEN, Some(8.), 16.);
 	let rect = Rect::new(200., 100., 100., 60.);
 	manager.add_widget(Box::new(Button::new(rect, style, "RUN".to_string())), false);
 	
+	// Debug slider
 	let style = SliderStyle::new(Colors::LIGHT_RED, Colors::GREY);
 	let rect = Rect::new(490. , 118., 300., 24.);
 	let slider_type = SliderType::Discrete { snap: 50, default_value: 0, display: Some(Box::new(|v| format!("{}", v))) };

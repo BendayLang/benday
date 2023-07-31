@@ -49,6 +49,16 @@ impl BlocType {
 			_ => None,
 		}
 	}
+	pub fn new_bloc(&self, manager: &mut Manager) -> Bloc {
+		match self {
+			BlocType::VariableAssignment => new_variable_assignment_bloc(manager),
+			BlocType::IfElse => new_if_else_bloc(manager),
+			BlocType::FunctionCall => new_function_call_bloc(manager),
+			BlocType::FunctionDeclaration => todo!(),
+			BlocType::Sequence => new_sequence_bloc(manager),
+			BlocType::While => todo!(),
+		}
+	}
 }
 
 pub type FnRelativePosition = Box<dyn Fn(&Bloc, &Manager) -> Vector2<f64>>;

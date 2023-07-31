@@ -65,21 +65,12 @@ impl Bloc {
 		style: BlocStyle, widgets: Vec<WigBloc>, slots: Vec<Slot>, sequences_ids: Vec<WidgetId>, get_size: FnGetSize,
 		bloc_type: BlocType,
 	) -> Self {
-		let mut base = Base::new(Rect::zeros(), false);
+		let base = Base::new(Rect::zeros(), false);
 		Self { base, style, grab_delta: None, widgets, slots, sequences_ids, get_size, parent: None, bloc_type }
 	}
 
-	pub fn add(container: &Container, bloc_type: BlocType, manager: &mut Manager) -> WidgetId {
-		let bloc = match bloc_type {
-			BlocType::VariableAssignment => new_variable_assignment_bloc(manager),
-			BlocType::IfElse => new_if_else_bloc(manager),
-			BlocType::FunctionCall => new_function_call_bloc(manager),
-			BlocType::FunctionDeclaration => todo!(),
-			BlocType::Sequence => new_sequence_bloc(manager),
-			BlocType::While => todo!(),
-		};
-
-		let id = manager.add_widget(Box::new(bloc), true);
+	pub fn add(self, container: &Container, manager: &mut Manager) -> WidgetId {
+		let id = manager.add_widget(Box::new(self), true);
 
 		let rect = Rect::from_origin(Vector2::new(TOP_BOX_BT_SIZE, TOP_BOX_BT_SIZE));
 		let corner_radius = Some(TOP_BOX_BT_RADIUS - TOP_BOX_BT_MARGIN);
