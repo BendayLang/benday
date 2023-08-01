@@ -1,8 +1,12 @@
-use super::{math, user_prefs};
+use super::{
+	action::{Action, ActionType},
+	console::Console,
+	math, user_prefs,
+};
 use crate::{find_variable::find_variable, variables_expansion::expand_variables};
 use models::{
 	ast::*,
-	error::{ErrorMessage, VariableExpansionError},
+	error::{ErrorMessage, ErrorType, VariableExpansionError},
 	return_value::ReturnValue,
 };
 use models::{
@@ -12,332 +16,202 @@ use models::{
 use std::collections::{HashMap, VecDeque};
 
 #[derive(Debug, PartialEq)]
-pub enum Action {
-	Goto(Id),
-	Return(AstResult),
-	CheckVarNameValidity(bool),
-	EvaluateRawText,
-	AssigneVariable { key: (String, Id), value: ReturnValue },
-	CallBuildInFn(String),
-	PushStdout(String),
-	GetArgs,
-	ControlFlowEvaluateCondition,
-}
-
-impl Action {
-	pub fn return_some(return_value: ReturnValue) -> Self {
-		Self::Return(Ok(Some(return_value)))
-	}
+pub struct State {
+	pub variables: VariableMap,
 }
 
 pub fn execute_node(
-	ast: &Node, variables: &mut VariableMap, id_path: &mut IdPath, stdout: &mut Vec<String>, actions: &mut Vec<Action>,
+	ast: &Node, variables: &mut VariableMap, id_path: &mut IdPath, console: &mut Console, actions: &mut Vec<Action>,
+	states: &mut Vec<State>,
 ) -> AstResult {
-	id_path.push(ast.id);
-	actions.push(Action::Goto(ast.id));
-	let res: AstResult = match &ast.data {
-		NodeData::Sequence(sequence) => handle_sequence(sequence, variables, id_path, stdout, actions),
-		NodeData::While(while_node) => handle_while(while_node, variables, id_path, stdout, actions),
-		NodeData::IfElse(ifelse) => handle_if_else(ifelse, variables, id_path, stdout, actions),
-		NodeData::RawText(value) => handle_raw_text(value, variables, id_path, actions),
-		NodeData::VariableAssignment(variable_assignment) => {
-			handle_variable_assignment(variable_assignment, variables, id_path, stdout, actions)
-		}
-		NodeData::FunctionCall(function_call) => handle_function_call(function_call, variables, id_path, stdout, actions),
-		NodeData::FunctionDeclaration(fn_declaration) => handle_function_declaration(fn_declaration),
-	};
-	if id_path.pop() != Some(ast.id) {
-		panic!("Id path is not correct");
+	// TODO : separer les erreurs de "Lint" et les erreurs de "Runtime"
+	// example : un mauvais nom de variable est une erreur de lint, mais une variable non définie est une erreur de runtime
+	// est-ce que les erreurs de lint doivent être traitées ici ?
+	// est-ce qu'il faut séparer les erreurs de lint et les erreurs de runtime ?
+
+	if states.is_empty() {
+		// at the first iteration, we push the first state (with is probably empty)
+		states.push(State { variables: variables.clone() });
 	}
-	actions.push(Action::Return(res.clone())); // TODO ne pas clone le result a chaque fois ?
+
+	id_path.push(ast.id);
+	actions.push(Action::new(ActionType::Goto(ast.id), states.len() - 1));
+	let res: AstResult = match &ast.data {
+		NodeData::Sequence(sequence) => sequence
+			.iter()
+			.find_map(|node| {
+				let return_value = execute_node(node, variables, id_path, console, actions, states);
+				if return_value != Ok(None) {
+					Some(return_value)
+				} else {
+					None
+				}
+			})
+			.unwrap_or(Ok(None)),
+		NodeData::While(while_node) => {
+			if while_node.is_do {
+				todo!("Implement at the end of the project");
+			}
+			let mut iteration = 0;
+			while {
+				actions.push(Action::new(ActionType::ControlFlowEvaluateCondition, states.len() - 1));
+				match get_bool(execute_node(&while_node.condition, variables, id_path, console, actions, states)?) {
+					Err(err) => return Err(vec![ErrorMessage::new(id_path.clone(), err, None)]),
+					Ok(v) => v,
+				}
+			} {
+				let return_value = execute_node(&while_node.sequence, variables, id_path, console, actions, states)?;
+				if return_value.is_some() {
+					return Ok(return_value);
+				}
+				iteration += 1;
+				if iteration == user_prefs::MAX_ITERATION {
+					return Err(vec![ErrorMessage::new(
+						id_path.clone(),
+						error::ErrorType::NEW_TYPE(format!("Max iteration reached ({})", user_prefs::MAX_ITERATION)),
+						None,
+					)]);
+				}
+			}
+			Ok(None)
+		}
+		NodeData::IfElse(ifelse) => {
+			let res = {
+				actions.push(Action::new(ActionType::ControlFlowEvaluateCondition, states.len() - 1));
+				match get_bool(execute_node(&ifelse.r#if.condition, variables, id_path, console, actions, states)?) {
+					Err(err) => return Err(vec![ErrorMessage::new(id_path.clone(), err, None)]),
+					Ok(v) => v,
+				}
+			};
+			if res {
+				return execute_node(&ifelse.r#if.sequence, variables, id_path, console, actions, states);
+			}
+			if let Some(elifs) = &ifelse.elif {
+				for elif in elifs {
+					let res = {
+						actions.push(Action::new(ActionType::ControlFlowEvaluateCondition, states.len() - 1));
+						match get_bool(execute_node(&elif.condition, variables, id_path, console, actions, states)?) {
+							Err(err) => return Err(vec![ErrorMessage::new(id_path.clone(), err, None)]),
+							Ok(v) => v,
+						}
+					};
+					if res {
+						return execute_node(&elif.sequence, variables, id_path, console, actions, states);
+					}
+				}
+			}
+			if let Some(else_) = &ifelse.r#else {
+				return execute_node(else_, variables, id_path, console, actions, states);
+			}
+			Ok(None)
+		}
+		NodeData::RawText(text) => {
+			actions.push(Action::new(ActionType::EvaluateRawText, states.len() - 1));
+			match expand_variables(text, variables, id_path) {
+				Ok(string) => match math::get_math_parsibility(&string) {
+					math::MathParsability::Unparsable => Ok(Some(ReturnValue::String(string))),
+					_ => match math::math_expression(&string) {
+						Ok(v) => Ok(Some(v)),
+						Err(_) => todo!(),
+					},
+				},
+				Err(err) => Err(vec![ErrorMessage::new(id_path.clone(), error::ErrorType::VariableExpansionError(err), None)]),
+			}
+		}
+		NodeData::VariableAssignment(variable_assignment) => {
+			let name_validity = is_var_name_valid(&variable_assignment.name);
+			actions.push(Action::new(ActionType::CheckVarNameValidity(name_validity.clone()), states.len() - 1));
+			if name_validity.is_err() {
+				return Err(vec![ErrorMessage::new(id_path.clone(), name_validity.unwrap_err(), None)]);
+			}
+
+			let value = execute_node(&variable_assignment.value, variables, id_path, console, actions, states)?;
+			let id = match find_variable(variable_assignment.name.as_str(), variables, id_path) {
+				Some((_, id)) => id,
+				None => {
+					match id_path.len() {
+						0 => panic!("the id path is empty"),
+						1 => panic!("there is only one element in the id path: '{}'", id_path[0]),
+						_ => {}
+					}
+					// on est sur une nouvelle variable
+					// on prend l'avant dernier id du path, car le dernier est celui de la variable et on veut celui du scope
+					*(id_path.get(id_path.len() - 2).unwrap())
+				}
+			};
+			if let Some(value) = value {
+				let variable_key: (String, u32) = (variable_assignment.name.to_string(), id);
+				let _ = variables.insert(variable_key.clone(), value.clone());
+				states.push(State { variables: variables.clone() });
+				actions.push(Action::new(
+					ActionType::AssignVariable { key: variable_key.clone(), value: value.clone() },
+					states.len() - 1,
+				));
+				Ok(None)
+			} else {
+				todo!("TODO: value returned was None/Void, that cannot be assigned to a var")
+			}
+		}
+		NodeData::FunctionCall(function_call) => {
+			actions.push(Action::new(ActionType::GetArgs, states.len() - 1));
+			let args = function_call
+				.argv
+				.iter()
+				.map(|arg| execute_node(arg, variables, id_path, console, actions, states))
+				.collect::<Vec<AstResult>>();
+
+			actions.push(Action::new(ActionType::CallBuildInFn(function_call.name.clone()), states.len() - 1));
+			match function_call.name.as_str() {
+				"print" => {
+					for arg in args {
+						let to_push = match arg? {
+							Some(a) => a.to_string(),
+							None => "()".to_string(),
+						};
+						actions.push(Action::new(ActionType::PushStdout(to_push.clone()), states.len() - 1));
+						console.stdout.push(to_push);
+					}
+				}
+				_ => todo!("FunctionCall {}", function_call.name),
+			}
+
+			Ok(None)
+		}
+		NodeData::FunctionDeclaration(fn_declaration) => unimplemented!(),
+	};
+
+	let poped = id_path.pop();
+	if poped != Some(ast.id) {
+		// TODO : en gros quand on entre dans une assignation de variable, je ne push pas qu'on entre dedans, du coup, je pop le nom de la variable et pas le bloc entier !
+		println!("Id path is not correct. poped: {:?}, ast.id: {}", poped, ast.id);
+	}
+
+	actions.push(Action::new(ActionType::Return(res.clone()), states.len() - 1));
 	res
 }
 
-fn handle_function_declaration(_fn_declaration: &FunctionDeclaration) -> AstResult {
-	unimplemented!();
+fn is_var_name_valid(name: &str) -> Result<(), ErrorType> {
+	// Rules : must be a valid identifier, must not be a keyword
+	// - should begin with a letter or an underscore
+	// - can contain letters, numbers and underscores
+	// - can contain spaces
+	// - can't be a keyword
+
+	if name.is_empty() {
+		return Err(ErrorType::VariableNameError(error::VariableNameError::Empty));
+	}
+
+	if !name.chars().next().unwrap().is_alphabetic() && name.chars().next().unwrap() != '_' {
+		return Err(ErrorType::VariableNameError(error::VariableNameError::InvalidFirstChar));
+	}
+
+	Ok(())
 }
 
-fn handle_while(
-	while_node: &While, variables: &mut VariableMap, id_path: &mut IdPath, stdout: &mut Vec<String>, actions: &mut Vec<Action>,
-) -> AstResult {
-	if while_node.is_do {
-		todo!("Implement at the end of the project");
-	}
-	let mut iteration = 0;
-	while {
-		actions.push(Action::ControlFlowEvaluateCondition);
-		get_bool(execute_node(&while_node.condition, variables, id_path, stdout, actions)?)
-	} {
-		let return_value = execute_node(&while_node.sequence, variables, id_path, stdout, actions)?;
-		if return_value.is_some() {
-			return Ok(return_value);
-		}
-		iteration += 1;
-		if iteration == user_prefs::MAX_ITERATION {
-			todo!("break on max iteration ({})", user_prefs::MAX_ITERATION);
-		}
-	}
-	Ok(None)
-}
-
-fn handle_if_else(
-	ifelse: &IfElse, variables: &mut VariableMap, id_path: &mut IdPath, stdout: &mut Vec<String>, actions: &mut Vec<Action>,
-) -> AstResult {
-	let res = {
-		actions.push(Action::ControlFlowEvaluateCondition);
-		get_bool(execute_node(&ifelse.r#if.condition, variables, id_path, stdout, actions)?)
-	};
-	if res {
-		return execute_node(&ifelse.r#if.sequence, variables, id_path, stdout, actions);
-	}
-	if let Some(elifs) = &ifelse.elif {
-		for elif in elifs {
-			let res = {
-				actions.push(Action::ControlFlowEvaluateCondition);
-				get_bool(execute_node(&elif.condition, variables, id_path, stdout, actions)?)
-			};
-			if res {
-				return execute_node(&elif.sequence, variables, id_path, stdout, actions);
-			}
-		}
-	}
-	if let Some(else_) = &ifelse.r#else {
-		return execute_node(else_, variables, id_path, stdout, actions);
-	}
-	Ok(None)
-}
-
-fn handle_raw_text(text: &str, variables: &mut VariableMap, id_path: &IdPath, actions: &mut Vec<Action>) -> AstResult {
-	actions.push(Action::EvaluateRawText);
-	match expand_variables(text, variables, id_path) {
-		Ok(string) => match math::get_math_parsibility(&string) {
-			math::MathParsability::Unparsable => Ok(Some(ReturnValue::String(string))),
-			_ => match math::math_expression(&string) {
-				Ok(v) => Ok(Some(v)),
-				Err(_) => todo!(),
-			},
-		},
-		Err(err) => Err(vec![ErrorMessage::new(id_path.clone(), error::ErrorType::VariableExpansionError(err), None)]),
-	}
-}
-
-fn is_var_name_valid(name: &str) -> bool {
-	// TODOO
-	true
-}
-
-fn handle_variable_assignment(
-	variable_assignment: &VariableAssignment, variables: &mut VariableMap, id_path: &mut IdPath, stdout: &mut Vec<String>,
-	actions: &mut Vec<Action>,
-) -> AstResult {
-	let name_validity = is_var_name_valid(&variable_assignment.name);
-	actions.push(Action::CheckVarNameValidity(name_validity));
-	if !name_validity {
-		todo!("name invalid");
-	}
-
-	let value = execute_node(&variable_assignment.value, variables, id_path, stdout, actions)?;
-	let id = match find_variable(variable_assignment.name.as_str(), variables, id_path) {
-		Some((_, id)) => id,
-		None => {
-			match id_path.len() {
-				0 => panic!("the id path is empty"),
-				1 => panic!("there is only one element in the id path: '{}'", id_path[0]),
-				_ => {}
-			}
-			// on est sur une nouvelle variable
-			// on prend l'avant dernier id du path, car le dernier est celui de la variable et on veut celui du scope
-			*(id_path.get(id_path.len() - 2).unwrap())
-		}
-	};
-	if let Some(value) = value {
-		let variable_key: (String, u32) = (variable_assignment.name.to_string(), id);
-		actions.push(Action::AssigneVariable { key: variable_key.clone(), value: value.clone() });
-		let _ = variables.insert(variable_key, value);
-		Ok(None)
+fn get_bool(return_value: Option<ReturnValue>) -> Result<bool, ErrorType> {
+	let res = if let Some(return_value) = return_value {
+		return return_value.to_bool();
 	} else {
-		todo!("TODO: value returned was None/Void, that cannot be assigned to a var")
-	}
+		return Err(ErrorType::NEW_TYPE("void should not be evaluated".to_string()));
+	};
 }
-
-fn handle_function_call(
-	function_call: &FunctionCall, variables: &mut VariableMap, id_path: &mut IdPath, stdout: &mut Vec<String>,
-	actions: &mut Vec<Action>,
-) -> AstResult {
-	actions.push(Action::GetArgs); // TODO est-ce bien nescessaire ??
-	let args =
-		function_call.argv.iter().map(|arg| execute_node(arg, variables, id_path, stdout, actions)).collect::<Vec<AstResult>>();
-
-	actions.push(Action::CallBuildInFn(function_call.name.clone()));
-	match function_call.name.as_str() {
-		"print" => {
-			for arg in args {
-				let to_push = match arg? {
-					Some(a) => a.to_string(),
-					None => "()".to_string(),
-				};
-				actions.push(Action::PushStdout(to_push.clone()));
-				stdout.push(to_push);
-			}
-		}
-		_ => todo!("FunctionCall {}", function_call.name),
-	}
-
-	Ok(None)
-}
-
-fn handle_sequence(
-	sequence: &[Node], variables: &mut VariableMap, id_path: &mut IdPath, stdout: &mut Vec<String>, actions: &mut Vec<Action>,
-) -> AstResult {
-	sequence
-		.iter()
-		.find_map(|node| {
-			let return_value = execute_node(node, variables, id_path, stdout, actions);
-			if return_value != Ok(None) {
-				Some(return_value)
-			} else {
-				None
-			}
-		})
-		.unwrap_or(Ok(None))
-}
-
-fn get_bool(return_value: Option<ReturnValue>) -> bool {
-	if let Some(return_value) = return_value {
-		match return_value {
-			ReturnValue::Bool(val) => val,
-			ReturnValue::String(val) => todo!("error should return a bool, not a string ({val})"),
-			ReturnValue::Int(val) => val != 0,
-			ReturnValue::Float(val) => val != 0.0,
-		}
-	} else {
-		todo!("Add a warning, void should not be evaluated");
-		false
-	}
-}
-
-// impl Runner {
-// 	pub fn next(&mut self) -> Option<ReturnValue> {
-// 		// 1. goto id_path NODE
-// 		let mut node = Self::find_by_id_path(&mut self.ast, self.id_path.clone().into());
-// 		// 2. execute one
-// 		// 3. return
-// 		None
-// 	}
-//
-// 	pub fn play_all() {
-// 		// play next in a loop ?
-// 	}
-//
-// 	fn find_by_id_path(node: &mut Node, mut id_path: VecDeque<Id>) -> &mut Node {
-// 		let id = id_path.pop_front();
-// 		if let Some(id) = id {
-// 			if node.id == id {
-// 				return Self::find_by_id_path(node, id_path);
-// 			} else {
-// 				match &mut node.data {
-// 					NodeData::Sequence(sequence) => {
-// 						for n in sequence {
-// 							if n.id == id {
-// 								return Self::find_by_id_path(n, id_path);
-// 							}
-// 						}
-// 						panic!("The id path pointed in an unexisting bloc in a sequence");
-// 					}
-// 					NodeData::While(_) => todo!(),
-// 					NodeData::IfElse(_) => todo!(),
-// 					NodeData::RawText(_) => todo!(),
-// 					NodeData::VariableAssignment(_) => todo!(),
-// 					NodeData::FunctionCall(_) => todo!(),
-// 					NodeData::FunctionDeclaration(_) => todo!(),
-// 				}
-// 			}
-// 		} else {
-// 			return node;
-// 		}
-// 	}
-// }
-
-// mod tests {
-// 	use super::*;
-// 	use crate::exectute::Runner;
-// 	use models::ast::{Node, VariableAssignment};
-//
-// 	#[test]
-// 	fn runner_empty_sequence() {
-// 		let ast = Node { id: 0, data: models::ast::NodeData::Sequence(Vec::new()) };
-// 		let mut runner = Runner::new(ast);
-// 		let result = runner.next();
-
-// 		assert_eq!(vec![0], runner.id_path, "id path should point to the sequence"); // Vu que la sequence a l'id 0 et qu'on vient de la finir, c'est que le dernier truc fini c'est ca.
-// 		assert!(result.is_none()); // TODO estsce qu'on veut pas que ca return le None de la sequence ??
-// 		assert!(runner.stdout.is_empty());
-// 		assert!(runner.variables.is_empty());
-// 	}
-
-// 	#[test]
-// 	fn runner_var_assign_with_raw_text() {
-// 		let ast = Node {
-// 			id: 0,
-// 			data: NodeData::Sequence(vec![Node {
-// 				id: 1,
-// 				data: NodeData::VariableAssignment(VariableAssignment {
-// 					name: "i".to_string(),
-// 					value: Box::new(Node { id: 2, data: NodeData::RawText("0".to_string()) }),
-// 				}),
-// 			}]),
-// 		};
-// 		let mut runner = Runner::new(ast);
-// 		let result = runner.next();
-
-// 		assert_eq!(vec![0, 1], runner.id_path);
-// 		assert_eq!(None, result);
-// 		assert_eq!(HashMap::from([(("i".to_string(), 0), ReturnValue::Int(0))]), runner.variables);
-// 		assert!(runner.stdout.is_empty());
-// 	}
-
-// 	#[test]
-// 	fn runner_var_assign_with_if() {
-// 		let ast = Node {
-// 			id: 0,
-// 			data: NodeData::Sequence(vec![Node {
-// 				id: 1,
-// 				data: NodeData::VariableAssignment(VariableAssignment {
-// 					name: "i".to_string(),
-// 					value: Box::new(Node {
-// 						id: 2,
-// 						data: NodeData::IfElse(IfElse {
-// 							if_: If {
-// 								condition: Box::new(Node { id: 3, data: NodeData::RawText("true".to_string()) }),
-// 								sequence: vec![Node { id: 4, data: NodeData::RawText("0".to_string()) }],
-// 							},
-// 							elif: None,
-// 							else_: Some(vec![Node { id: 5, data: NodeData::RawText("1".to_string()) }]),
-// 						}),
-// 					}),
-// 				}),
-// 			}]),
-// 		};
-// 		let mut runner = Runner::new(ast);
-// 		let result = runner.next();
-
-// 		assert_eq!(vec![0, 1, 2, 3], runner.id_path);
-// 		assert_eq!(Some(ReturnValue::Bool(true)), result);
-// 		assert!(runner.stdout.is_empty());
-// 		assert!(runner.variables.is_empty());
-
-// 		let result = runner.next();
-
-// 		assert_eq!(vec![0, 1], runner.id_path);
-// 		assert_eq!(None, result);
-// 		assert_eq!(HashMap::from([(("i".to_string(), 0), ReturnValue::Int(0))]), runner.variables);
-// 		assert!(runner.stdout.is_empty());
-
-// 		let result = runner.next();
-
-// 		assert_eq!(vec![0], runner.id_path);
-// 		assert_eq!(None, result);
-// 		assert_eq!(HashMap::from([(("i".to_string(), 0), ReturnValue::Int(0))]), runner.variables);
-// 		assert!(runner.stdout.is_empty());
-// 	}
-// }

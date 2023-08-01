@@ -44,6 +44,15 @@ pub enum ErrorType {
 	ConditionAlwaysFalse,
 	ConditionAlwaysTrue,
 	InvalidType { accepted: Vec<ValueType>, found: ValueType },
+	NEW_TYPE(String),
+	VariableNameError(VariableNameError),
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
+#[serde(tag = "type", content = "data", rename_all = "camelCase")]
+pub enum VariableNameError {
+	Empty,
+	InvalidFirstChar,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]

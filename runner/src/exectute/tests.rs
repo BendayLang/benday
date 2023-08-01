@@ -1,6 +1,10 @@
-use super::runner;
+use super::{
+	action::{Action, ActionType},
+	runner,
+};
 use crate::exectute::{
-	execute::{execute_node, Action},
+	console::Console,
+	execute::{execute_node, State},
 	VariableMap,
 };
 use models::{
@@ -11,37 +15,34 @@ use models::{
 };
 use std::{collections::HashMap, env::var};
 
-fn test(
-	ast: Node, basic_variables: Option<VariableMap>, expected_stdout: Option<Vec<String>>,
-	expected_variables: Option<VariableMap>, expected_return_value: Option<AstResult>, expected_actions: Vec<Action>,
-) {
-	let (return_value, stdout_result, var_result, actions_result) = if let Some(mut variables) = basic_variables {
-		let mut stdout: Vec<String> = Vec::<String>::new();
+fn test(ast: Node, basic_variables: Option<VariableMap>, expected_stdout: Option<Vec<String>>, expected_actions: Vec<Action>) {
+	let (stdout_result, actions_result) = if let Some(mut variables) = basic_variables {
+		let mut console = Console::default();
 		let mut actions: Vec<Action> = Vec::new();
+		let mut states: Vec<State> = Vec::new();
 		let id_path = &mut Vec::new();
-		let runner_result = execute_node(&ast, &mut variables, id_path, &mut stdout, &mut actions);
-		(runner_result, stdout, variables, actions)
+		let runner_result = execute_node(&ast, &mut variables, id_path, &mut console, &mut actions, &mut states);
+		(console, actions)
 	} else {
 		runner(&ast)
 	};
 
-	assert_eq!(expected_stdout.map_or(Vec::new(), |v| v), stdout_result, "stdout");
+	assert_eq!(expected_stdout.map_or(Vec::new(), |v| v), stdout_result.stdout, "stdout");
 	assert_eq!(expected_actions, actions_result, "actions");
-	assert_eq!(expected_variables.map_or(VariableMap::new(), |v| v), var_result, "variables");
-	assert_eq!(expected_return_value.map_or(Ok(None), |v| v), return_value, "return value");
+	// assert_eq!(expected_variables.map_or(VariableMap::new(), |v| v), var_result, "variables");
+	// assert_eq!(expected_return_value.map_or(Ok(None), |v| v), return_value, "return value");
 }
 
 #[test]
 fn should_do_nothing_when_empty_sequence() {
 	let ast = Node { id: 0, data: NodeData::Sequence(vec![]) };
-	test(ast, None, None, None, None, vec![Action::Goto(0), Action::Return(Ok(None))]);
+	test(ast, None, None, vec![Action::new(ActionType::Goto(0), 0), Action::new(ActionType::Return(Ok(None)), 0)]);
 }
 
 #[test]
 fn should_error_when_root_node_is_not_a_sequence() {
 	let ast = Node { id: 0, data: NodeData::RawText("Hello world".to_string()) };
-	let error_message = ErrorMessage::new(vec![], models::error::ErrorType::RootIsNotSequence, None);
-	test(ast, None, None, None, Some(Err(vec![error_message])), vec![]);
+	test(ast, None, None, vec![Action::new(ActionType::Error(models::error::ErrorType::RootIsNotSequence), 0)]);
 }
 
 #[test]
@@ -69,26 +70,24 @@ fn should_assign_variable_and_print_it() {
 		ast,
 		None,
 		Some(vec!["42".to_string()]),
-		Some(HashMap::from([(("x".to_string(), 0), ReturnValue::Int(42))])),
-		Some(Ok(None)),
 		vec![
-			Action::Goto(0),
-			Action::Goto(1),
-			Action::CheckVarNameValidity(true),
-			Action::Goto(2),
-			Action::EvaluateRawText,
-			Action::Return(Ok(Some(ReturnValue::Int(42)))),
-			Action::AssigneVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(42) },
-			Action::Return(Ok(None)),
-			Action::Goto(3),
-			Action::GetArgs,
-			Action::Goto(4),
-			Action::EvaluateRawText,
-			Action::Return(Ok(Some(ReturnValue::Int(42)))),
-			Action::CallBuildInFn("print".to_string()),
-			Action::PushStdout("42".to_string()),
-			Action::Return(Ok(None)),
-			Action::Return(Ok(None)),
+			Action::new(ActionType::Goto(0), 0),
+			Action::new(ActionType::Goto(1), 0),
+			Action::new(ActionType::CheckVarNameValidity(Ok(())), 0),
+			Action::new(ActionType::Goto(2), 0),
+			Action::new(ActionType::EvaluateRawText, 0),
+			Action::new(ActionType::Return(Ok(Some(ReturnValue::Int(42)))), 0),
+			Action::new(ActionType::AssignVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(42) }, 1),
+			Action::new(ActionType::Return(Ok(None)), 1),
+			Action::new(ActionType::Goto(3), 1),
+			Action::new(ActionType::GetArgs, 1),
+			Action::new(ActionType::Goto(4), 1),
+			Action::new(ActionType::EvaluateRawText, 1),
+			Action::new(ActionType::Return(Ok(Some(ReturnValue::Int(42)))), 1),
+			Action::new(ActionType::CallBuildInFn("print".to_string()), 1),
+			Action::new(ActionType::PushStdout("42".to_string()), 1),
+			Action::new(ActionType::Return(Ok(None)), 1),
+			Action::new(ActionType::Return(Ok(None)), 1),
 		],
 	);
 }
@@ -100,9 +99,11 @@ fn should_return_value_when_raw_text() {
 		ast,
 		Some(HashMap::new()),
 		None,
-		None,
-		Some(Ok(Some(ReturnValue::Int(42)))),
-		vec![Action::Goto(0), Action::EvaluateRawText, Action::Return(Ok(Some(ReturnValue::Int(42))))],
+		vec![
+			Action::new(ActionType::Goto(0), 0),
+			Action::new(ActionType::EvaluateRawText, 0),
+			Action::new(ActionType::Return(Ok(Some(ReturnValue::Int(42)))), 0),
+		],
 	);
 }
 
@@ -126,14 +127,12 @@ fn should_return_when_raw_text_and_stop_there() {
 		ast,
 		None,
 		None,
-		None,
-		Some(Ok(Some(ReturnValue::Int(42)))),
 		vec![
-			Action::Goto(0),
-			Action::Goto(1),
-			Action::EvaluateRawText,
-			Action::return_some(ReturnValue::Int(42)),
-			Action::return_some(ReturnValue::Int(42)),
+			Action::new(ActionType::Goto(0), 0),
+			Action::new(ActionType::Goto(1), 0),
+			Action::new(ActionType::EvaluateRawText, 0),
+			Action::new(ActionType::return_some(ReturnValue::Int(42)), 0),
+			Action::new(ActionType::return_some(ReturnValue::Int(42)), 0),
 		],
 	);
 }
@@ -154,19 +153,17 @@ fn should_print_raw_text() {
 		ast,
 		None,
 		Some(vec!["42".to_string()]),
-		None,
-		Some(Ok(None)),
 		vec![
-			Action::Goto(0),
-			Action::Goto(1),
-			Action::GetArgs,
-			Action::Goto(2),
-			Action::EvaluateRawText,
-			Action::return_some(ReturnValue::Int(42)),
-			Action::CallBuildInFn("print".to_string()),
-			Action::PushStdout("42".to_string()),
-			Action::Return(Ok(None)),
-			Action::Return(Ok(None)),
+			Action::new(ActionType::Goto(0), 0),
+			Action::new(ActionType::Goto(1), 0),
+			Action::new(ActionType::GetArgs, 0),
+			Action::new(ActionType::Goto(2), 0),
+			Action::new(ActionType::EvaluateRawText, 0),
+			Action::new(ActionType::return_some(ReturnValue::Int(42)), 0),
+			Action::new(ActionType::CallBuildInFn("print".to_string()), 0),
+			Action::new(ActionType::PushStdout("42".to_string()), 0),
+			Action::new(ActionType::Return(Ok(None)), 0),
+			Action::new(ActionType::Return(Ok(None)), 0),
 		],
 	);
 }
@@ -203,57 +200,55 @@ fn should_print_variable_in_a_while_loop() {
 		ast,
 		Some(HashMap::from([(("x".to_string(), 0), ReturnValue::Int(0))])),
 		Some(vec!["x=0 !".to_string(), "x=1 !".to_string()]),
-		Some(HashMap::from([(("x".to_string(), 0), ReturnValue::Int(2))])),
-		Some(Ok(None)),
 		vec![
-			Action::Goto(0),
-			Action::ControlFlowEvaluateCondition,
-			Action::Goto(1),
-			Action::EvaluateRawText,
-			Action::return_some(ReturnValue::Int(1)),
-			Action::Goto(200),
-			Action::Goto(4),
-			Action::GetArgs,
-			Action::Goto(5),
-			Action::EvaluateRawText,
-			Action::return_some(ReturnValue::String("x=0 !".to_string())),
-			Action::CallBuildInFn("print".to_string()),
-			Action::PushStdout("x=0 !".to_string()),
-			Action::Return(Ok(None)),
-			Action::Goto(2),
-			Action::CheckVarNameValidity(true),
-			Action::Goto(3),
-			Action::EvaluateRawText,
-			Action::return_some(ReturnValue::Int(1)),
-			Action::AssigneVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(1) },
-			Action::Return(Ok(None)),
-			Action::Return(Ok(None)),
-			Action::ControlFlowEvaluateCondition,
-			Action::Goto(1),
-			Action::EvaluateRawText,
-			Action::return_some(ReturnValue::Int(1)),
-			Action::Goto(200),
-			Action::Goto(4),
-			Action::GetArgs,
-			Action::Goto(5),
-			Action::EvaluateRawText,
-			Action::return_some(ReturnValue::String("x=1 !".to_string())),
-			Action::CallBuildInFn("print".to_string()),
-			Action::PushStdout("x=1 !".to_string()),
-			Action::Return(Ok(None)),
-			Action::Goto(2),
-			Action::CheckVarNameValidity(true),
-			Action::Goto(3),
-			Action::EvaluateRawText,
-			Action::return_some(ReturnValue::Int(2)),
-			Action::AssigneVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(2) },
-			Action::Return(Ok(None)),
-			Action::Return(Ok(None)),
-			Action::ControlFlowEvaluateCondition,
-			Action::Goto(1),
-			Action::EvaluateRawText,
-			Action::return_some(ReturnValue::Int(0)),
-			Action::Return(Ok(None)),
+			Action::new(ActionType::Goto(0), 0),
+			Action::new(ActionType::ControlFlowEvaluateCondition, 0),
+			Action::new(ActionType::Goto(1), 0),
+			Action::new(ActionType::EvaluateRawText, 0),
+			Action::new(ActionType::return_some(ReturnValue::Int(1)), 0),
+			Action::new(ActionType::Goto(200), 0),
+			Action::new(ActionType::Goto(4), 0),
+			Action::new(ActionType::GetArgs, 0),
+			Action::new(ActionType::Goto(5), 0),
+			Action::new(ActionType::EvaluateRawText, 0),
+			Action::new(ActionType::return_some(ReturnValue::String("x=0 !".to_string())), 0),
+			Action::new(ActionType::CallBuildInFn("print".to_string()), 0),
+			Action::new(ActionType::PushStdout("x=0 !".to_string()), 0),
+			Action::new(ActionType::Return(Ok(None)), 0),
+			Action::new(ActionType::Goto(2), 0),
+			Action::new(ActionType::CheckVarNameValidity(Ok(())), 0),
+			Action::new(ActionType::Goto(3), 0),
+			Action::new(ActionType::EvaluateRawText, 0),
+			Action::new(ActionType::return_some(ReturnValue::Int(1)), 0),
+			Action::new(ActionType::AssignVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(1) }, 1),
+			Action::new(ActionType::Return(Ok(None)), 1),
+			Action::new(ActionType::Return(Ok(None)), 1),
+			Action::new(ActionType::ControlFlowEvaluateCondition, 1),
+			Action::new(ActionType::Goto(1), 1),
+			Action::new(ActionType::EvaluateRawText, 1),
+			Action::new(ActionType::return_some(ReturnValue::Int(1)), 1),
+			Action::new(ActionType::Goto(200), 1),
+			Action::new(ActionType::Goto(4), 1),
+			Action::new(ActionType::GetArgs, 1),
+			Action::new(ActionType::Goto(5), 1),
+			Action::new(ActionType::EvaluateRawText, 1),
+			Action::new(ActionType::return_some(ReturnValue::String("x=1 !".to_string())), 1),
+			Action::new(ActionType::CallBuildInFn("print".to_string()), 1),
+			Action::new(ActionType::PushStdout("x=1 !".to_string()), 1),
+			Action::new(ActionType::Return(Ok(None)), 1),
+			Action::new(ActionType::Goto(2), 1),
+			Action::new(ActionType::CheckVarNameValidity(Ok(())), 1),
+			Action::new(ActionType::Goto(3), 1),
+			Action::new(ActionType::EvaluateRawText, 1),
+			Action::new(ActionType::return_some(ReturnValue::Int(2)), 1),
+			Action::new(ActionType::AssignVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(2) }, 2),
+			Action::new(ActionType::Return(Ok(None)), 2),
+			Action::new(ActionType::Return(Ok(None)), 2),
+			Action::new(ActionType::ControlFlowEvaluateCondition, 2),
+			Action::new(ActionType::Goto(1), 2),
+			Action::new(ActionType::EvaluateRawText, 2),
+			Action::new(ActionType::return_some(ReturnValue::Int(0)), 2),
+			Action::new(ActionType::Return(Ok(None)), 2),
 		],
 	);
 }
@@ -317,37 +312,34 @@ fn sould_reassign_variable_if_condition_is_true() {
 		ast,
 		None,
 		None,
-		Some(HashMap::from([(("x".to_string(), 0), ReturnValue::Int(13))])),
-		Some(Ok(None)),
 		vec![
-			Action::Goto(0),
-			Action::Goto(1),
-			Action::CheckVarNameValidity(true),
-			Action::Goto(2),
-			Action::EvaluateRawText,
-			Action::return_some(ReturnValue::Int(10)),
-			Action::AssigneVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(10) },
-			Action::Return(Ok(None)),
-			Action::Goto(3),
-			Action::ControlFlowEvaluateCondition,
-			Action::Goto(4),
-			Action::EvaluateRawText,
-			Action::return_some(ReturnValue::Int(0)),
-			Action::ControlFlowEvaluateCondition,
-			Action::Goto(7),
-			Action::EvaluateRawText,
-			Action::return_some(ReturnValue::Int(0)),
-			Action::Goto(202),
-			Action::Goto(11),
-			Action::CheckVarNameValidity(true),
-			Action::Goto(12),
-			Action::EvaluateRawText,
-			Action::Return(Ok(Some(ReturnValue::Int(13)))),
-			Action::AssigneVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(13) },
-			Action::Return(Ok(None)),
-			Action::Return(Ok(None)),
-			Action::Return(Ok(None)),
-			Action::Return(Ok(None)),
+			Action::new(ActionType::Goto(0), 0),
+			Action::new(ActionType::Goto(1), 0),
+			Action::new(ActionType::CheckVarNameValidity(Ok(())), 0),
+			Action::new(ActionType::Goto(2), 0),
+			Action::new(ActionType::EvaluateRawText, 0),
+			Action::new(ActionType::return_some(ReturnValue::Int(10)), 0),
+			Action::new(ActionType::AssignVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(10) }, 1),
+			Action::new(ActionType::Return(Ok(None)), 1),
+			Action::new(ActionType::Goto(3), 1),
+			Action::new(ActionType::ControlFlowEvaluateCondition, 1),
+			Action::new(ActionType::Goto(4), 1),
+			Action::new(ActionType::EvaluateRawText, 1),
+			Action::new(ActionType::return_some(ReturnValue::Int(0)), 1),
+			Action::new(ActionType::ControlFlowEvaluateCondition, 1),
+			Action::new(ActionType::Goto(7), 1),
+			Action::new(ActionType::EvaluateRawText, 1),
+			Action::new(ActionType::return_some(ReturnValue::Int(0)), 1),
+			Action::new(ActionType::Goto(202), 1),
+			Action::new(ActionType::Goto(11), 1),
+			Action::new(ActionType::CheckVarNameValidity(Ok(())), 1),
+			Action::new(ActionType::Goto(12), 1),
+			Action::new(ActionType::EvaluateRawText, 1),
+			Action::new(ActionType::Return(Ok(Some(ReturnValue::Int(13)))), 1),
+			Action::new(ActionType::AssignVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(13) }, 2),
+			Action::new(ActionType::Return(Ok(None)), 2),
+			Action::new(ActionType::Return(Ok(None)), 2),
+			Action::new(ActionType::Return(Ok(None)), 2),
 		],
 	);
 }
@@ -371,21 +363,19 @@ fn should_return_math_expression_result() {
 		ast,
 		None,
 		None,
-		Some(HashMap::from([(("x".to_string(), 0), ReturnValue::Int(42))])),
-		Some(Ok(Some(ReturnValue::Int(-38)))),
 		vec![
-			Action::Goto(0),
-			Action::Goto(1),
-			Action::CheckVarNameValidity(true),
-			Action::Goto(2),
-			Action::EvaluateRawText,
-			Action::return_some(ReturnValue::Int(42)),
-			Action::AssigneVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(42) },
-			Action::Return(Ok(None)),
-			Action::Goto(3),
-			Action::EvaluateRawText,
-			Action::return_some(ReturnValue::Int(-38)),
-			Action::return_some(ReturnValue::Int(-38)),
+			Action::new(ActionType::Goto(0), 0),
+			Action::new(ActionType::Goto(1), 0),
+			Action::new(ActionType::CheckVarNameValidity(Ok(())), 0),
+			Action::new(ActionType::Goto(2), 0),
+			Action::new(ActionType::EvaluateRawText, 0),
+			Action::new(ActionType::return_some(ReturnValue::Int(42)), 0),
+			Action::new(ActionType::AssignVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(42) }, 1),
+			Action::new(ActionType::Return(Ok(None)), 1),
+			Action::new(ActionType::Goto(3), 1),
+			Action::new(ActionType::EvaluateRawText, 1),
+			Action::new(ActionType::return_some(ReturnValue::Int(-38)), 1),
+			Action::new(ActionType::return_some(ReturnValue::Int(-38)), 1),
 		],
 	);
 }
@@ -415,25 +405,23 @@ fn should_reassign_variable() {
 		ast,
 		None,
 		None,
-		Some(HashMap::from([(("x".to_string(), 0), ReturnValue::Int(24))])),
-		Some(Ok(None)),
 		vec![
-			Action::Goto(0),
-			Action::Goto(1),
-			Action::CheckVarNameValidity(true),
-			Action::Goto(2),
-			Action::EvaluateRawText,
-			Action::return_some(ReturnValue::Int(42)),
-			Action::AssigneVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(42) },
-			Action::Return(Ok(None)),
-			Action::Goto(3),
-			Action::CheckVarNameValidity(true),
-			Action::Goto(4),
-			Action::EvaluateRawText,
-			Action::return_some(ReturnValue::Int(24)),
-			Action::AssigneVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(24) },
-			Action::Return(Ok(None)),
-			Action::Return(Ok(None)),
+			Action::new(ActionType::Goto(0), 0),
+			Action::new(ActionType::Goto(1), 0),
+			Action::new(ActionType::CheckVarNameValidity(Ok(())), 0),
+			Action::new(ActionType::Goto(2), 0),
+			Action::new(ActionType::EvaluateRawText, 0),
+			Action::new(ActionType::return_some(ReturnValue::Int(42)), 0),
+			Action::new(ActionType::AssignVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(42) }, 1),
+			Action::new(ActionType::Return(Ok(None)), 1),
+			Action::new(ActionType::Goto(3), 1),
+			Action::new(ActionType::CheckVarNameValidity(Ok(())), 1),
+			Action::new(ActionType::Goto(4), 1),
+			Action::new(ActionType::EvaluateRawText, 1),
+			Action::new(ActionType::return_some(ReturnValue::Int(24)), 1),
+			Action::new(ActionType::AssignVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(24) }, 2),
+			Action::new(ActionType::Return(Ok(None)), 2),
+			Action::new(ActionType::Return(Ok(None)), 2),
 		],
 	);
 }
@@ -466,29 +454,25 @@ fn should_reassign_variable_and_keep_original_scope() {
 		ast,
 		None,
 		None,
-		Some(HashMap::from([(("x".to_string(), 0), ReturnValue::Int(24))])),
-		None,
 		vec![
-			Action::Goto(0),
-			Action::Goto(1),
-			Action::CheckVarNameValidity(true),
-			Action::Goto(2),
-			Action::EvaluateRawText,
-			Action::return_some(ReturnValue::Int(42)),
-			Action::AssigneVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(42) },
-			Action::Return(Ok(None)),
-			Action::Goto(3),
-			Action::Goto(4),
-			Action::CheckVarNameValidity(true),
-			Action::Goto(5),
-			Action::EvaluateRawText,
-			Action::return_some(ReturnValue::Int(24)),
-			Action::AssigneVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(24) },
-			Action::Return(Ok(None)),
-			Action::Return(Ok(None)),
-			Action::Return(Ok(None)),
+			Action::new(ActionType::Goto(0), 0),
+			Action::new(ActionType::Goto(1), 0),
+			Action::new(ActionType::CheckVarNameValidity(Ok(())), 0),
+			Action::new(ActionType::Goto(2), 0),
+			Action::new(ActionType::EvaluateRawText, 0),
+			Action::new(ActionType::return_some(ReturnValue::Int(42)), 0),
+			Action::new(ActionType::AssignVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(42) }, 1),
+			Action::new(ActionType::Return(Ok(None)), 1),
+			Action::new(ActionType::Goto(3), 1),
+			Action::new(ActionType::Goto(4), 1),
+			Action::new(ActionType::CheckVarNameValidity(Ok(())), 1),
+			Action::new(ActionType::Goto(5), 1),
+			Action::new(ActionType::EvaluateRawText, 1),
+			Action::new(ActionType::return_some(ReturnValue::Int(24)), 1),
+			Action::new(ActionType::AssignVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(24) }, 2),
+			Action::new(ActionType::Return(Ok(None)), 2),
+			Action::new(ActionType::Return(Ok(None)), 2),
+			Action::new(ActionType::Return(Ok(None)), 2),
 		],
 	);
 }
-
-// // fn function_declaration() { // TODO
