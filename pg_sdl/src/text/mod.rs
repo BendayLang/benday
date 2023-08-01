@@ -22,6 +22,7 @@ lazy_static! {
 	pub static ref TTF_CONTEXT: Sdl2TtfContext = sdl2::ttf::init().expect("SDL2 ttf could not be initialized");
 }
 
+#[derive(Default)]
 pub struct TextDrawer<'ttf, 'surface> {
 	// texture_creator: sdl2::render::TextureCreator<sdl2::video::WindowContext>,
 	fonts: HashMap<FontInfos, sdl2::ttf::Font<'ttf, 'static>>,
@@ -39,10 +40,6 @@ macro_rules! get_font_or_add {
 }
 
 impl<'ttf, 'texture> TextDrawer<'ttf, 'texture> {
-	pub fn new() -> Self {
-		TextDrawer { fonts: HashMap::new(), texture_cache: HashMap::new() }
-	}
-
 	pub fn size_of<T: Scalar + num_traits::NumCast + num_traits::Zero>(
 		&mut self, text: &str, font_size: FontSize, style: &TextStyle,
 	) -> Vector2<T> {

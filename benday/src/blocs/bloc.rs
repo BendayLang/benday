@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use crate::blocs::containers::{Sequence, Slot};
 use crate::blocs::{
-	new_if_else_bloc, new_variable_assignment_bloc, Container, FnGetSize, WigBloc, TOP_BOX_BT_MARGIN, TOP_BOX_BT_RADIUS,
+	Container, FnGetSize, WigBloc, TOP_BOX_BT_MARGIN, TOP_BOX_BT_RADIUS,
 	TOP_BOX_BT_SIZE,
 };
 use crate::blocs::{BlocContainer, BlocType};
@@ -25,7 +25,7 @@ use sdl2::render::{BlendMode, Canvas};
 use sdl2::surface::Surface;
 
 use super::as_ast_node::AsAstNode;
-use super::{new_function_call_bloc, new_sequence_bloc};
+
 
 pub struct BlocStyle {
 	color: Color,
@@ -153,7 +153,7 @@ impl Bloc {
 		});
 		// update_layout
 		self.slots.iter().for_each(|slot| {
-			manager.get_widget_mut(&slot.get_id()).get_base_mut().rect.position =
+			manager.get_widget_mut(slot.get_id()).get_base_mut().rect.position =
 				self.base.rect.position + slot.get_relative_position(self, manager);
 		});
 		self.sequences_ids.iter().for_each(|sequence_id| {
@@ -262,7 +262,7 @@ impl Bloc {
 		let mut childs = Vec::new();
 		self.slots.iter().for_each(|slot| {
 			if slot.has_child() {
-				childs.extend(manager.get::<Self>(&slot.get_id()).get_recursive_childs(manager));
+				childs.extend(manager.get::<Self>(slot.get_id()).get_recursive_childs(manager));
 			}
 		});
 		self.sequences_ids.iter().for_each(|sequence_id| {
@@ -304,7 +304,7 @@ impl Bloc {
 		for (nth_sequence, sequence_id) in self.sequences_ids.iter().enumerate() {
 			let sequence = manager.get::<Sequence>(sequence_id);
 			if sequence.get_base().rect.collide_point(point) {
-				for place in (0..=sequence.get_childs_ids().len()) {
+				for place in 0..=sequence.get_childs_ids().len() {
 					if sequence.get_gap_rect(place, manager).collide_point(point) {
 						return Some(Container {
 							bloc_id: *self.get_id(),

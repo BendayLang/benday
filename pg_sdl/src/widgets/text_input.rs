@@ -30,7 +30,7 @@ pub struct TextInputStyle {
 impl TextInputStyle {
 	pub fn new(color: Color, corner_radius: Option<f64>, font_size: f64, focus: bool) -> Self {
 		Self {
-			color: color,
+			color,
 			hovered_color: darker(color, HOVER),
 			focused_color: if focus { Some(Colors::BLUE) } else { None },
 			border_color: Colors::BLACK,
@@ -172,7 +172,7 @@ fn get_word_position(text: &str, mut position: usize) -> (usize, usize) {
 
 	let mut start = if position == 0 { 0 } else { position - 1 };
 	loop {
-		if start <= 0 {
+		if start == 0 {
 			break;
 		}
 		let c: char = text.chars().nth(start).expect("back oups");

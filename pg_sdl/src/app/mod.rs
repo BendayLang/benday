@@ -60,7 +60,7 @@ impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 
 		PgSdl {
 			mouse: sdl_context.mouse(),
-			text_drawer: TextDrawer::new(),
+			text_drawer: TextDrawer::default(),
 			input: Input::new(sdl_context.event_pump().unwrap(), video_subsystem.clipboard()),
 			manager,
 			window_canvas,

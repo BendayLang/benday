@@ -53,8 +53,8 @@ fn run(ast: &Node, is_first: bool, uid_generator: &mut UidGenerator) -> (String,
 			let return_body = if return_body.is_empty() { None } else { Some(return_body) };
 			let mut return_identifier = name.to_string() + "(";
 			for i in &sub_identifiers {
-				return_identifier += &i;
-				if &i != &sub_identifiers.last().unwrap() {
+				return_identifier += i;
+				if i != sub_identifiers.last().unwrap() {
 					return_identifier += ", ";
 				}
 			}
@@ -87,7 +87,7 @@ fn run(ast: &Node, is_first: bool, uid_generator: &mut UidGenerator) -> (String,
 			(format!("{sequence_name}()"), return_body, final_does_return)
 		}
 		NodeData::VariableAssignment(VariableAssignment { name, value }) => {
-			let (identifier, body, does_return) = run(&value, false, uid_generator);
+			let (identifier, body, does_return) = run(value, false, uid_generator);
 			(format!("{name} = {identifier}"), body, false)
 		}
 		NodeData::While(While { is_do, condition, sequence }) => {

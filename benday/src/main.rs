@@ -24,6 +24,7 @@ use sdl2::render::Canvas;
 use sdl2::surface::Surface;
 use std::time::Duration;
 
+#[allow(dead_code)]
 enum AppState {
 	Idle,
 	AddingBloc { widget_id: WidgetId, container: Container },
@@ -193,12 +194,10 @@ impl App for BendayFront {
 		if let Some(rect) = self.rect {
 			draw_rect(canvas, Some(camera), Colors::WHITE, rect);
 		} else if let Some(focused_widget) = manager.focused_widget() {
-			if self.blocs.contains(&focused_widget) {
-				if manager.get::<Bloc>(&focused_widget).get_base().state.is_down() {
-					let rect = manager.get::<Bloc>(&focused_widget).get_base().rect.translated(-Bloc::SHADOW);
-					draw_rounded_rect(canvas, Some(camera), Colors::RED, rect, RADIUS);
-				}
-			}
+			if self.blocs.contains(&focused_widget) && manager.get::<Bloc>(&focused_widget).get_base().state.is_down() {
+   					let rect = manager.get::<Bloc>(&focused_widget).get_base().rect.translated(-Bloc::SHADOW);
+   					draw_rounded_rect(canvas, Some(camera), Colors::RED, rect, RADIUS);
+   				}
 		}
 	}
 }

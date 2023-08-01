@@ -41,7 +41,7 @@ pub struct SelectStyle {
 impl SelectStyle {
 	pub fn new(color: Color, corner_radius: Option<f64>, font_size: f64) -> Self {
 		Self {
-			color: color,
+			color,
 			hovered_color: darker(color, HOVER),
 			selected_option_color: darker(color, PUSH),
 			slider_color: darker(color, 0.85),

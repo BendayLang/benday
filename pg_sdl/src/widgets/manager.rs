@@ -186,7 +186,7 @@ impl Manager {
 				manager.get_widget_mut(&old_focused_widget_id).get_base_mut().focused = false;
 			};
 			let unfocus_parent = |manager: &mut Self| {
-				let option_parent_id = manager.get_widget(&old_focused_widget_id).get_base().parent_id.clone();
+				let option_parent_id = manager.get_widget(&old_focused_widget_id).get_base().parent_id;
 				if let Some(parent_id) = option_parent_id {
 					let widget = manager.widgets.remove(&parent_id).unwrap();
 					widget.borrow_mut().on_unfocus(manager);
@@ -219,7 +219,7 @@ impl Manager {
 			self.get_widget_mut(&new_focused_widget_id).get_base_mut().focused = true;
 			self.focused_widget_id = Some(new_focused_widget_id);
 
-			let option_parent_id = self.get_widget(&new_focused_widget_id).get_base().parent_id.clone();
+			let option_parent_id = self.get_widget(&new_focused_widget_id).get_base().parent_id;
 			if let Some(parent_id) = option_parent_id {
 				let widget = self.widgets.remove(&parent_id).unwrap();
 				widget.borrow_mut().on_focus(self);
@@ -238,7 +238,7 @@ impl Manager {
 				manager.get_widget_mut(&old_hovered_widget_id).get_base_mut().hovered = false;
 			};
 			let unhover_parent = |manager: &mut Self| {
-				let option_parent_id = manager.get_widget(&old_hovered_widget_id).get_base().parent_id.clone();
+				let option_parent_id = manager.get_widget(&old_hovered_widget_id).get_base().parent_id;
 				if let Some(parent_id) = option_parent_id {
 					let widget = manager.widgets.remove(&parent_id).unwrap();
 					widget.borrow_mut().on_unhover(manager);
@@ -271,7 +271,7 @@ impl Manager {
 			self.get_widget_mut(&new_hovered_widget_id).get_base_mut().hovered = true;
 			self.hovered_widget_id = Some(new_hovered_widget_id);
 
-			let option_parent_id = self.get_widget(&new_hovered_widget_id).get_base().parent_id.clone();
+			let option_parent_id = self.get_widget(&new_hovered_widget_id).get_base().parent_id;
 			if let Some(parent_id) = option_parent_id {
 				let widget = self.widgets.remove(&parent_id).unwrap();
 				widget.borrow_mut().on_hover(self);

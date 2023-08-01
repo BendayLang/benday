@@ -30,6 +30,7 @@ pub struct WigBloc {
 
 pub const BLOC_NAMES: [&str; 5] = ["Variable assignment", "If else", "Function call", "Sequence", "While"];
 
+#[allow(dead_code)]
 pub enum BlocType {
 	VariableAssignment,
 	IfElse,

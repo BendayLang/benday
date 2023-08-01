@@ -201,7 +201,7 @@ fn is_var_name_valid(name: &str) -> Result<(), ErrorType> {
 		return Err(ErrorType::VariableNameError(error::VariableNameError::Empty));
 	}
 
-	if !name.chars().next().unwrap().is_alphabetic() && name.chars().next().unwrap() != '_' {
+	if !name.chars().next().unwrap().is_alphabetic() && !name.starts_with('_') {
 		return Err(ErrorType::VariableNameError(error::VariableNameError::InvalidFirstChar));
 	}
 
@@ -209,9 +209,9 @@ fn is_var_name_valid(name: &str) -> Result<(), ErrorType> {
 }
 
 fn get_bool(return_value: Option<ReturnValue>) -> Result<bool, ErrorType> {
-	let res = if let Some(return_value) = return_value {
-		return return_value.to_bool();
+	if let Some(return_value) = return_value {
+		return_value.to_bool()
 	} else {
-		return Err(ErrorType::NEW_TYPE("void should not be evaluated".to_string()));
-	};
+		Err(ErrorType::NEW_TYPE("void should not be evaluated".to_string()))
+	}
 }
