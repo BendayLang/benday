@@ -72,24 +72,24 @@ fn should_assign_variable_and_print_it() {
 		None,
 		Some(vec!["42".to_string()]),
 		vec![
-			Action::new(ActionType::Entered { from: 0 }, 0, 0),
-			Action::new(ActionType::Entered { from: 0 }, 0, 1),   // VariableAssignment
-			Action::new(ActionType::Entered { from: 1 }, 0, 100), // VariableAssignment::name
-			Action::new(ActionType::CheckVarNameValidity(Ok(())), 0, 100),
-			Action::new(ActionType::Entered { from: 100 }, 0, 2), // VariableAssignment::value
-			Action::new(ActionType::EvaluateRawText, 0, 2),
-			Action::new(ActionType::Return(Ok(Some(ReturnValue::Int(42)))), 0, 2),
-			Action::new(ActionType::AssignVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(42) }, 1, 1),
-			Action::new(ActionType::Return(Ok(None)), 1, 1), // VariableAssignment -> Sequence
-			Action::new(ActionType::Entered { from: 100 }, 1, 3),
-			Action::new(ActionType::GetArgs, 1, 3),
-			Action::new(ActionType::Entered { from: 3 }, 1, 4),
-			Action::new(ActionType::EvaluateRawText, 1, 4),
-			Action::new(ActionType::Return(Ok(Some(ReturnValue::Int(42)))), 1, 4),
-			Action::new(ActionType::CallBuildInFn("print".to_string()), 1, 3),
-			Action::new(ActionType::PushStdout("42".to_string()), 1, 3),
-			Action::new(ActionType::Return(Ok(None)), 1, 3),
-			Action::new(ActionType::Return(Ok(None)), 0, 0),
+			Action::new(ActionType::Entered { from: 0 }, 0, 0),            // -> Sequence
+			Action::new(ActionType::Entered { from: 0 }, 0, 1),            // -> VariableAssignment
+			Action::new(ActionType::Entered { from: 1 }, 0, 100),          // VariableAssignment::name
+			Action::new(ActionType::CheckVarNameValidity(Ok(())), 0, 100), //
+			Action::new(ActionType::Entered { from: 100 }, 0, 2),          // VariableAssignment::value
+			Action::new(ActionType::EvaluateRawText, 0, 2),                // VariableAssignment::value
+			Action::new(ActionType::Return(Ok(Some(ReturnValue::Int(42)))), 0, 2), // VariableAssignment::value -> VariableAssignment
+			Action::new(ActionType::AssignVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(42) }, 1, 1), // VariableAssignment
+			Action::new(ActionType::Return(Ok(None)), 1, 1),               // VariableAssignment -> Sequence
+			Action::new(ActionType::Entered { from: 100 }, 1, 3),          // FunctionCall
+			Action::new(ActionType::GetArgs, 1, 3),                        // FunctionCall
+			Action::new(ActionType::Entered { from: 3 }, 1, 4),            // FunctionCall::argv[0]
+			Action::new(ActionType::EvaluateRawText, 1, 4),                // FunctionCall::argv[0]
+			Action::new(ActionType::Return(Ok(Some(ReturnValue::Int(42)))), 1, 4), // FunctionCall::argv[0] -> FunctionCall
+			Action::new(ActionType::CallBuildInFn("print".to_string()), 1, 3), // FunctionCall
+			Action::new(ActionType::PushStdout("42".to_string()), 1, 3),   // FunctionCall
+			Action::new(ActionType::Return(Ok(None)), 1, 3),               // FunctionCall -> Sequence
+			Action::new(ActionType::Return(Ok(None)), 0, 0),               // Sequence ->
 		],
 	);
 }
