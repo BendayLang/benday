@@ -1,7 +1,6 @@
 // #![allow(dead_code, unused_variables, unused_imports)]
 mod blocs;
-
-use std::f64::consts::PI;
+mod animation;
 
 use crate::blocs::bloc::Bloc;
 use crate::blocs::containers::Sequence;
@@ -20,18 +19,21 @@ use pg_sdl::widgets::select::Select;
 use pg_sdl::widgets::slider::{Slider, SliderStyle, SliderType};
 use pg_sdl::widgets::switch::{Switch, SwitchStyle};
 use pg_sdl::widgets::{Manager, Widget, WidgetId};
-use runner::exectute::action::Action;
+use runner::exectute::action::{Action, ActionType};
 use runner::exectute::console::Console;
 use sdl2::render::Canvas;
 use sdl2::surface::Surface;
 use std::time::Duration;
+use crate::animation::{interpolate_rect, ease_in_out};
+
+const ANIM_TIME: Duration = Duration::from_millis(1000);
 
 #[allow(dead_code)]
 enum AppState {
 	Idle,
 	AddingBloc { widget_id: WidgetId, container: Container },
 	Saving,
-	Running { index: u16, console: Console, actions: Vec<Action> },
+	Running { last_action: u32, animation_timer: Duration, console: Console, actions: Vec<Action> },
 }
 
 pub struct BendayFront {
@@ -40,6 +42,7 @@ pub struct BendayFront {
 	blocs: Vec<WidgetId>,
 	hovered_container: Option<Container>,
 	rect: Option<Rect>,
+	debug_slider_id: WidgetId,
 	r1: Rect,
 	r2: Rect,
 	switch_id: WidgetId,
@@ -94,7 +97,9 @@ impl App for BendayFront {
 				println!("{str}");
 			}
 			manager.get_mut::<Slider>(&3).set_visible();
-			self.state = AppState::Running { index: 0, console, actions };
+			manager.get_mut::<Slider>(&3).reset_value();
+			manager.get_mut::<Slider>(&3).change_snap(actions.len() as u32);
+			self.state = AppState::Running { last_action: 0, animation_timer: Duration::ZERO, console, actions };
 		} else if manager.get::<Switch>(&2).is_pressed_off() {
 			manager.get_mut::<Slider>(&3).set_invisible();
 			self.state = AppState::Idle;
@@ -185,16 +190,17 @@ impl App for BendayFront {
 				}
 			}
 			AppState::Saving => {}
-			AppState::Running { .. } => {}
+			AppState::Running { .. } => {
+			
+			}
 		}
 		
 		// test
 		if manager.get::<Switch>(&self.switch_id).is_switched() {
-			if self.t < Duration::new(1, 0) {
+			if self.t < ANIM_TIME {
 				self.t += delta;
-				if self.t > Duration::new(1, 0) {
-					self.t = Duration::new(1, 0);
-					manager.get_mut::<Switch>(&self.switch_id).set_switched(false);
+				if self.t > ANIM_TIME {
+					self.t = ANIM_TIME;
 				}
 				changed = true;
 			}
@@ -202,7 +208,6 @@ impl App for BendayFront {
 			if self.t > Duration::ZERO {
 				if self.t < delta {
 					self.t = Duration::ZERO;
-					manager.get_mut::<Switch>(&self.switch_id).set_switched(true);
 				} else { self.t -= delta; }
 				changed = true;
 			}
@@ -228,13 +233,35 @@ impl App for BendayFront {
 		}
 		
 		// test
+		match &self.state {
+			AppState::Running { last_action, animation_timer, actions, .. } => {
+				let new_action = manager.get::<Slider>(&self.debug_slider_id).get_value() as usize;
+				
+				match actions[new_action] {
+					_ => ()
+				}
+				
+				// if actions[new_action].id
+				/*
+				let rect_1 = manager.get_widget(widget_1).get_base().rect;
+				let rect_2 = manager.get_widget(widget_2.unwrap()).get_base().rect;
+				draw_rounded_rect(canvas, None, Colors::WHITE, rect_1, RADIUS);
+				draw_rounded_rect(canvas, None, Colors::WHITE, rect_2, RADIUS);
+				let t = ease_in_out(animation_timer.as_secs_f64() / ANIM_TIME.as_secs_f64());
+				let r_int = interpolate_rect(rect_1, rect_2, t);
+				fill_rounded_rect(canvas, None, Colors::YELLOW, r_int, RADIUS);
+				*/
+			},
+			_ => ()
+		}
 		let radius = 7.;
 		draw_rounded_rect(canvas, None, Colors::BLACK, self.r1, radius);
 		draw_rounded_rect(canvas, None, Colors::BLACK, self.r2, radius);
-		let t = self.t.as_secs_f64();
-		let t = ((((t - 0.5) * PI).sin() + 1.) * 0.5);
+		let t = self.t.as_secs_f64() / ANIM_TIME.as_secs_f64();
+		let t = ease_in_out(t);
 		let r_int = interpolate_rect(self.r1, self.r2, t);
 		fill_rounded_rect(canvas, None, Colors::YELLOW, r_int, radius);
+		// test
 	}
 }
 
@@ -255,8 +282,8 @@ fn main() {
 	let style = SliderStyle::new(Colors::LIGHT_RED, Colors::GREY);
 	let rect = Rect::new(490., 118., 300., 24.);
 	let slider_type = SliderType::Discrete { snap: 50, default_value: 0, display: Some(Box::new(|v| format!("{}", v))) };
-	let slider_id = manager.add_widget(Box::new(Slider::new(rect, style, slider_type)), false);
-	manager.get_mut::<Slider>(&slider_id).set_invisible();
+	let debug_slider_id = manager.add_widget(Box::new(Slider::new(rect, style, slider_type)), false);
+	manager.get_mut::<Slider>(&debug_slider_id).set_invisible();
 	
 	// test
 	let style = SwitchStyle::new(Colors::LIGHT_GREEN, Colors::LIGHT_GREY);
@@ -273,6 +300,7 @@ fn main() {
 		blocs: vec![root_id],
 		hovered_container: None,
 		rect: None,
+		debug_slider_id,
 		r1: Rect::new(180., 300., 120., 80.),
 		r2: Rect::new(400., 400., 80., 40.),
 		switch_id,
@@ -282,9 +310,3 @@ fn main() {
 	app.run(&mut my_app);
 }
 
-
-fn interpolate_rect(rect_1: Rect, rect_2: Rect, t: f64) -> Rect {
-	let center = rect_1.center() * (1. - t) + rect_2.center().coords * t;
-	let size = rect_1.size * (1. - t) + rect_2.size * t;
-	Rect::from_center(center, size)
-}

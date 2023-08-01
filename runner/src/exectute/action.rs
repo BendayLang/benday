@@ -10,6 +10,10 @@ impl Action {
 	pub fn new(r#type: ActionType, state_index: usize) -> Self {
 		Self { r#type, state_index }
 	}
+	
+	pub fn get_type(&self) -> &ActionType {
+		&self.r#type
+	}
 }
 
 #[derive(Debug, PartialEq)]

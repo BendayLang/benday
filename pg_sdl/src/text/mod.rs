@@ -24,7 +24,6 @@ lazy_static! {
 
 #[derive(Default)]
 pub struct TextDrawer<'ttf, 'surface> {
-	// texture_creator: sdl2::render::TextureCreator<sdl2::video::WindowContext>,
 	fonts: HashMap<FontInfos, sdl2::ttf::Font<'ttf, 'static>>,
 	texture_cache: TextureCache<'surface>,
 }
@@ -85,7 +84,7 @@ impl<'ttf, 'texture> TextDrawer<'ttf, 'texture> {
 			if let Some(surface) = self.texture_cache.get(&key) {
 				texture_creator.create_texture_from_surface(surface).unwrap()
 			} else {
-				println!("new len of texture cache: {}. Created for '{}'", self.texture_cache.len(), text);
+				// println!("new len of texture cache: {}. Created for '{}'", self.texture_cache.len(), text);
 				let surface = font.render(text).blended(*color).expect("text texture rendering error");
 				let texture = texture_creator.create_texture_from_surface(&surface).unwrap();
 				self.texture_cache.insert(key, surface);
