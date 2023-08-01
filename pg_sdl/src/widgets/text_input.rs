@@ -14,6 +14,63 @@ use sdl2::render::{BlendMode, Canvas};
 use sdl2::surface::Surface;
 use sdl2::video::Window;
 
+#[derive(PartialEq, Eq)]
+enum CharType {
+	Space,
+	AlphaNum,
+	Other,
+}
+
+impl CharType {
+	pub fn from_char(c: char) -> Self {
+		if c.is_alphanumeric() {
+			CharType::AlphaNum
+		} else if c.is_whitespace() {
+			CharType::Space
+		} else {
+			CharType::Other
+		}
+	}
+}
+
+fn get_word_position(text: &str, mut position: usize) -> (usize, usize) {
+	if text.is_empty() {
+		return (0, 0);
+	}
+	if position >= text.len() {
+		position = text.len() - 1;
+	}
+	let c: char = text.chars().nth(position).expect("position caca");
+	let char_type = CharType::from_char(c);
+
+	let mut end = position + 1;
+	loop {
+		if end >= text.len() {
+			break;
+		}
+		let c: char = text.chars().nth(end).expect("forward oups");
+		if CharType::from_char(c) != char_type {
+			break;
+		}
+		end += 1;
+	}
+
+	let mut start = if position == 0 { 0 } else { position - 1 };
+	loop {
+		if start <= 0 {
+			break;
+		}
+		let c: char = text.chars().nth(start).expect("back oups");
+		if CharType::from_char(c) != char_type {
+			start += 1;
+			break;
+		}
+		start -= 1;
+	}
+
+	(start, end)
+}
+
 pub struct TextInputStyle {
 	color: Color,
 	hovered_color: Color,
@@ -127,63 +184,6 @@ impl TextInput {
 	fn is_carrot_visible(&self) -> bool {
 		self.carrot_timer_sec < Self::BLINKING_TIME_SEC
 	}
-}
-
-#[derive(PartialEq, Eq)]
-enum CharType {
-	Space,
-	AlphaNum,
-	Other,
-}
-
-impl CharType {
-	pub fn from_char(c: char) -> Self {
-		if c.is_alphanumeric() {
-			CharType::AlphaNum
-		} else if c.is_whitespace() {
-			CharType::Space
-		} else {
-			CharType::Other
-		}
-	}
-}
-
-fn get_word_position(text: &str, mut position: usize) -> (usize, usize) {
-	if text.is_empty() {
-		return (0, 0);
-	}
-	if position >= text.len() {
-		position = text.len() - 1;
-	}
-	let c: char = text.chars().nth(position).expect("position caca");
-	let char_type = CharType::from_char(c);
-
-	let mut end = position + 1;
-	loop {
-		if end >= text.len() {
-			break;
-		}
-		let c: char = text.chars().nth(end).expect("forward oups");
-		if CharType::from_char(c) != char_type {
-			break;
-		}
-		end += 1;
-	}
-
-	let mut start = if position == 0 { 0 } else { position - 1 };
-	loop {
-		if start <= 0 {
-			break;
-		}
-		let c: char = text.chars().nth(start).expect("back oups");
-		if CharType::from_char(c) != char_type {
-			start += 1;
-			break;
-		}
-		start -= 1;
-	}
-
-	(start, end)
 }
 
 impl Widget for TextInput {
