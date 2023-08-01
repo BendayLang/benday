@@ -2,7 +2,7 @@ use super::{math, user_prefs};
 use crate::{find_variable::find_variable, variables_expansion::expand_variables};
 use models::{
 	ast::*,
-	error::{ErrorMessage, VariableExpansionError},
+	error::{ErrorMessage, ErrorType, VariableExpansionError},
 	return_value::ReturnValue,
 };
 use models::{
@@ -66,7 +66,10 @@ fn handle_while(
 	let mut iteration = 0;
 	while {
 		actions.push(Action::ControlFlowEvaluateCondition);
-		get_bool(execute_node(&while_node.condition, variables, id_path, stdout, actions)?)
+		match get_bool(execute_node(&while_node.condition, variables, id_path, stdout, actions)?) {
+			Err(err) => return Err(vec![ErrorMessage::new(id_path.clone(), err, None)]),
+			Ok(v) => v,
+		}
 	} {
 		let return_value = execute_node(&while_node.sequence, variables, id_path, stdout, actions)?;
 		if return_value.is_some() {
@@ -85,7 +88,10 @@ fn handle_if_else(
 ) -> AstResult {
 	let res = {
 		actions.push(Action::ControlFlowEvaluateCondition);
-		get_bool(execute_node(&ifelse.r#if.condition, variables, id_path, stdout, actions)?)
+		match get_bool(execute_node(&ifelse.r#if.condition, variables, id_path, stdout, actions)?) {
+			Err(err) => return Err(vec![ErrorMessage::new(id_path.clone(), err, None)]),
+			Ok(v) => v,
+		}
 	};
 	if res {
 		return execute_node(&ifelse.r#if.sequence, variables, id_path, stdout, actions);
@@ -94,7 +100,10 @@ fn handle_if_else(
 		for elif in elifs {
 			let res = {
 				actions.push(Action::ControlFlowEvaluateCondition);
-				get_bool(execute_node(&elif.condition, variables, id_path, stdout, actions)?)
+				match get_bool(execute_node(&elif.condition, variables, id_path, stdout, actions)?) {
+					Err(err) => return Err(vec![ErrorMessage::new(id_path.clone(), err, None)]),
+					Ok(v) => v,
+				}
 			};
 			if res {
 				return execute_node(&elif.sequence, variables, id_path, stdout, actions);
@@ -202,142 +211,16 @@ fn handle_sequence(
 		.unwrap_or(Ok(None))
 }
 
-fn get_bool(return_value: Option<ReturnValue>) -> bool {
-	if let Some(return_value) = return_value {
+fn get_bool(return_value: Option<ReturnValue>) -> Result<bool, ErrorType> {
+	let res = if let Some(return_value) = return_value {
 		match return_value {
 			ReturnValue::Bool(val) => val,
-			ReturnValue::String(val) => todo!("error should return a bool, not a string ({val})"),
+			ReturnValue::String(val) => Err(ErrorType::NEW_TYPE(format!("error should return a bool, not a string ({val})")))?,
 			ReturnValue::Int(val) => val != 0,
 			ReturnValue::Float(val) => val != 0.0,
 		}
 	} else {
-		todo!("Add a warning, void should not be evaluated");
-		false
-	}
+		return Err(ErrorType::NEW_TYPE("void should not be evaluated".to_string()));
+	};
+	Ok(res)
 }
-
-// impl Runner {
-// 	pub fn next(&mut self) -> Option<ReturnValue> {
-// 		// 1. goto id_path NODE
-// 		let mut node = Self::find_by_id_path(&mut self.ast, self.id_path.clone().into());
-// 		// 2. execute one
-// 		// 3. return
-// 		None
-// 	}
-//
-// 	pub fn play_all() {
-// 		// play next in a loop ?
-// 	}
-//
-// 	fn find_by_id_path(node: &mut Node, mut id_path: VecDeque<Id>) -> &mut Node {
-// 		let id = id_path.pop_front();
-// 		if let Some(id) = id {
-// 			if node.id == id {
-// 				return Self::find_by_id_path(node, id_path);
-// 			} else {
-// 				match &mut node.data {
-// 					NodeData::Sequence(sequence) => {
-// 						for n in sequence {
-// 							if n.id == id {
-// 								return Self::find_by_id_path(n, id_path);
-// 							}
-// 						}
-// 						panic!("The id path pointed in an unexisting bloc in a sequence");
-// 					}
-// 					NodeData::While(_) => todo!(),
-// 					NodeData::IfElse(_) => todo!(),
-// 					NodeData::RawText(_) => todo!(),
-// 					NodeData::VariableAssignment(_) => todo!(),
-// 					NodeData::FunctionCall(_) => todo!(),
-// 					NodeData::FunctionDeclaration(_) => todo!(),
-// 				}
-// 			}
-// 		} else {
-// 			return node;
-// 		}
-// 	}
-// }
-
-// mod tests {
-// 	use super::*;
-// 	use crate::exectute::Runner;
-// 	use models::ast::{Node, VariableAssignment};
-//
-// 	#[test]
-// 	fn runner_empty_sequence() {
-// 		let ast = Node { id: 0, data: models::ast::NodeData::Sequence(Vec::new()) };
-// 		let mut runner = Runner::new(ast);
-// 		let result = runner.next();
-
-// 		assert_eq!(vec![0], runner.id_path, "id path should point to the sequence"); // Vu que la sequence a l'id 0 et qu'on vient de la finir, c'est que le dernier truc fini c'est ca.
-// 		assert!(result.is_none()); // TODO estsce qu'on veut pas que ca return le None de la sequence ??
-// 		assert!(runner.stdout.is_empty());
-// 		assert!(runner.variables.is_empty());
-// 	}
-
-// 	#[test]
-// 	fn runner_var_assign_with_raw_text() {
-// 		let ast = Node {
-// 			id: 0,
-// 			data: NodeData::Sequence(vec![Node {
-// 				id: 1,
-// 				data: NodeData::VariableAssignment(VariableAssignment {
-// 					name: "i".to_string(),
-// 					value: Box::new(Node { id: 2, data: NodeData::RawText("0".to_string()) }),
-// 				}),
-// 			}]),
-// 		};
-// 		let mut runner = Runner::new(ast);
-// 		let result = runner.next();
-
-// 		assert_eq!(vec![0, 1], runner.id_path);
-// 		assert_eq!(None, result);
-// 		assert_eq!(HashMap::from([(("i".to_string(), 0), ReturnValue::Int(0))]), runner.variables);
-// 		assert!(runner.stdout.is_empty());
-// 	}
-
-// 	#[test]
-// 	fn runner_var_assign_with_if() {
-// 		let ast = Node {
-// 			id: 0,
-// 			data: NodeData::Sequence(vec![Node {
-// 				id: 1,
-// 				data: NodeData::VariableAssignment(VariableAssignment {
-// 					name: "i".to_string(),
-// 					value: Box::new(Node {
-// 						id: 2,
-// 						data: NodeData::IfElse(IfElse {
-// 							if_: If {
-// 								condition: Box::new(Node { id: 3, data: NodeData::RawText("true".to_string()) }),
-// 								sequence: vec![Node { id: 4, data: NodeData::RawText("0".to_string()) }],
-// 							},
-// 							elif: None,
-// 							else_: Some(vec![Node { id: 5, data: NodeData::RawText("1".to_string()) }]),
-// 						}),
-// 					}),
-// 				}),
-// 			}]),
-// 		};
-// 		let mut runner = Runner::new(ast);
-// 		let result = runner.next();
-
-// 		assert_eq!(vec![0, 1, 2, 3], runner.id_path);
-// 		assert_eq!(Some(ReturnValue::Bool(true)), result);
-// 		assert!(runner.stdout.is_empty());
-// 		assert!(runner.variables.is_empty());
-
-// 		let result = runner.next();
-
-// 		assert_eq!(vec![0, 1], runner.id_path);
-// 		assert_eq!(None, result);
-// 		assert_eq!(HashMap::from([(("i".to_string(), 0), ReturnValue::Int(0))]), runner.variables);
-// 		assert!(runner.stdout.is_empty());
-
-// 		let result = runner.next();
-
-// 		assert_eq!(vec![0], runner.id_path);
-// 		assert_eq!(None, result);
-// 		assert_eq!(HashMap::from([(("i".to_string(), 0), ReturnValue::Int(0))]), runner.variables);
-// 		assert!(runner.stdout.is_empty());
-// 	}
-// }
