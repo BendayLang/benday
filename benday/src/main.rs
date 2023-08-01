@@ -14,8 +14,8 @@ use pg_sdl::camera::Camera;
 use pg_sdl::color::Colors;
 use pg_sdl::custom_rect::Rect;
 use pg_sdl::input::Input;
-use pg_sdl::primitives::{draw_rect, draw_rounded_rect};
-use pg_sdl::text::TextDrawer;
+use pg_sdl::primitives::{draw_rect, draw_rounded_rect, draw_text};
+use pg_sdl::text::{TextDrawer, TextStyle};
 use pg_sdl::widgets::select::Select;
 use pg_sdl::widgets::text_input::TextInput;
 use pg_sdl::widgets::{
@@ -25,13 +25,15 @@ use pg_sdl::widgets::{
 use runner::exectute::Action;
 use sdl2::render::Canvas;
 use sdl2::surface::Surface;
+use pg_sdl::style::Align;
 use pg_sdl::widgets::slider::{Slider, SliderStyle, SliderType};
+use pg_sdl::widgets::switch::{Switch, SwitchStyle};
 
 enum AppState {
 	Idle,
 	AddingBloc { widget_id: WidgetId, container: Container },
 	Saving,
-	Running { index: u16, return_value: AstResult, stdout: Vec<String>, variables: VariableMap, actions: Vec<Action> },
+	Running { return_value: AstResult, stdout: Vec<String>, variables: VariableMap, actions: Vec<Action> },
 }
 
 pub struct BendayFront {
@@ -81,7 +83,7 @@ impl App for BendayFront {
 		}
 
 		// Run
-		if manager.get::<Button>(&2).is_pressed() {
+		if manager.get::<Switch>(&2).is_pressed_on() {
 			let root_sequence = manager.get::<Sequence>(&0);
 			let ast = root_sequence.as_ast_node(manager);
 			let (return_value, stdout, variables, actions) = runner::exectute::runner(&ast);
@@ -89,7 +91,12 @@ impl App for BendayFront {
 			for str in &stdout {
 				println!("{str}");
 			}
-			self.state = AppState::Running { index: 0, return_value, stdout, variables, actions }
+			manager.get_mut::<Slider>(&3).set_visible();
+			self.state = AppState::Running { return_value, stdout, variables, actions };
+		}
+		else if manager.get::<Switch>(&2).is_pressed_off() {
+			manager.get_mut::<Slider>(&3).set_invisible();
+			self.state = AppState::Idle;
 		}
 
 		match &self.state {
@@ -187,6 +194,7 @@ impl App for BendayFront {
 		camera.draw_grid(canvas, text_drawer, Colors::LIGHT_GREY, true, false);
 
 		manager.draw(canvas, text_drawer, camera);
+		draw_text(canvas, None, text_drawer, Point2::new(250., 90.), "Run", 25., &TextStyle::default(), Align::Bottom);
 
 		if let Some(rect) = self.rect {
 			draw_rect(canvas, Some(camera), Colors::WHITE, rect);
@@ -210,15 +218,16 @@ fn main() {
 	manager.get_widget_mut(&root_id).set_invisible();
 
 	// Run button
-	let style = ButtonStyle::new(Colors::LIGHT_GREEN, Some(8.), 16.);
-	let rect = Rect::new(200., 100., 100., 60.);
-	manager.add_widget(Box::new(Button::new(rect, style, "RUN".to_string())), false);
+	let style = SwitchStyle::new(Colors::LIGHT_GREEN, Colors::LIGHT_RED);
+	let rect = Rect::new(200., 100., 80., 40.);
+	manager.add_widget(Box::new(Switch::new(rect, style)), false);
 	
 	// Debug slider
 	let style = SliderStyle::new(Colors::LIGHT_RED, Colors::GREY);
 	let rect = Rect::new(490. , 118., 300., 24.);
 	let slider_type = SliderType::Discrete { snap: 50, default_value: 0, display: Some(Box::new(|v| format!("{}", v))) };
-	manager.add_widget(Box::new(Slider::new(rect, style, slider_type)), false);
+	let slider_id = manager.add_widget(Box::new(Slider::new(rect, style, slider_type)), false);
+	manager.get_mut::<Slider>(&slider_id).set_invisible();
 
 	let resolution = Vector2::new(1280, 720);
 	let ttf_context = sdl2::ttf::init().expect("SDL2 ttf could not be initialized");

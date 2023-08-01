@@ -78,6 +78,8 @@ impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 	{
 		let mut change = false;
 		if let Some(new_resolution) = self.input.window_resized {
+			let surface = Surface::new(new_resolution.x, new_resolution.y, PixelFormatEnum::RGBA32).unwrap();
+			self.canvas_surface = surface.into_canvas().unwrap();
 			self.camera.resize(new_resolution);
 			change = true;
 		}
@@ -112,10 +114,6 @@ impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 			self.input.get_events();
 			if self.input.window_closed {
 				break;
-			}
-			if let Some(new_size) = self.input.window_resized {
-				// TODO ca marche pas
-				self.canvas_surface.set_logical_size(new_size.x, new_size.y).unwrap();
 			}
 
 			// Update

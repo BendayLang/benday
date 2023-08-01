@@ -82,6 +82,14 @@ impl Switch {
 		self.switched
 	}
 
+	pub fn is_pressed_on(&self) -> bool {
+		self.base.state.is_released() && self.switched
+	}
+	
+	pub fn is_pressed_off(&self) -> bool {
+		self.base.state.is_released() && !self.switched
+	}
+
 	fn thumb_position(&self) -> f64 {
 		f64::from(self.switched) * self.length()
 	}
