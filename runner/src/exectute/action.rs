@@ -1,6 +1,6 @@
 use models::{ast::Id, error::ErrorType, return_value::ReturnValue, runner::AstResult};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Action {
 	r#type: ActionType,
 	state_index: usize,
@@ -15,9 +15,12 @@ impl Action {
 	pub fn get_type(&self) -> &ActionType {
 		&self.r#type
 	}
+	pub fn get_id(&self) -> &Id {
+		&self.node_id
+	}
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ActionType {
 	Return(AstResult),
 	CheckVarNameValidity(Result<(), ErrorType>),
