@@ -1,5 +1,7 @@
 pub mod action;
 pub mod console;
+use serde_json;
+use std::io::Write;
 mod execute;
 mod user_prefs {
 	pub const MAX_ITERATION: usize = 100;
@@ -20,7 +22,7 @@ use models::{
 	return_value::ReturnValue,
 	runner::{AstResult, IdPath, VariableMap},
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 pub fn runner(ast: &ast::Node) -> (Console, Vec<Action>) {
 	match &ast.data {
@@ -41,6 +43,15 @@ pub fn runner(ast: &ast::Node) -> (Console, Vec<Action>) {
 	(console, actions)
 }
 
-pub fn linter(_ast: &ast::Node) -> AstResult {
-	todo!("Implement linter (after runner, which has the exact same logic)")
+pub fn save_ast_to(ast: &ast::Node, path: &Path) -> Result<(), std::io::Error> {
+	let mut file = std::fs::File::create(path)?;
+	let ast_string = serde_json::to_string_pretty(ast)?;
+	file.write_all(ast_string.as_bytes())?;
+	Ok(())
+}
+
+pub fn load_ast_from(path: &Path) -> Result<ast::Node, std::io::Error> {
+	let file = std::fs::File::open(path)?;
+	let ast: ast::Node = serde_json::from_reader(file)?;
+	Ok(ast)
 }

@@ -11,3 +11,4 @@ fasteval = "0.2.4"
 ngrammatic = "0.4.0"
 models = { workspace = true }
 rand = { workspace = true }
+serde_json = { workspace = true }
