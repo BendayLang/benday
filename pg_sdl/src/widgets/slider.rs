@@ -95,6 +95,14 @@ impl Slider {
 			slider_type,
 		}
 	}
+	
+	pub fn change_snap(&mut self, snap: u32) {
+		let mut v = SliderType::Discrete {snap: 0, default_value: 0, display: None};
+		std::mem::swap(&mut v, &mut self.slider_type);
+		let SliderType::Discrete { default_value, display, .. } = v
+			else { panic!("Cannot change snap if the slider isn't discrete !") };
+		self.slider_type = SliderType::Discrete { snap, default_value, display };
+	}
 
 	/// Renvoie la valeur du slider (u32 si le slider est discret, f32 s'il est continu).
 	pub fn get_value(&self) -> f32 {

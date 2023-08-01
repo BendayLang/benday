@@ -1,5 +1,6 @@
 // #![allow(dead_code, unused_variables, unused_imports)]
 mod blocs;
+mod animation;
 
 use crate::blocs::bloc::Bloc;
 use crate::blocs::containers::Sequence;
@@ -11,25 +12,28 @@ use pg_sdl::camera::Camera;
 use pg_sdl::color::Colors;
 use pg_sdl::custom_rect::Rect;
 use pg_sdl::input::Input;
-use pg_sdl::primitives::{draw_rect, draw_rounded_rect, draw_text};
+use pg_sdl::primitives::{draw_rect, draw_rounded_rect, draw_text, fill_rounded_rect};
 use pg_sdl::style::Align;
 use pg_sdl::text::{TextDrawer, TextStyle};
 use pg_sdl::widgets::select::Select;
 use pg_sdl::widgets::slider::{Slider, SliderStyle, SliderType};
 use pg_sdl::widgets::switch::{Switch, SwitchStyle};
 use pg_sdl::widgets::{Manager, Widget, WidgetId};
-use runner::exectute::action::Action;
+use runner::exectute::action::{Action, ActionType};
 use runner::exectute::console::Console;
 use sdl2::render::Canvas;
 use sdl2::surface::Surface;
 use std::time::Duration;
+use crate::animation::{interpolate_rect, ease_in_out};
+
+const ANIM_TIME: Duration = Duration::from_millis(1000);
 
 #[allow(dead_code)]
 enum AppState {
 	Idle,
 	AddingBloc { widget_id: WidgetId, container: Container },
 	Saving,
-	Running { index: u16, console: Console, actions: Vec<Action> },
+	Running { last_action: u32, animation_timer: Duration, console: Console, actions: Vec<Action> },
 }
 
 pub struct BendayFront {
@@ -38,17 +42,22 @@ pub struct BendayFront {
 	blocs: Vec<WidgetId>,
 	hovered_container: Option<Container>,
 	rect: Option<Rect>,
+	debug_slider_id: WidgetId,
+	r1: Rect,
+	r2: Rect,
+	switch_id: WidgetId,
+	t: Duration,
 }
 
 impl App for BendayFront {
-	fn update(&mut self, _delta: Duration, input: &Input, manager: &mut Manager, camera: &mut Camera) -> bool {
+	fn update(&mut self, delta: Duration, input: &Input, manager: &mut Manager, camera: &mut Camera) -> bool {
 		let mut changed = false;
-
+		
 		{
 			if input.mouse.right_button.is_pressed() {
 				let mouse_position = input.mouse.position.cast();
 				let point = camera.transform().inverse() * mouse_position;
-
+				
 				let mut container = None;
 				for bloc_id in manager.get_cam_order().iter().rev() {
 					if self.blocs.contains(bloc_id) {
@@ -58,7 +67,7 @@ impl App for BendayFront {
 						}
 					}
 				}
-
+				
 				if let Some(container) = container {
 					let size = Vector2::new(100., 120.);
 					let widget_id = manager.add_widget(
@@ -71,13 +80,13 @@ impl App for BendayFront {
 						false,
 					);
 					manager.focus_widget(widget_id);
-
+					
 					self.state = AppState::AddingBloc { widget_id, container };
 					changed = true;
 				}
 			}
 		}
-
+		
 		// Run
 		if manager.get::<Switch>(&2).is_pressed_on() {
 			let root_sequence = manager.get::<Sequence>(&0);
@@ -88,12 +97,14 @@ impl App for BendayFront {
 				println!("{str}");
 			}
 			manager.get_mut::<Slider>(&3).set_visible();
-			self.state = AppState::Running { index: 0, console, actions };
+			manager.get_mut::<Slider>(&3).reset_value();
+			manager.get_mut::<Slider>(&3).change_snap(actions.len() as u32);
+			self.state = AppState::Running { last_action: 0, animation_timer: Duration::ZERO, console, actions };
 		} else if manager.get::<Switch>(&2).is_pressed_off() {
 			manager.get_mut::<Slider>(&3).set_invisible();
 			self.state = AppState::Idle;
 		}
-
+		
 		match &self.state {
 			AppState::Idle => {
 				if let Some(focused_widget) = &manager.focused_widget() {
@@ -132,7 +143,7 @@ impl App for BendayFront {
 							let moving_bloc_childs = manager.get::<Bloc>(focused_widget).get_recursive_childs(manager);
 							let rect = manager.get::<Bloc>(focused_widget).get_base().rect.translated(-Bloc::SHADOW);
 							let (mut new_hovered_container, mut ratio) = (None, 0.);
-
+							
 							manager.get_cam_order().iter().for_each(|bloc_id| {
 								if self.blocs.contains(bloc_id) && !moving_bloc_childs.contains(bloc_id) {
 									if let Some((new_container, new_ratio)) =
@@ -179,18 +190,39 @@ impl App for BendayFront {
 				}
 			}
 			AppState::Saving => {}
-			AppState::Running { .. } => {}
+			AppState::Running { .. } => {
+			
+			}
 		}
-
+		
+		// test
+		if manager.get::<Switch>(&self.switch_id).is_switched() {
+			if self.t < ANIM_TIME {
+				self.t += delta;
+				if self.t > ANIM_TIME {
+					self.t = ANIM_TIME;
+				}
+				changed = true;
+			}
+		} else {
+			if self.t > Duration::ZERO {
+				if self.t < delta {
+					self.t = Duration::ZERO;
+				} else { self.t -= delta; }
+				changed = true;
+			}
+		}
+		// test
+		
 		changed
 	}
-
+	
 	fn draw(&self, canvas: &mut Canvas<Surface>, text_drawer: &mut TextDrawer, manager: &Manager, camera: &Camera) {
 		camera.draw_grid(canvas, text_drawer, Colors::LIGHT_GREY, true, false);
-
+		
 		manager.draw(canvas, text_drawer, camera);
 		draw_text(canvas, None, text_drawer, Point2::new(250., 90.), "Run", 25., &TextStyle::default(), Align::Bottom);
-
+		
 		if let Some(rect) = self.rect {
 			draw_rect(canvas, Some(camera), Colors::WHITE, rect);
 		} else if let Some(focused_widget) = manager.focused_widget() {
@@ -199,34 +231,82 @@ impl App for BendayFront {
    					draw_rounded_rect(canvas, Some(camera), Colors::RED, rect, RADIUS);
    				}
 		}
+		
+		// test
+		match &self.state {
+			AppState::Running { last_action, animation_timer, actions, .. } => {
+				let new_action = manager.get::<Slider>(&self.debug_slider_id).get_value() as usize;
+				
+				match actions[new_action] {
+					_ => ()
+				}
+				
+				// if actions[new_action].id
+				/*
+				let rect_1 = manager.get_widget(widget_1).get_base().rect;
+				let rect_2 = manager.get_widget(widget_2.unwrap()).get_base().rect;
+				draw_rounded_rect(canvas, None, Colors::WHITE, rect_1, RADIUS);
+				draw_rounded_rect(canvas, None, Colors::WHITE, rect_2, RADIUS);
+				let t = ease_in_out(animation_timer.as_secs_f64() / ANIM_TIME.as_secs_f64());
+				let r_int = interpolate_rect(rect_1, rect_2, t);
+				fill_rounded_rect(canvas, None, Colors::YELLOW, r_int, RADIUS);
+				*/
+			},
+			_ => ()
+		}
+		let radius = 7.;
+		draw_rounded_rect(canvas, None, Colors::BLACK, self.r1, radius);
+		draw_rounded_rect(canvas, None, Colors::BLACK, self.r2, radius);
+		let t = self.t.as_secs_f64() / ANIM_TIME.as_secs_f64();
+		let t = ease_in_out(t);
+		let r_int = interpolate_rect(self.r1, self.r2, t);
+		fill_rounded_rect(canvas, None, Colors::YELLOW, r_int, radius);
+		// test
 	}
 }
 
 fn main() {
 	let mut manager = Manager::default();
-
+	
 	let mut bloc = new_root_sequence_bloc(&mut manager);
 	bloc.get_base_mut().rect.size = (bloc.get_size)(&bloc, &manager);
 	let root_id = manager.add_widget(Box::new(bloc), true);
 	manager.get_widget_mut(&root_id).set_invisible();
-
-	// Run button
+	
+	// Run switch
 	let style = SwitchStyle::new(Colors::LIGHT_GREEN, Colors::LIGHT_RED);
 	let rect = Rect::new(200., 100., 80., 40.);
 	manager.add_widget(Box::new(Switch::new(rect, style)), false);
-
+	
 	// Debug slider
 	let style = SliderStyle::new(Colors::LIGHT_RED, Colors::GREY);
 	let rect = Rect::new(490., 118., 300., 24.);
 	let slider_type = SliderType::Discrete { snap: 50, default_value: 0, display: Some(Box::new(|v| format!("{}", v))) };
-	let slider_id = manager.add_widget(Box::new(Slider::new(rect, style, slider_type)), false);
-	manager.get_mut::<Slider>(&slider_id).set_invisible();
-
+	let debug_slider_id = manager.add_widget(Box::new(Slider::new(rect, style, slider_type)), false);
+	manager.get_mut::<Slider>(&debug_slider_id).set_invisible();
+	
+	// test
+	let style = SwitchStyle::new(Colors::LIGHT_GREEN, Colors::LIGHT_GREY);
+	let rect = Rect::new(220., 200., 40., 20.);
+	let switch_id = manager.add_widget(Box::new(Switch::new(rect, style)), false);
+	// test
+	
 	let resolution = Vector2::new(1280, 720);
 
 	let mut app = PgSdl::init("Benday", resolution, Some(120), true, Colors::LIGHT_GREY, manager);
-
-	let mut my_app = BendayFront { state: AppState::Idle, blocs: vec![root_id], hovered_container: None, rect: None };
-
+	
+	let mut my_app = BendayFront {
+		state: AppState::Idle,
+		blocs: vec![root_id],
+		hovered_container: None,
+		rect: None,
+		debug_slider_id,
+		r1: Rect::new(180., 300., 120., 80.),
+		r2: Rect::new(400., 400., 80., 40.),
+		switch_id,
+		t: Duration::ZERO
+	};
+	
 	app.run(&mut my_app);
 }
+

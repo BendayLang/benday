@@ -8,16 +8,19 @@ pub struct Rect {
 }
 
 impl Rect {
-	pub fn new(x: f64, y: f64, width: f64, height: f64) -> Rect {
+	pub fn new(x: f64, y: f64, width: f64, height: f64) -> Self {
 		Self { position: Point2::new(x, y), size: Vector2::new(width, height) }
 	}
-	pub fn from(position: Point2<f64>, size: Vector2<f64>) -> Rect {
+	pub fn from(position: Point2<f64>, size: Vector2<f64>) -> Self {
 		Self { position, size }
 	}
-	pub fn from_origin(size: Vector2<f64>) -> Rect {
+	pub fn from_origin(size: Vector2<f64>) -> Self {
 		Self { position: Point2::origin(), size }
 	}
-	pub fn zeros() -> Rect {
+	pub fn from_center(center: Point2<f64>, size: Vector2<f64>) -> Self {
+		Self { position: center - size * 0.5, size }
+	}
+	pub fn zeros() -> Self {
 		Self { position: Point2::origin(), size: Vector2::zeros() }
 	}
 	pub fn into_rect(self) -> sdl2::rect::Rect {
@@ -101,17 +104,17 @@ impl Rect {
 	pub fn collide_point(&self, point: Point2<f64>) -> bool {
 		self.left() < point.x && point.x < self.right() && self.bottom() < point.y && point.y < self.top()
 	}
-	pub fn collide_rect(&self, rect: Rect) -> bool {
+	pub fn collide_rect(&self, rect: Self) -> bool {
 		self.left() < rect.right() && rect.left() < self.right() && self.bottom() < rect.top() && rect.bottom() < self.top()
 	}
 	/// Returns a new rect that is 'encapsulated' by both given rects
-	pub fn clip_rect(&self, rect: Rect) -> Option<Rect> {
+	pub fn clip_rect(&self, rect: Self) -> Option<Self> {
 		if self.collide_rect(rect) {
 			let left = self.left().max(rect.left());
 			let right = self.right().min(rect.right());
 			let bottom = self.bottom().max(rect.bottom());
 			let top = self.top().min(rect.top());
-			Some(Rect::new(left, bottom, right - left, top - bottom))
+			Some(Self::new(left, bottom, right - left, top - bottom))
 		} else {
 			None
 		}
