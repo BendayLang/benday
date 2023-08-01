@@ -85,7 +85,7 @@ impl Switch {
 	pub fn is_pressed_on(&self) -> bool {
 		self.base.state.is_released() && self.switched
 	}
-	
+
 	pub fn is_pressed_off(&self) -> bool {
 		self.base.state.is_released() && !self.switched
 	}
@@ -103,7 +103,7 @@ impl Switch {
 }
 
 impl Widget for Switch {
-	fn update(&mut self, input: &Input, _delta: Duration, _: &mut Manager, _: &TextDrawer, _: Option<&Camera>) -> bool {
+	fn update(&mut self, input: &Input, _delta: Duration, _: &mut Manager, _: &mut TextDrawer, _: Option<&Camera>) -> bool {
 		let changed = self.base.update(input, vec![input.keys_state.enter]);
 		if self.base.state.is_released() {
 			self.switched = !self.switched;

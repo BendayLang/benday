@@ -105,7 +105,7 @@ impl TextInput {
 		self.carrot_position = self.text.len();
 	}
 
-	fn get_carrot_position(&self, text_drawer: &TextDrawer, mouse_position: Point2<i32>, camera: Option<&Camera>) -> usize {
+	fn get_carrot_position(&self, text_drawer: &mut TextDrawer, mouse_position: Point2<i32>, camera: Option<&Camera>) -> usize {
 		let mouse_x = ((if let Some(camera) = camera {
 			camera.transform().inverse() * mouse_position.cast()
 		} else {
@@ -189,7 +189,7 @@ fn get_word_position(text: &str, mut position: usize) -> (usize, usize) {
 impl Widget for TextInput {
 	#[allow(clippy::diverging_sub_expression)]
 	fn update(
-		&mut self, input: &Input, delta: Duration, _: &mut Manager, text_drawer: &TextDrawer, camera: Option<&Camera>,
+		&mut self, input: &Input, delta: Duration, _: &mut Manager, text_drawer: &mut TextDrawer, camera: Option<&Camera>,
 	) -> bool {
 		let mut changed = false;
 		let now = Instant::now();

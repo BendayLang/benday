@@ -87,7 +87,7 @@ impl Button {
 }
 
 impl Widget for Button {
-	fn update(&mut self, input: &Input, _delta: Duration, _: &mut Manager, _: &TextDrawer, _camera: Option<&Camera>) -> bool {
+	fn update(&mut self, input: &Input, _delta: Duration, _: &mut Manager, _: &mut TextDrawer, _camera: Option<&Camera>) -> bool {
 		self.base.update(input, vec![input.keys_state.enter])
 	}
 

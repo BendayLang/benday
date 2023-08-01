@@ -9,7 +9,9 @@ use crate::widgets::Manager;
 use nalgebra::{Point2, Vector2};
 use sdl2::mouse::MouseUtil;
 use sdl2::pixels::PixelFormatEnum;
+use sdl2::render::WindowCanvas;
 use sdl2::surface::Surface;
+use sdl2::ttf::Sdl2TtfContext;
 use sdl2::{pixels::Color, render::Canvas, video::Window};
 use std::time::{Duration, Instant};
 
@@ -20,11 +22,11 @@ pub trait App {
 
 pub struct PgSdl<'ttf, 'texture> {
 	mouse: MouseUtil,
-	pub text_drawer: TextDrawer<'ttf, 'texture>,
 	input: Input,
 	manager: Manager,
 	window_canvas: Canvas<Window>,
 	canvas_surface: Canvas<Surface<'ttf>>,
+	text_drawer: TextDrawer<'ttf, 'texture>,
 	background_color: Color,
 	fps: Option<u32>,
 	draw_fps: bool,
@@ -56,11 +58,9 @@ impl<'ttf, 'texture> PgSdl<'ttf, 'texture> {
 		// TODO mettre ca en paramettre ?
 		let camera = Camera::new(window_size, 6, 2.5, 5.0, -4000.0, 4000.0, -5000.0, 5000.0);
 
-		let text_drawer = TextDrawer::new();
-
 		PgSdl {
 			mouse: sdl_context.mouse(),
-			text_drawer,
+			text_drawer: TextDrawer::new(),
 			input: Input::new(sdl_context.event_pump().unwrap(), video_subsystem.clipboard()),
 			manager,
 			window_canvas,

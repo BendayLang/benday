@@ -102,7 +102,7 @@ impl Base {
 pub trait Widget: AsAny {
 	/// Update the widget based on the inputs
 	fn update(
-		&mut self, input: &Input, delta: Duration, manager: &mut Manager, text_drawer: &TextDrawer, camera: Option<&Camera>,
+		&mut self, input: &Input, delta: Duration, manager: &mut Manager, text_drawer: &mut TextDrawer, camera: Option<&Camera>,
 	) -> bool;
 	/// Draw the widget on the canvas
 	fn draw(&self, canvas: &mut Canvas<Surface>, text_drawer: &mut TextDrawer, camera: Option<&Camera>);

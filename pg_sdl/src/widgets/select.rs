@@ -149,6 +149,13 @@ impl Select {
 		)
 	}
 
+	fn get_option_rect(&self, option: usize) -> Rect {
+		let width = self.base.rect.width() - if self.is_max_height() { self.style.slider_width } else { 0. };
+		let height = self.option_height();
+		let y = self.base.rect.bottom() + self.text_input.get_base().rect.height() + height * option as f64;
+		Rect::new(self.base.rect.left(), y, width, height)
+	}
+
 	fn get_slider_rect(&self) -> Rect {
 		let text_input_height = self.text_input.get_base().rect.height();
 		Rect::from(
@@ -196,7 +203,7 @@ impl Select {
 
 impl Widget for Select {
 	fn update(
-		&mut self, input: &Input, delta: Duration, manager: &mut Manager, text_drawer: &TextDrawer, camera: Option<&Camera>,
+		&mut self, input: &Input, delta: Duration, manager: &mut Manager, text_drawer: &mut TextDrawer, camera: Option<&Camera>,
 	) -> bool {
 		let mut changed = false;
 		changed |= self.base.update(input, vec![input.keys_state.up, input.keys_state.down]);

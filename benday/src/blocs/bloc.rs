@@ -2,7 +2,8 @@ use std::time::Duration;
 
 use crate::blocs::containers::{Sequence, Slot};
 use crate::blocs::{
-	new_if_else_bloc, new_variable_assignment_bloc, Container, FnGetSize, WigBloc, TOP_BOX_BT_MARGIN, TOP_BOX_BT_RADIUS, TOP_BOX_BT_SIZE,
+	new_if_else_bloc, new_variable_assignment_bloc, Container, FnGetSize, WigBloc, TOP_BOX_BT_MARGIN, TOP_BOX_BT_RADIUS,
+	TOP_BOX_BT_SIZE,
 };
 use crate::blocs::{BlocContainer, BlocType};
 use crate::get_base_;
@@ -361,7 +362,7 @@ impl Bloc {
 
 impl Widget for Bloc {
 	fn update(
-		&mut self, input: &Input, _delta: Duration, manager: &mut Manager, _: &TextDrawer, camera: Option<&Camera>,
+		&mut self, input: &Input, _delta: Duration, manager: &mut Manager, _: &mut TextDrawer, camera: Option<&Camera>,
 	) -> bool {
 		let camera = camera.unwrap();
 		let mut changed = self.base.update(input, Vec::new());

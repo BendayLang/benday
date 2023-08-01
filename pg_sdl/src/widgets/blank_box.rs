@@ -45,7 +45,9 @@ impl BlankBox {
 }
 
 impl Widget for BlankBox {
-	fn update(&mut self, input: &Input, _delta: Duration, _manager: &mut Manager, _: &TextDrawer, _: Option<&Camera>) -> bool {
+	fn update(
+		&mut self, input: &Input, _delta: Duration, _manager: &mut Manager, _: &mut TextDrawer, _: Option<&Camera>,
+	) -> bool {
 		self.base.update(input, Vec::new())
 	}
 

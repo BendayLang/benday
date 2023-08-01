@@ -152,9 +152,9 @@ impl Slider {
 }
 
 impl Widget for Slider {
-	fn update(&mut self, input: &Input, delta: Duration, _: &mut Manager, _: &TextDrawer, camera: Option<&Camera>) -> bool {
+	fn update(&mut self, input: &Input, delta: Duration, _: &mut Manager, _: &mut TextDrawer, camera: Option<&Camera>) -> bool {
 		let mut changed = false;
-		
+
 		if input.mouse.wheel != 0 && self.is_hovered() {
 			match self.slider_type {
 				SliderType::Discrete { snap, .. } => self.value -= input.mouse.wheel as f32 / snap as f32,

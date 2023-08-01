@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_variables, unreachable_code, unused_imports)]
-
 //! # Getting started
 //!
 //! ```rust,no_run
@@ -8,6 +6,9 @@
 //!
 //! pub fn main() {}
 //! ```
+#![allow(dead_code, unused_variables, unreachable_code, unused_imports)]
+#[macro_use]
+extern crate lazy_static;
 
 pub mod app;
 pub mod camera;

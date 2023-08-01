@@ -213,7 +213,7 @@ impl Sequence {
 }
 
 impl Widget for Sequence {
-	fn update(&mut self, input: &Input, _delta: Duration, _: &mut Manager, _: &TextDrawer, _: Option<&Camera>) -> bool {
+	fn update(&mut self, input: &Input, _delta: Duration, _: &mut Manager, _: &mut TextDrawer, _: Option<&Camera>) -> bool {
 		self.base.update(input, Vec::new())
 	}
 
