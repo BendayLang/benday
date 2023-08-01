@@ -15,7 +15,7 @@ use std::collections::{HashMap, VecDeque};
 pub enum Action {
 	Goto(Id),
 	Return(AstResult),
-	CheckVarNameValidity(bool),
+	CheckVarNameValidity(Result<(), ErrorType>),
 	EvaluateRawText,
 	AssigneVariable { key: (String, Id), value: ReturnValue },
 	CallBuildInFn(String),
@@ -33,6 +33,10 @@ impl Action {
 pub fn execute_node(
 	ast: &Node, variables: &mut VariableMap, id_path: &mut IdPath, stdout: &mut Vec<String>, actions: &mut Vec<Action>,
 ) -> AstResult {
+	// TODO : separer les erreurs de "Lint" et les erreurs de "Runtime"
+	// example : un mauvais nom de variable est une erreur de lint, mais une variable non définie est une erreur de runtime
+	// est-ce que les erreurs de lint doivent être traitées ici ?
+	// est-ce qu'il faut séparer les erreurs de lint et les erreurs de runtime ?
 	id_path.push(ast.id);
 	actions.push(Action::Goto(ast.id));
 	let res: AstResult = match &ast.data {
@@ -77,7 +81,11 @@ fn handle_while(
 		}
 		iteration += 1;
 		if iteration == user_prefs::MAX_ITERATION {
-			todo!("break on max iteration ({})", user_prefs::MAX_ITERATION);
+			return Err(vec![ErrorMessage::new(
+				id_path.clone(),
+				error::ErrorType::NEW_TYPE(format!("Max iteration reached ({})", user_prefs::MAX_ITERATION)),
+				None,
+			)]);
 		}
 	}
 	Ok(None)
@@ -130,9 +138,22 @@ fn handle_raw_text(text: &str, variables: &mut VariableMap, id_path: &IdPath, ac
 	}
 }
 
-fn is_var_name_valid(name: &str) -> bool {
-	// TODOO
-	true
+fn is_var_name_valid(name: &str) -> Result<(), ErrorType> {
+	// Rules : must be a valid identifier, must not be a keyword
+	// - should begin with a letter or an underscore
+	// - can contain letters, numbers and underscores
+	// - can contain spaces
+	// - can't be a keyword
+
+	if name.is_empty() {
+		return Err(ErrorType::VariableNameError(error::VariableNameError::Empty));
+	}
+
+	if !name.chars().next().unwrap().is_alphabetic() && name.chars().next().unwrap() != '_' {
+		return Err(ErrorType::VariableNameError(error::VariableNameError::InvalidFirstChar));
+	}
+
+	Ok(())
 }
 
 fn handle_variable_assignment(
@@ -140,9 +161,9 @@ fn handle_variable_assignment(
 	actions: &mut Vec<Action>,
 ) -> AstResult {
 	let name_validity = is_var_name_valid(&variable_assignment.name);
-	actions.push(Action::CheckVarNameValidity(name_validity));
-	if !name_validity {
-		todo!("name invalid");
+	actions.push(Action::CheckVarNameValidity(name_validity.clone()));
+	if name_validity.is_err() {
+		return Err(vec![ErrorMessage::new(id_path.clone(), name_validity.unwrap_err(), None)]);
 	}
 
 	let value = execute_node(&variable_assignment.value, variables, id_path, stdout, actions)?;
