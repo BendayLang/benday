@@ -38,7 +38,7 @@ pub fn runner(ast: &ast::Node) -> (Console, Vec<Action>) {
 	let mut actions: Vec<Action> = Vec::new();
 	let mut states: Vec<State> = Vec::new();
 	let return_value: Result<Option<ReturnValue>, Vec<ErrorMessage>> =
-		execute_node(ast, &mut variables, &mut id_path, &mut console, &mut actions, &mut states);
+		execute_node(ast, &mut variables, &mut id_path, &mut console, &mut actions, &mut states, 0);
 
 	(console, actions)
 }

@@ -22,6 +22,7 @@ impl Action {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ActionType {
+	Entered { from: Id },
 	Return(AstResult),
 	CheckVarNameValidity(Result<(), ErrorType>),
 	EvaluateRawText,

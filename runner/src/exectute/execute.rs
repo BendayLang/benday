@@ -20,9 +20,14 @@ pub struct State {
 	pub variables: VariableMap,
 }
 
+fn push(id: Id, id_path: &mut IdPath, actions: &mut Vec<Action>, states_index: usize, from: Id) {
+	actions.push(Action::new(ActionType::Entered { from }, states_index, id));
+	id_path.push(id);
+}
+
 pub fn execute_node(
 	ast: &Node, variables: &mut VariableMap, id_path: &mut IdPath, console: &mut Console, actions: &mut Vec<Action>,
-	states: &mut Vec<State>,
+	states: &mut Vec<State>, parent_scope: Id,
 ) -> AstResult {
 	// TODO : separer les erreurs de "Lint" et les erreurs de "Runtime"
 	// example : un mauvais nom de variable est une erreur de lint, mais une variable non définie est une erreur de runtime
@@ -33,13 +38,19 @@ pub fn execute_node(
 		// at the first iteration, we push the first state (with is probably empty)
 		states.push(State { variables: variables.clone() });
 	}
-
+	let mut state_index = states.len() - 1;
+	let from = match id_path.last() {
+		Some(id) => *id,
+		None => 0,
+	};
+	push(ast.id, id_path, actions, state_index, from);
 	id_path.push(ast.id);
+
 	let res: AstResult = match &ast.data {
 		NodeData::Sequence(sequence) => sequence
 			.iter()
 			.find_map(|node| {
-				let return_value = execute_node(node, variables, id_path, console, actions, states);
+				let return_value = execute_node(node, variables, id_path, console, actions, states, ast.id);
 				if return_value != Ok(None) {
 					Some(return_value)
 				} else {
@@ -48,20 +59,31 @@ pub fn execute_node(
 			})
 			.unwrap_or(Ok(None)),
 		NodeData::While(while_node) => {
+			let mut res: AstResult = Ok(None);
 			if while_node.is_do {
 				todo!("Implement at the end of the project");
 			}
 			let mut iteration = 0;
 			while {
-				actions.push(Action::new(ActionType::ControlFlowEvaluateCondition, states.len() - 1, while_node.sequence.id));
-				match get_bool(execute_node(&while_node.condition, variables, id_path, console, actions, states)?) {
+				actions.push(Action::new(ActionType::ControlFlowEvaluateCondition, state_index, while_node.sequence.id));
+				match get_bool(execute_node(
+					&while_node.condition,
+					variables,
+					id_path,
+					console,
+					actions,
+					states,
+					while_node.condition.id,
+				)?) {
 					Err(err) => return Err(vec![ErrorMessage::new(id_path.clone(), err, None)]),
 					Ok(v) => v,
 				}
 			} {
-				let return_value = execute_node(&while_node.sequence, variables, id_path, console, actions, states)?;
+				let return_value =
+					execute_node(&while_node.sequence, variables, id_path, console, actions, states, while_node.sequence.id)?;
 				if return_value.is_some() {
-					return Ok(return_value);
+					res = Ok(return_value);
+					break;
 				}
 				iteration += 1;
 				if iteration == user_prefs::MAX_ITERATION {
@@ -72,40 +94,32 @@ pub fn execute_node(
 					)]);
 				}
 			}
-			Ok(None)
+			res
 		}
 		NodeData::IfElse(ifelse) => {
 			let res = {
-				actions.push(Action::new(ActionType::ControlFlowEvaluateCondition, states.len() - 1, ifelse.r#if.condition.id));
-				match get_bool(execute_node(&ifelse.r#if.condition, variables, id_path, console, actions, states)?) {
+				actions.push(Action::new(ActionType::ControlFlowEvaluateCondition, state_index, ifelse.r#if.condition.id));
+				match get_bool(execute_node(
+					&ifelse.r#if.condition,
+					variables,
+					id_path,
+					console,
+					actions,
+					states,
+					ifelse.r#if.condition.id,
+				)?) {
 					Err(err) => return Err(vec![ErrorMessage::new(id_path.clone(), err, None)]),
 					Ok(v) => v,
 				}
 			};
 			if res {
-				return execute_node(&ifelse.r#if.sequence, variables, id_path, console, actions, states);
+				execute_node(&ifelse.r#if.sequence, variables, id_path, console, actions, states, ifelse.r#if.sequence.id)
+			} else {
+				execute_elif(ifelse, variables, id_path, console, actions, states, parent_scope)
 			}
-			if let Some(elifs) = &ifelse.elif {
-				for elif in elifs {
-					let res = {
-						actions.push(Action::new(ActionType::ControlFlowEvaluateCondition, states.len() - 1, elif.condition.id));
-						match get_bool(execute_node(&elif.condition, variables, id_path, console, actions, states)?) {
-							Err(err) => return Err(vec![ErrorMessage::new(id_path.clone(), err, None)]),
-							Ok(v) => v,
-						}
-					};
-					if res {
-						return execute_node(&elif.sequence, variables, id_path, console, actions, states);
-					}
-				}
-			}
-			if let Some(else_) = &ifelse.r#else {
-				return execute_node(else_, variables, id_path, console, actions, states);
-			}
-			Ok(None)
 		}
 		NodeData::RawText(text) => {
-			actions.push(Action::new(ActionType::EvaluateRawText, states.len() - 1, ast.id));
+			actions.push(Action::new(ActionType::EvaluateRawText, state_index, ast.id));
 			match expand_variables(text, variables, id_path) {
 				Ok(string) => match math::get_math_parsibility(&string) {
 					math::MathParsability::Unparsable => Ok(Some(ReturnValue::String(string))),
@@ -121,16 +135,25 @@ pub fn execute_node(
 		}
 		NodeData::VariableAssignment(variable_assignment) => {
 			let name_validity = is_var_name_valid(&variable_assignment.name);
+			push(variable_assignment.name_id, id_path, actions, state_index, *id_path.last().unwrap());
 			actions.push(Action::new(
 				ActionType::CheckVarNameValidity(name_validity.clone()),
-				states.len() - 1,
+				state_index,
 				variable_assignment.name_id,
 			));
 			if name_validity.is_err() {
-				return Err(vec![ErrorMessage::new(id_path.clone(), name_validity.unwrap_err(), None)]);
+				Err(vec![ErrorMessage::new(id_path.clone(), name_validity.unwrap_err(), None)])?
 			}
 
-			let value = execute_node(&variable_assignment.value, variables, id_path, console, actions, states)?;
+			let value = execute_node(
+				&variable_assignment.value,
+				variables,
+				id_path,
+				console,
+				actions,
+				states,
+				variable_assignment.value.id,
+			)?;
 			let id = match find_variable(variable_assignment.name.as_str(), variables, id_path) {
 				Some((_, id)) => id,
 				None => {
@@ -144,33 +167,35 @@ pub fn execute_node(
 					*(id_path.get(id_path.len() - 2).unwrap())
 				}
 			};
+			let id = parent_scope;
 			if let Some(value) = value {
 				let variable_key: (String, u32) = (variable_assignment.name.to_string(), id);
 				let _ = variables.insert(variable_key.clone(), value.clone());
 				states.push(State { variables: variables.clone() });
+				state_index += 1;
 				actions.push(Action::new(
 					ActionType::AssignVariable { key: variable_key.clone(), value: value.clone() },
-					states.len() - 1,
+					state_index,
 					ast.id,
 				));
 				Ok(None)
 			} else {
-				return Err(vec![ErrorMessage::new(
+				Err(vec![ErrorMessage::new(
 					id_path.clone(),
 					error::ErrorType::NEW_TYPE("Cannot assign void value to a variable".to_string()),
 					None,
-				)]);
+				)])
 			}
 		}
 		NodeData::FunctionCall(function_call) => {
-			actions.push(Action::new(ActionType::GetArgs, states.len() - 1, ast.id));
+			actions.push(Action::new(ActionType::GetArgs, state_index, ast.id));
 			let args = function_call
 				.argv
 				.iter()
-				.map(|arg| execute_node(arg, variables, id_path, console, actions, states))
+				.map(|arg| execute_node(arg, variables, id_path, console, actions, states, arg.id))
 				.collect::<Vec<AstResult>>();
 
-			actions.push(Action::new(ActionType::CallBuildInFn(function_call.name.clone()), states.len() - 1, ast.id));
+			actions.push(Action::new(ActionType::CallBuildInFn(function_call.name.clone()), state_index, ast.id));
 			match function_call.name.as_str() {
 				"print" => {
 					for arg in args {
@@ -178,7 +203,7 @@ pub fn execute_node(
 							Some(a) => a.to_string(),
 							None => "()".to_string(),
 						};
-						actions.push(Action::new(ActionType::PushStdout(to_push.clone()), states.len() - 1, ast.id));
+						actions.push(Action::new(ActionType::PushStdout(to_push.clone()), state_index, ast.id));
 						console.stdout.push(to_push);
 					}
 				}
@@ -200,8 +225,33 @@ pub fn execute_node(
 		println!("Id path is not correct. poped: {:?}, ast.id: {}", poped, ast.id);
 	}
 
-	actions.push(Action::new(ActionType::Return(res.clone()), states.len() - 1, ast.id));
+	actions.push(Action::new(ActionType::Return(res.clone()), state_index, ast.id));
 	res
+}
+
+fn execute_elif(
+	ifelse: &IfElse, variables: &mut VariableMap, id_path: &mut IdPath, console: &mut Console, actions: &mut Vec<Action>,
+	states: &mut Vec<State>, parent_scope: Id,
+) -> AstResult {
+	let state_index = states.len() - 1;
+	if let Some(elifs) = &ifelse.elif {
+		for elif in elifs {
+			let res = {
+				actions.push(Action::new(ActionType::ControlFlowEvaluateCondition, state_index, elif.condition.id));
+				match get_bool(execute_node(&elif.condition, variables, id_path, console, actions, states, elif.condition.id)?) {
+					Err(err) => return Err(vec![ErrorMessage::new(id_path.clone(), err, None)]),
+					Ok(v) => v,
+				}
+			};
+			if res {
+				return execute_node(&elif.sequence, variables, id_path, console, actions, states, elif.sequence.id);
+			}
+		}
+	}
+	if let Some(else_) = &ifelse.r#else {
+		return execute_node(else_, variables, id_path, console, actions, states, else_.id);
+	}
+	Ok(None)
 }
 
 fn is_var_name_valid(name: &str) -> Result<(), ErrorType> {

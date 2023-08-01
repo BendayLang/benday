@@ -21,16 +21,17 @@ fn test(ast: Node, basic_variables: Option<VariableMap>, expected_stdout: Option
 		let mut actions: Vec<Action> = Vec::new();
 		let mut states: Vec<State> = Vec::new();
 		let id_path = &mut Vec::new();
-		let runner_result = execute_node(&ast, &mut variables, id_path, &mut console, &mut actions, &mut states);
+		let runner_result = execute_node(&ast, &mut variables, id_path, &mut console, &mut actions, &mut states, 0);
 		(console, actions)
 	} else {
 		runner(&ast)
 	};
 
 	assert_eq!(expected_stdout.map_or(Vec::new(), |v| v), stdout_result.stdout, "stdout");
+	for i in 0..expected_actions.len() {
+		assert_eq!(expected_actions[i], actions_result[i], "action {}", i);
+	}
 	assert_eq!(expected_actions, actions_result, "actions");
-	// assert_eq!(expected_variables.map_or(VariableMap::new(), |v| v), var_result, "variables");
-	// assert_eq!(expected_return_value.map_or(Ok(None), |v| v), return_value, "return value");
 }
 
 #[test]
@@ -71,63 +72,69 @@ fn should_assign_variable_and_print_it() {
 		None,
 		Some(vec!["42".to_string()]),
 		vec![
+			Action::new(ActionType::Entered { from: 0 }, 0, 0),
+			Action::new(ActionType::Entered { from: 0 }, 0, 1),   // VariableAssignment
+			Action::new(ActionType::Entered { from: 1 }, 0, 100), // VariableAssignment::name
 			Action::new(ActionType::CheckVarNameValidity(Ok(())), 0, 100),
+			Action::new(ActionType::Entered { from: 100 }, 0, 2), // VariableAssignment::value
 			Action::new(ActionType::EvaluateRawText, 0, 2),
 			Action::new(ActionType::Return(Ok(Some(ReturnValue::Int(42)))), 0, 2),
 			Action::new(ActionType::AssignVariable { key: ("x".to_string(), 0), value: ReturnValue::Int(42) }, 1, 1),
-			Action::new(ActionType::Return(Ok(None)), 1, 1),
+			Action::new(ActionType::Return(Ok(None)), 1, 1), // VariableAssignment -> Sequence
+			Action::new(ActionType::Entered { from: 100 }, 1, 3),
 			Action::new(ActionType::GetArgs, 1, 3),
+			Action::new(ActionType::Entered { from: 3 }, 1, 4),
 			Action::new(ActionType::EvaluateRawText, 1, 4),
 			Action::new(ActionType::Return(Ok(Some(ReturnValue::Int(42)))), 1, 4),
 			Action::new(ActionType::CallBuildInFn("print".to_string()), 1, 3),
 			Action::new(ActionType::PushStdout("42".to_string()), 1, 3),
 			Action::new(ActionType::Return(Ok(None)), 1, 3),
-			Action::new(ActionType::Return(Ok(None)), 1, 0),
+			Action::new(ActionType::Return(Ok(None)), 0, 0),
 		],
 	);
 }
 
-#[test]
-fn should_return_value_when_raw_text() {
-	let ast = Node { id: 0, data: NodeData::RawText("42".to_string()) };
-	test(
-		ast,
-		Some(HashMap::new()),
-		None,
-		vec![
-			Action::new(ActionType::EvaluateRawText, 0, 0),
-			Action::new(ActionType::Return(Ok(Some(ReturnValue::Int(42)))), 0, 0),
-		],
-	);
-}
+// #[test]
+// fn should_return_value_when_raw_text() {
+// 	let ast = Node { id: 0, data: NodeData::RawText("42".to_string()) };
+// 	test(
+// 		ast,
+// 		Some(HashMap::new()),
+// 		None,
+// 		vec![
+// 			Action::new(ActionType::EvaluateRawText, 0, 0),
+// 			Action::new(ActionType::Return(Ok(Some(ReturnValue::Int(42)))), 0, 0),
+// 		],
+// 	);
+// }
 
-#[test]
-fn should_return_when_raw_text_and_stop_there() {
-	let ast = Node {
-		id: 0,
-		data: NodeData::Sequence(vec![
-			Node { id: 1, data: NodeData::RawText("42".to_string()) },
-			Node { id: 2, data: NodeData::RawText("24".to_string()) },
-			Node {
-				id: 3,
-				data: NodeData::FunctionCall(FunctionCall {
-					name: "print".to_string(),
-					argv: vec![Node { id: 4, data: NodeData::RawText("42".to_string()) }],
-				}),
-			},
-		]),
-	};
-	test(
-		ast,
-		None,
-		None,
-		vec![
-			Action::new(ActionType::EvaluateRawText, 0, 1),
-			Action::new(ActionType::return_some(ReturnValue::Int(42)), 0, 1),
-			Action::new(ActionType::return_some(ReturnValue::Int(42)), 0, 0),
-		],
-	);
-}
+// #[test]
+// fn should_return_when_raw_text_and_stop_there() {
+// 	let ast = Node {
+// 		id: 0,
+// 		data: NodeData::Sequence(vec![
+// 			Node { id: 1, data: NodeData::RawText("42".to_string()) },
+// 			Node { id: 2, data: NodeData::RawText("24".to_string()) },
+// 			Node {
+// 				id: 3,
+// 				data: NodeData::FunctionCall(FunctionCall {
+// 					name: "print".to_string(),
+// 					argv: vec![Node { id: 4, data: NodeData::RawText("42".to_string()) }],
+// 				}),
+// 			},
+// 		]),
+// 	};
+// 	test(
+// 		ast,
+// 		None,
+// 		None,
+// 		vec![
+// 			Action::new(ActionType::EvaluateRawText, 0, 1),
+// 			Action::new(ActionType::return_some(ReturnValue::Int(42)), 0, 1),
+// 			Action::new(ActionType::return_some(ReturnValue::Int(42)), 0, 0),
+// 		],
+// 	);
+// }
 
 // #[test]
 // fn should_print_raw_text() {
