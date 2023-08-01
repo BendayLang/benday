@@ -35,7 +35,6 @@ pub fn execute_node(
 	}
 
 	id_path.push(ast.id);
-	actions.push(Action::new(ActionType::Goto(ast.id), states.len() - 1));
 	let res: AstResult = match &ast.data {
 		NodeData::Sequence(sequence) => sequence
 			.iter()
@@ -54,7 +53,7 @@ pub fn execute_node(
 			}
 			let mut iteration = 0;
 			while {
-				actions.push(Action::new(ActionType::ControlFlowEvaluateCondition, states.len() - 1));
+				actions.push(Action::new(ActionType::ControlFlowEvaluateCondition, states.len() - 1, while_node.sequence.id));
 				match get_bool(execute_node(&while_node.condition, variables, id_path, console, actions, states)?) {
 					Err(err) => return Err(vec![ErrorMessage::new(id_path.clone(), err, None)]),
 					Ok(v) => v,
@@ -77,7 +76,7 @@ pub fn execute_node(
 		}
 		NodeData::IfElse(ifelse) => {
 			let res = {
-				actions.push(Action::new(ActionType::ControlFlowEvaluateCondition, states.len() - 1));
+				actions.push(Action::new(ActionType::ControlFlowEvaluateCondition, states.len() - 1, ifelse.r#if.condition.id));
 				match get_bool(execute_node(&ifelse.r#if.condition, variables, id_path, console, actions, states)?) {
 					Err(err) => return Err(vec![ErrorMessage::new(id_path.clone(), err, None)]),
 					Ok(v) => v,
@@ -89,7 +88,7 @@ pub fn execute_node(
 			if let Some(elifs) = &ifelse.elif {
 				for elif in elifs {
 					let res = {
-						actions.push(Action::new(ActionType::ControlFlowEvaluateCondition, states.len() - 1));
+						actions.push(Action::new(ActionType::ControlFlowEvaluateCondition, states.len() - 1, elif.condition.id));
 						match get_bool(execute_node(&elif.condition, variables, id_path, console, actions, states)?) {
 							Err(err) => return Err(vec![ErrorMessage::new(id_path.clone(), err, None)]),
 							Ok(v) => v,
@@ -106,7 +105,7 @@ pub fn execute_node(
 			Ok(None)
 		}
 		NodeData::RawText(text) => {
-			actions.push(Action::new(ActionType::EvaluateRawText, states.len() - 1));
+			actions.push(Action::new(ActionType::EvaluateRawText, states.len() - 1, ast.id));
 			match expand_variables(text, variables, id_path) {
 				Ok(string) => match math::get_math_parsibility(&string) {
 					math::MathParsability::Unparsable => Ok(Some(ReturnValue::String(string))),
@@ -120,7 +119,7 @@ pub fn execute_node(
 		}
 		NodeData::VariableAssignment(variable_assignment) => {
 			let name_validity = is_var_name_valid(&variable_assignment.name);
-			actions.push(Action::new(ActionType::CheckVarNameValidity(name_validity.clone()), states.len() - 1));
+			actions.push(Action::new(ActionType::CheckVarNameValidity(name_validity.clone()), states.len() - 1, ast.id));
 			if name_validity.is_err() {
 				return Err(vec![ErrorMessage::new(id_path.clone(), name_validity.unwrap_err(), None)]);
 			}
@@ -146,6 +145,7 @@ pub fn execute_node(
 				actions.push(Action::new(
 					ActionType::AssignVariable { key: variable_key.clone(), value: value.clone() },
 					states.len() - 1,
+					ast.id,
 				));
 				Ok(None)
 			} else {
@@ -153,14 +153,14 @@ pub fn execute_node(
 			}
 		}
 		NodeData::FunctionCall(function_call) => {
-			actions.push(Action::new(ActionType::GetArgs, states.len() - 1));
+			actions.push(Action::new(ActionType::GetArgs, states.len() - 1, ast.id));
 			let args = function_call
 				.argv
 				.iter()
 				.map(|arg| execute_node(arg, variables, id_path, console, actions, states))
 				.collect::<Vec<AstResult>>();
 
-			actions.push(Action::new(ActionType::CallBuildInFn(function_call.name.clone()), states.len() - 1));
+			actions.push(Action::new(ActionType::CallBuildInFn(function_call.name.clone()), states.len() - 1, ast.id));
 			match function_call.name.as_str() {
 				"print" => {
 					for arg in args {
@@ -168,7 +168,7 @@ pub fn execute_node(
 							Some(a) => a.to_string(),
 							None => "()".to_string(),
 						};
-						actions.push(Action::new(ActionType::PushStdout(to_push.clone()), states.len() - 1));
+						actions.push(Action::new(ActionType::PushStdout(to_push.clone()), states.len() - 1, ast.id));
 						console.stdout.push(to_push);
 					}
 				}
@@ -186,7 +186,7 @@ pub fn execute_node(
 		println!("Id path is not correct. poped: {:?}, ast.id: {}", poped, ast.id);
 	}
 
-	actions.push(Action::new(ActionType::Return(res.clone()), states.len() - 1));
+	actions.push(Action::new(ActionType::Return(res.clone()), states.len() - 1, ast.id));
 	res
 }
 

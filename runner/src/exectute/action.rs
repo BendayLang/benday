@@ -4,17 +4,17 @@ use models::{ast::Id, error::ErrorType, return_value::ReturnValue, runner::AstRe
 pub struct Action {
 	r#type: ActionType,
 	state_index: usize,
+	node_id: Id,
 }
 
 impl Action {
-	pub fn new(r#type: ActionType, state_index: usize) -> Self {
-		Self { r#type, state_index }
+	pub fn new(r#type: ActionType, state_index: usize, node_id: Id) -> Self {
+		Self { r#type, state_index, node_id }
 	}
 }
 
 #[derive(Debug, PartialEq)]
 pub enum ActionType {
-	Goto(Id),
 	Return(AstResult),
 	CheckVarNameValidity(Result<(), ErrorType>),
 	EvaluateRawText,

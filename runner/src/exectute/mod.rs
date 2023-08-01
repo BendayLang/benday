@@ -25,7 +25,9 @@ use std::collections::HashMap;
 pub fn runner(ast: &ast::Node) -> (Console, Vec<Action>) {
 	match &ast.data {
 		models::ast::NodeData::Sequence(_) => (),
-		_ => return (Console::default(), vec![Action::new(ActionType::Error(models::error::ErrorType::RootIsNotSequence), 0)]),
+		_ => {
+			return (Console::default(), vec![Action::new(ActionType::Error(models::error::ErrorType::RootIsNotSequence), 0, 0)])
+		}
 	}
 
 	let mut variables: VariableMap = HashMap::new();
