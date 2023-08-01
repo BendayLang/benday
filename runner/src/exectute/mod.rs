@@ -1,3 +1,4 @@
+pub mod action;
 pub mod console;
 mod execute;
 mod user_prefs {
@@ -6,8 +7,11 @@ mod user_prefs {
 #[cfg(test)]
 mod tests;
 
-use self::console::Console;
-pub use self::execute::ActionType;
+use self::{
+	action::{Action, ActionType},
+	console::Console,
+	execute::State,
+};
 use crate::math;
 use execute::execute_node;
 use models::{
@@ -18,17 +22,19 @@ use models::{
 };
 use std::collections::HashMap;
 
-pub fn runner(ast: &ast::Node) -> (Console, Vec<ActionType>) {
+pub fn runner(ast: &ast::Node) -> (Console, Vec<Action>) {
 	match &ast.data {
 		models::ast::NodeData::Sequence(_) => (),
-		_ => return (Console::default(), vec![ActionType::Error(models::error::ErrorType::RootIsNotSequence)]),
+		_ => return (Console::default(), vec![Action::new(ActionType::Error(models::error::ErrorType::RootIsNotSequence), 0)]),
 	}
+
 	let mut variables: VariableMap = HashMap::new();
 	let mut console = Console::default();
 	let mut id_path: IdPath = Vec::new();
-	let mut actions: Vec<ActionType> = Vec::new();
+	let mut actions: Vec<Action> = Vec::new();
+	let mut states: Vec<State> = Vec::new();
 	let return_value: Result<Option<ReturnValue>, Vec<ErrorMessage>> =
-		execute_node(ast, &mut variables, &mut id_path, &mut console, &mut actions);
+		execute_node(ast, &mut variables, &mut id_path, &mut console, &mut actions, &mut states);
 
 	(console, actions)
 }

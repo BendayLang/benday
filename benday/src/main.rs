@@ -1,14 +1,11 @@
 // #![allow(dead_code, unused_variables, unused_imports)]
 mod blocs;
 
-use std::time::Duration;
-
 use crate::blocs::bloc::Bloc;
 use crate::blocs::containers::Sequence;
 use crate::blocs::{new_root_sequence_bloc, BlocContainer, BlocType, Container, BLOC_NAMES, RADIUS};
 use blocs::as_ast_node::AsAstNode;
-use models::runner::{AstResult, VariableMap};
-use nalgebra::{Point2, Vector2};
+use nalgebra::Vector2;
 use pg_sdl::app::{App, PgSdl};
 use pg_sdl::camera::Camera;
 use pg_sdl::color::Colors;
@@ -18,20 +15,20 @@ use pg_sdl::primitives::{draw_rect, draw_rounded_rect};
 use pg_sdl::text::TextDrawer;
 use pg_sdl::widgets::select::Select;
 use pg_sdl::widgets::slider::{Slider, SliderStyle, SliderType};
-use pg_sdl::widgets::text_input::TextInput;
 use pg_sdl::widgets::{
 	button::{Button, ButtonStyle},
 	Manager, Widget, WidgetId,
 };
-use runner::exectute::ActionType;
+use runner::exectute::action::Action;
 use sdl2::render::Canvas;
 use sdl2::surface::Surface;
+use std::time::Duration;
 
 enum AppState {
 	Idle,
 	AddingBloc { widget_id: WidgetId, container: Container },
 	Saving,
-	Running { index: u16, console: runner::exectute::console::Console, actions: Vec<ActionType> },
+	Running { index: u16, console: runner::exectute::console::Console, actions: Vec<Action> },
 }
 
 pub struct BendayFront {
