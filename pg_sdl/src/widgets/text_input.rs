@@ -186,6 +186,7 @@ fn get_word_position(text: &str, mut position: usize) -> (usize, usize) {
 	(start, end)
 }
 
+
 impl Widget for TextInput {
 	#[allow(clippy::diverging_sub_expression)]
 	fn update(
