@@ -47,6 +47,7 @@ pub struct IfElse {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct VariableAssignment {
+	pub name_id: Id,
 	pub name: String,
 	pub value: Box<Node>,
 }

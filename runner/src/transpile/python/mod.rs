@@ -86,7 +86,7 @@ fn run(ast: &Node, is_first: bool, uid_generator: &mut UidGenerator) -> (String,
 			};
 			(format!("{sequence_name}()"), return_body, final_does_return)
 		}
-		NodeData::VariableAssignment(VariableAssignment { name, value }) => {
+		NodeData::VariableAssignment(VariableAssignment { name, value, .. }) => {
 			let (identifier, body, does_return) = run(value, false, uid_generator);
 			(format!("{name} = {identifier}"), body, false)
 		}

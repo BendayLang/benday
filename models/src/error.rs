@@ -46,6 +46,13 @@ pub enum ErrorType {
 	InvalidType { accepted: Vec<ValueType>, found: ValueType },
 	NEW_TYPE(String),
 	VariableNameError(VariableNameError),
+	MathParsabilityError(MathParsabilityError),
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]
+#[serde(tag = "type", content = "data", rename_all = "camelCase")]
+pub enum MathParsabilityError {
+	IsNotMath,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone)]

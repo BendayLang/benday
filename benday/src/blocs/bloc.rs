@@ -516,7 +516,7 @@ impl AsAstNode for Bloc {
 				let name_text_input = manager.get::<TextInput>(&name_text_input_id);
 				let name = name_text_input.get_text().to_string();
 				let value: Box<ast::Node> = Box::new(self.slots[0].as_ast_node(manager));
-				ast::NodeData::VariableAssignment(ast::VariableAssignment { name, value })
+				ast::NodeData::VariableAssignment(ast::VariableAssignment { name_id: name_text_input_id, name, value })
 			}
 			BlocType::IfElse => ast::NodeData::IfElse(ast::IfElse {
 				r#if: ast::If {

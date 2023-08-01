@@ -21,6 +21,7 @@ fn b() -> ast::Node {
 			ast::Node {
 				id: 0,
 				data: ast::NodeData::VariableAssignment(ast::VariableAssignment {
+					name_id: 100,
 					name: "var".to_string(),
 					value: Box::new(ast::Node {
 						id: 0,

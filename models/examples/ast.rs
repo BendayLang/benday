@@ -8,6 +8,7 @@ pub fn ast_example() -> Node {
 			Node {
 				id: 1,
 				data: NodeData::VariableAssignment(VariableAssignment {
+					name_id: 300,
 					name: "age de Bob".to_string(),
 					value: Box::new(Node { id: 2, data: NodeData::RawText("6".to_string()) }),
 				}),
@@ -34,6 +35,7 @@ pub fn ast_example() -> Node {
 							Node {
 								id: 5,
 								data: NodeData::VariableAssignment(VariableAssignment {
+									name_id: 301,
 									name: "age de Bob".to_string(),
 									value: Box::new(Node { id: 6, data: NodeData::RawText("{age de Bob} + 1".to_string()) }),
 								}),
@@ -89,6 +91,7 @@ pub fn ast_example() -> Node {
 						(
 							"text".to_string(),
 							VariableAssignment {
+								name_id: 302,
 								name: "text".to_string(),
 								value: Box::new(Node { id: 12, data: NodeData::RawText("".to_string()) }),
 							},
@@ -96,6 +99,7 @@ pub fn ast_example() -> Node {
 						(
 							"number".to_string(),
 							VariableAssignment {
+								name_id: 303,
 								name: "number".to_string(),
 								value: Box::new(Node { id: 13, data: NodeData::RawText("".to_string()) }),
 							},

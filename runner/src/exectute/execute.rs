@@ -111,7 +111,9 @@ pub fn execute_node(
 					math::MathParsability::Unparsable => Ok(Some(ReturnValue::String(string))),
 					_ => match math::math_expression(&string) {
 						Ok(v) => Ok(Some(v)),
-						Err(_) => todo!(),
+						Err(err) => {
+							Err(vec![ErrorMessage::new(id_path.clone(), error::ErrorType::MathParsabilityError(err), None)])
+						}
 					},
 				},
 				Err(err) => Err(vec![ErrorMessage::new(id_path.clone(), error::ErrorType::VariableExpansionError(err), None)]),
@@ -119,7 +121,11 @@ pub fn execute_node(
 		}
 		NodeData::VariableAssignment(variable_assignment) => {
 			let name_validity = is_var_name_valid(&variable_assignment.name);
-			actions.push(Action::new(ActionType::CheckVarNameValidity(name_validity.clone()), states.len() - 1, ast.id));
+			actions.push(Action::new(
+				ActionType::CheckVarNameValidity(name_validity.clone()),
+				states.len() - 1,
+				variable_assignment.name_id,
+			));
 			if name_validity.is_err() {
 				return Err(vec![ErrorMessage::new(id_path.clone(), name_validity.unwrap_err(), None)]);
 			}
@@ -149,7 +155,11 @@ pub fn execute_node(
 				));
 				Ok(None)
 			} else {
-				todo!("TODO: value returned was None/Void, that cannot be assigned to a var")
+				return Err(vec![ErrorMessage::new(
+					id_path.clone(),
+					error::ErrorType::NEW_TYPE("Cannot assign void value to a variable".to_string()),
+					None,
+				)]);
 			}
 		}
 		NodeData::FunctionCall(function_call) => {
@@ -172,7 +182,11 @@ pub fn execute_node(
 						console.stdout.push(to_push);
 					}
 				}
-				_ => todo!("FunctionCall {}", function_call.name),
+				_ => Err(vec![ErrorMessage::new(
+					id_path.clone(),
+					error::ErrorType::NEW_TYPE(format!("Unknown function '{}'", function_call.name)),
+					None,
+				)])?,
 			}
 
 			Ok(None)
