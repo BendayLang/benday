@@ -24,11 +24,12 @@ use runner::exectute::console::Console;
 use sdl2::render::Canvas;
 use sdl2::surface::Surface;
 use std::time::Duration;
-use crate::animation::{interpolate_rect, ease_in_out};
+use crate::animation::{interpolate_rect, ease_in_out, Animation};
 
 const ANIM_TIME: Duration = Duration::from_millis(1000);
 
 #[allow(dead_code)]
+#[derive(Clone)]
 enum AppState {
 	Idle,
 	AddingBloc { widget_id: WidgetId, container: Container },
@@ -96,16 +97,40 @@ impl App for BendayFront {
 			for str in &console.stdout {
 				println!("{str}");
 			}
+			print!("Actions ids: ");
+			for action in &actions {
+				print!("{:?} ", action.get_id());
+			}
+			println!();
 			manager.get_mut::<Slider>(&3).set_visible();
 			manager.get_mut::<Slider>(&3).reset_value();
-			manager.get_mut::<Slider>(&3).change_snap(actions.len() as u32);
+			let snap = actions.len() as u32 - 1;
+			manager.get_mut::<Slider>(&3).change_snap(snap);
+			
+			/*
+			let animations = Vec::new(); // vec![Animation::ChangeBloc { rect_1: Rect {}, rect_2: Rect {} },Animation::ChangeBloc];
+			actions.iter().for_each(|action| {
+				match action.get_type() {
+					ActionType::Return(_) => {},
+					ActionType::CheckVarNameValidity(_) => {},
+					ActionType::EvaluateRawText => {},
+					ActionType::AssignVariable { .. } => {},
+					ActionType::CallBuildInFn(_) => {},
+					ActionType::PushStdout(_) => {},
+					ActionType::GetArgs => {},
+					ActionType::ControlFlowEvaluateCondition => {},
+					ActionType::Error(_) => {},
+				}
+			});
+			 */
+			
 			self.state = AppState::Running { last_action: 0, animation_timer: Duration::ZERO, console, actions };
 		} else if manager.get::<Switch>(&2).is_pressed_off() {
 			manager.get_mut::<Slider>(&3).set_invisible();
 			self.state = AppState::Idle;
 		}
 		
-		match &self.state {
+		match self.state.clone() {
 			AppState::Idle => {
 				if let Some(focused_widget) = &manager.focused_widget() {
 					if self.blocs.contains(focused_widget) {
@@ -178,20 +203,31 @@ impl App for BendayFront {
 				};
 			}
 			AppState::AddingBloc { widget_id, container } => {
-				if !manager.get::<Select>(widget_id).is_focused() {
-					let option = manager.get::<Select>(widget_id).get_option().to_string();
+				if !manager.get::<Select>(&widget_id).is_focused() {
+					let option = manager.get::<Select>(&widget_id).get_option().to_string();
 					if let Some(bloc_type) = BlocType::from_string(option) {
 						let bloc = bloc_type.new_bloc(manager);
-						self.blocs.push(bloc.add(container, manager));
+						self.blocs.push(bloc.add(&container, manager));
 					}
-					manager.remove_widget(widget_id);
+					manager.remove_widget(&widget_id);
 					self.state = AppState::Idle;
 					changed = true;
 				}
 			}
 			AppState::Saving => {}
-			AppState::Running { .. } => {
-			
+			AppState::Running { last_action, animation_timer, console, actions } => {
+				let new_action = manager.get::<Slider>(&self.debug_slider_id).get_value() as u32;
+				
+				if animation_timer < ANIM_TIME * new_action {
+					if animation_timer + delta > ANIM_TIME * new_action {
+						let animation_timer = ANIM_TIME * new_action;
+						self.state = AppState::Running { last_action, animation_timer, console, actions };
+					} else {
+						let animation_timer = animation_timer + delta;
+						self.state = AppState::Running { last_action, animation_timer, console, actions };
+					}
+					changed = true;
+				}
 			}
 		}
 		
@@ -227,40 +263,45 @@ impl App for BendayFront {
 			draw_rect(canvas, Some(camera), Colors::WHITE, rect);
 		} else if let Some(focused_widget) = manager.focused_widget() {
 			if self.blocs.contains(&focused_widget) && manager.get::<Bloc>(&focused_widget).get_base().state.is_down() {
-   					let rect = manager.get::<Bloc>(&focused_widget).get_base().rect.translated(-Bloc::SHADOW);
-   					draw_rounded_rect(canvas, Some(camera), Colors::RED, rect, RADIUS);
-   				}
+            let rect = manager.get::<Bloc>(&focused_widget).get_base().rect.translated(-Bloc::SHADOW);
+            draw_rounded_rect(canvas, Some(camera), Colors::RED, rect, RADIUS);
+         }
 		}
 		
-		// test
 		match &self.state {
 			AppState::Running { last_action, animation_timer, actions, .. } => {
-				let new_action = manager.get::<Slider>(&self.debug_slider_id).get_value() as usize;
+				let new_action = manager.get::<Slider>(&self.debug_slider_id).get_value() as u32;
 				
-				match actions[new_action] {
+				match actions[new_action as usize] {
 					_ => ()
 				}
 				
-				// if actions[new_action].id
-				/*
-				let rect_1 = manager.get_widget(widget_1).get_base().rect;
-				let rect_2 = manager.get_widget(widget_2.unwrap()).get_base().rect;
-				draw_rounded_rect(canvas, None, Colors::WHITE, rect_1, RADIUS);
-				draw_rounded_rect(canvas, None, Colors::WHITE, rect_2, RADIUS);
-				let t = ease_in_out(animation_timer.as_secs_f64() / ANIM_TIME.as_secs_f64());
-				let r_int = interpolate_rect(rect_1, rect_2, t);
-				fill_rounded_rect(canvas, None, Colors::YELLOW, r_int, RADIUS);
-				*/
+				let last_action_id = actions[*last_action as usize].get_id();
+				let new_action_id = actions[new_action as usize].get_id();
+				if last_action_id != new_action_id {
+					let rect_1 = manager.get_widget(last_action_id).get_base().rect;
+					let rect_2 = manager.get_widget(new_action_id).get_base().rect;
+					let t = ease_in_out(animation_timer.as_secs_f64() - animation_timer.as_secs_f64().floor() / ANIM_TIME.as_secs_f64());
+					let r_int = interpolate_rect(rect_1, rect_2, t);
+					draw_rounded_rect(canvas, Some(camera), Colors::WHITE, r_int, RADIUS);
+				} else {
+					let rect = manager.get_widget(last_action_id).get_base().rect;
+					draw_rounded_rect(canvas, Some(camera), Colors::WHITE, rect, RADIUS);
+				}
+				let text = &format!("{:?}", animation_timer);
+				draw_text(canvas, None, text_drawer, Point2::new(600., 100.), text, 20. , &TextStyle::default(), Align::Center);
 			},
 			_ => ()
 		}
+		
+		// test
 		let radius = 7.;
 		draw_rounded_rect(canvas, None, Colors::BLACK, self.r1, radius);
 		draw_rounded_rect(canvas, None, Colors::BLACK, self.r2, radius);
 		let t = self.t.as_secs_f64() / ANIM_TIME.as_secs_f64();
 		let t = ease_in_out(t);
 		let r_int = interpolate_rect(self.r1, self.r2, t);
-		fill_rounded_rect(canvas, None, Colors::YELLOW, r_int, radius);
+		draw_rounded_rect(canvas, None, Colors::YELLOW, r_int.enlarged(-2.), radius);
 		// test
 	}
 }
@@ -281,12 +322,12 @@ fn main() {
 	// Debug slider
 	let style = SliderStyle::new(Colors::LIGHT_RED, Colors::GREY);
 	let rect = Rect::new(490., 118., 300., 24.);
-	let slider_type = SliderType::Discrete { snap: 50, default_value: 0, display: Some(Box::new(|v| format!("{}", v))) };
+	let slider_type = SliderType::Discrete { snap: 2, default_value: 0, display: Some(Box::new(|v| format!("{}", v))) };
 	let debug_slider_id = manager.add_widget(Box::new(Slider::new(rect, style, slider_type)), false);
 	manager.get_mut::<Slider>(&debug_slider_id).set_invisible();
 	
 	// test
-	let style = SwitchStyle::new(Colors::LIGHT_GREEN, Colors::LIGHT_GREY);
+	let style = SwitchStyle::new(Colors::LIGHT_YELLOW, Colors::LIGHTER_GREY);
 	let rect = Rect::new(220., 200., 40., 20.);
 	let switch_id = manager.add_widget(Box::new(Switch::new(rect, style)), false);
 	// test

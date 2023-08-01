@@ -21,3 +21,8 @@ pub fn ease_in_out(t: f64) -> f64 {
 pub fn parametric_ease_in_out(parameter: f64) -> Box<dyn Fn(f64) -> f64> {
 	Box::new(move |t| (t.powf(parameter)) / (t.powf(parameter) + (1. - t).powf(parameter)))
 }
+
+pub enum Animation {
+	ChangeBloc { rect_1: Rect, rect_2: Rect },
+	Other,
+}
