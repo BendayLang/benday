@@ -1,4 +1,4 @@
-use super::{math, user_prefs};
+use super::{console::Console, math, user_prefs};
 use crate::{find_variable::find_variable, variables_expansion::expand_variables};
 use models::{
 	ast::*,
@@ -12,7 +12,18 @@ use models::{
 use std::collections::{HashMap, VecDeque};
 
 #[derive(Debug, PartialEq)]
-pub enum Action {
+pub struct State {
+	varibles: VariableMap,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Action {
+	r#type: ActionType,
+	new_state: Option<State>,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ActionType {
 	Goto(Id),
 	Return(AstResult),
 	CheckVarNameValidity(Result<(), ErrorType>),
@@ -22,38 +33,39 @@ pub enum Action {
 	PushStdout(String),
 	GetArgs,
 	ControlFlowEvaluateCondition,
+	Error(ErrorType),
 }
 
-impl Action {
+impl ActionType {
 	pub fn return_some(return_value: ReturnValue) -> Self {
 		Self::Return(Ok(Some(return_value)))
 	}
 }
 
 pub fn execute_node(
-	ast: &Node, variables: &mut VariableMap, id_path: &mut IdPath, stdout: &mut Vec<String>, actions: &mut Vec<Action>,
+	ast: &Node, variables: &mut VariableMap, id_path: &mut IdPath, console: &mut Console, actions: &mut Vec<ActionType>,
 ) -> AstResult {
 	// TODO : separer les erreurs de "Lint" et les erreurs de "Runtime"
 	// example : un mauvais nom de variable est une erreur de lint, mais une variable non définie est une erreur de runtime
 	// est-ce que les erreurs de lint doivent être traitées ici ?
 	// est-ce qu'il faut séparer les erreurs de lint et les erreurs de runtime ?
 	id_path.push(ast.id);
-	actions.push(Action::Goto(ast.id));
+	actions.push(ActionType::Goto(ast.id));
 	let res: AstResult = match &ast.data {
-		NodeData::Sequence(sequence) => handle_sequence(sequence, variables, id_path, stdout, actions),
-		NodeData::While(while_node) => handle_while(while_node, variables, id_path, stdout, actions),
-		NodeData::IfElse(ifelse) => handle_if_else(ifelse, variables, id_path, stdout, actions),
+		NodeData::Sequence(sequence) => handle_sequence(sequence, variables, id_path, console, actions),
+		NodeData::While(while_node) => handle_while(while_node, variables, id_path, console, actions),
+		NodeData::IfElse(ifelse) => handle_if_else(ifelse, variables, id_path, console, actions),
 		NodeData::RawText(value) => handle_raw_text(value, variables, id_path, actions),
 		NodeData::VariableAssignment(variable_assignment) => {
-			handle_variable_assignment(variable_assignment, variables, id_path, stdout, actions)
+			handle_variable_assignment(variable_assignment, variables, id_path, console, actions)
 		}
-		NodeData::FunctionCall(function_call) => handle_function_call(function_call, variables, id_path, stdout, actions),
+		NodeData::FunctionCall(function_call) => handle_function_call(function_call, variables, id_path, console, actions),
 		NodeData::FunctionDeclaration(fn_declaration) => handle_function_declaration(fn_declaration),
 	};
 	if id_path.pop() != Some(ast.id) {
 		panic!("Id path is not correct");
 	}
-	actions.push(Action::Return(res.clone())); // TODO ne pas clone le result a chaque fois ?
+	actions.push(ActionType::Return(res.clone())); // TODO ne pas clone le result a chaque fois ?
 	res
 }
 
@@ -62,20 +74,20 @@ fn handle_function_declaration(_fn_declaration: &FunctionDeclaration) -> AstResu
 }
 
 fn handle_while(
-	while_node: &While, variables: &mut VariableMap, id_path: &mut IdPath, stdout: &mut Vec<String>, actions: &mut Vec<Action>,
+	while_node: &While, variables: &mut VariableMap, id_path: &mut IdPath, console: &mut Console, actions: &mut Vec<ActionType>,
 ) -> AstResult {
 	if while_node.is_do {
 		todo!("Implement at the end of the project");
 	}
 	let mut iteration = 0;
 	while {
-		actions.push(Action::ControlFlowEvaluateCondition);
-		match get_bool(execute_node(&while_node.condition, variables, id_path, stdout, actions)?) {
+		actions.push(ActionType::ControlFlowEvaluateCondition);
+		match get_bool(execute_node(&while_node.condition, variables, id_path, console, actions)?) {
 			Err(err) => return Err(vec![ErrorMessage::new(id_path.clone(), err, None)]),
 			Ok(v) => v,
 		}
 	} {
-		let return_value = execute_node(&while_node.sequence, variables, id_path, stdout, actions)?;
+		let return_value = execute_node(&while_node.sequence, variables, id_path, console, actions)?;
 		if return_value.is_some() {
 			return Ok(return_value);
 		}
@@ -92,40 +104,40 @@ fn handle_while(
 }
 
 fn handle_if_else(
-	ifelse: &IfElse, variables: &mut VariableMap, id_path: &mut IdPath, stdout: &mut Vec<String>, actions: &mut Vec<Action>,
+	ifelse: &IfElse, variables: &mut VariableMap, id_path: &mut IdPath, console: &mut Console, actions: &mut Vec<ActionType>,
 ) -> AstResult {
 	let res = {
-		actions.push(Action::ControlFlowEvaluateCondition);
-		match get_bool(execute_node(&ifelse.r#if.condition, variables, id_path, stdout, actions)?) {
+		actions.push(ActionType::ControlFlowEvaluateCondition);
+		match get_bool(execute_node(&ifelse.r#if.condition, variables, id_path, console, actions)?) {
 			Err(err) => return Err(vec![ErrorMessage::new(id_path.clone(), err, None)]),
 			Ok(v) => v,
 		}
 	};
 	if res {
-		return execute_node(&ifelse.r#if.sequence, variables, id_path, stdout, actions);
+		return execute_node(&ifelse.r#if.sequence, variables, id_path, console, actions);
 	}
 	if let Some(elifs) = &ifelse.elif {
 		for elif in elifs {
 			let res = {
-				actions.push(Action::ControlFlowEvaluateCondition);
-				match get_bool(execute_node(&elif.condition, variables, id_path, stdout, actions)?) {
+				actions.push(ActionType::ControlFlowEvaluateCondition);
+				match get_bool(execute_node(&elif.condition, variables, id_path, console, actions)?) {
 					Err(err) => return Err(vec![ErrorMessage::new(id_path.clone(), err, None)]),
 					Ok(v) => v,
 				}
 			};
 			if res {
-				return execute_node(&elif.sequence, variables, id_path, stdout, actions);
+				return execute_node(&elif.sequence, variables, id_path, console, actions);
 			}
 		}
 	}
 	if let Some(else_) = &ifelse.r#else {
-		return execute_node(else_, variables, id_path, stdout, actions);
+		return execute_node(else_, variables, id_path, console, actions);
 	}
 	Ok(None)
 }
 
-fn handle_raw_text(text: &str, variables: &mut VariableMap, id_path: &IdPath, actions: &mut Vec<Action>) -> AstResult {
-	actions.push(Action::EvaluateRawText);
+fn handle_raw_text(text: &str, variables: &mut VariableMap, id_path: &IdPath, actions: &mut Vec<ActionType>) -> AstResult {
+	actions.push(ActionType::EvaluateRawText);
 	match expand_variables(text, variables, id_path) {
 		Ok(string) => match math::get_math_parsibility(&string) {
 			math::MathParsability::Unparsable => Ok(Some(ReturnValue::String(string))),
@@ -157,16 +169,16 @@ fn is_var_name_valid(name: &str) -> Result<(), ErrorType> {
 }
 
 fn handle_variable_assignment(
-	variable_assignment: &VariableAssignment, variables: &mut VariableMap, id_path: &mut IdPath, stdout: &mut Vec<String>,
-	actions: &mut Vec<Action>,
+	variable_assignment: &VariableAssignment, variables: &mut VariableMap, id_path: &mut IdPath, console: &mut Console,
+	actions: &mut Vec<ActionType>,
 ) -> AstResult {
 	let name_validity = is_var_name_valid(&variable_assignment.name);
-	actions.push(Action::CheckVarNameValidity(name_validity.clone()));
+	actions.push(ActionType::CheckVarNameValidity(name_validity.clone()));
 	if name_validity.is_err() {
 		return Err(vec![ErrorMessage::new(id_path.clone(), name_validity.unwrap_err(), None)]);
 	}
 
-	let value = execute_node(&variable_assignment.value, variables, id_path, stdout, actions)?;
+	let value = execute_node(&variable_assignment.value, variables, id_path, console, actions)?;
 	let id = match find_variable(variable_assignment.name.as_str(), variables, id_path) {
 		Some((_, id)) => id,
 		None => {
@@ -182,7 +194,7 @@ fn handle_variable_assignment(
 	};
 	if let Some(value) = value {
 		let variable_key: (String, u32) = (variable_assignment.name.to_string(), id);
-		actions.push(Action::AssigneVariable { key: variable_key.clone(), value: value.clone() });
+		actions.push(ActionType::AssigneVariable { key: variable_key.clone(), value: value.clone() });
 		let _ = variables.insert(variable_key, value);
 		Ok(None)
 	} else {
@@ -191,14 +203,14 @@ fn handle_variable_assignment(
 }
 
 fn handle_function_call(
-	function_call: &FunctionCall, variables: &mut VariableMap, id_path: &mut IdPath, stdout: &mut Vec<String>,
-	actions: &mut Vec<Action>,
+	function_call: &FunctionCall, variables: &mut VariableMap, id_path: &mut IdPath, console: &mut Console,
+	actions: &mut Vec<ActionType>,
 ) -> AstResult {
-	actions.push(Action::GetArgs); // TODO est-ce bien nescessaire ??
+	actions.push(ActionType::GetArgs); // TODO est-ce bien nescessaire ??
 	let args =
-		function_call.argv.iter().map(|arg| execute_node(arg, variables, id_path, stdout, actions)).collect::<Vec<AstResult>>();
+		function_call.argv.iter().map(|arg| execute_node(arg, variables, id_path, console, actions)).collect::<Vec<AstResult>>();
 
-	actions.push(Action::CallBuildInFn(function_call.name.clone()));
+	actions.push(ActionType::CallBuildInFn(function_call.name.clone()));
 	match function_call.name.as_str() {
 		"print" => {
 			for arg in args {
@@ -206,8 +218,8 @@ fn handle_function_call(
 					Some(a) => a.to_string(),
 					None => "()".to_string(),
 				};
-				actions.push(Action::PushStdout(to_push.clone()));
-				stdout.push(to_push);
+				actions.push(ActionType::PushStdout(to_push.clone()));
+				console.stdout.push(to_push);
 			}
 		}
 		_ => todo!("FunctionCall {}", function_call.name),
@@ -217,12 +229,12 @@ fn handle_function_call(
 }
 
 fn handle_sequence(
-	sequence: &[Node], variables: &mut VariableMap, id_path: &mut IdPath, stdout: &mut Vec<String>, actions: &mut Vec<Action>,
+	sequence: &[Node], variables: &mut VariableMap, id_path: &mut IdPath, console: &mut Console, actions: &mut Vec<ActionType>,
 ) -> AstResult {
 	sequence
 		.iter()
 		.find_map(|node| {
-			let return_value = execute_node(node, variables, id_path, stdout, actions);
+			let return_value = execute_node(node, variables, id_path, console, actions);
 			if return_value != Ok(None) {
 				Some(return_value)
 			} else {

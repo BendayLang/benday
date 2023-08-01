@@ -1,3 +1,4 @@
+pub mod console;
 mod execute;
 mod user_prefs {
 	pub const MAX_ITERATION: usize = 100;
@@ -5,7 +6,8 @@ mod user_prefs {
 #[cfg(test)]
 mod tests;
 
-pub use self::execute::Action;
+use self::console::Console;
+pub use self::execute::ActionType;
 use crate::math;
 use execute::execute_node;
 use models::{
@@ -16,26 +18,19 @@ use models::{
 };
 use std::collections::HashMap;
 
-pub fn runner(ast: &ast::Node) -> (AstResult, Vec<String>, VariableMap, Vec<Action>) {
+pub fn runner(ast: &ast::Node) -> (Console, Vec<ActionType>) {
 	match &ast.data {
 		models::ast::NodeData::Sequence(_) => (),
-		_ => {
-			return (
-				Err(vec![ErrorMessage::new(vec![], models::error::ErrorType::RootIsNotSequence, None)]),
-				Vec::new(),
-				HashMap::new(),
-				Vec::new(),
-			)
-		}
+		_ => return (Console::default(), vec![ActionType::Error(models::error::ErrorType::RootIsNotSequence)]),
 	}
 	let mut variables: VariableMap = HashMap::new();
-	let mut stdout = Vec::new();
+	let mut console = Console::default();
 	let mut id_path: IdPath = Vec::new();
-	let mut actions: Vec<Action> = Vec::new();
+	let mut actions: Vec<ActionType> = Vec::new();
 	let return_value: Result<Option<ReturnValue>, Vec<ErrorMessage>> =
-		execute_node(ast, &mut variables, &mut id_path, &mut stdout, &mut actions);
+		execute_node(ast, &mut variables, &mut id_path, &mut console, &mut actions);
 
-	(return_value, stdout, variables, actions)
+	(console, actions)
 }
 
 pub fn linter(_ast: &ast::Node) -> AstResult {

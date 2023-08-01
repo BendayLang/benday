@@ -17,21 +17,21 @@ use pg_sdl::input::Input;
 use pg_sdl::primitives::{draw_rect, draw_rounded_rect};
 use pg_sdl::text::TextDrawer;
 use pg_sdl::widgets::select::Select;
+use pg_sdl::widgets::slider::{Slider, SliderStyle, SliderType};
 use pg_sdl::widgets::text_input::TextInput;
 use pg_sdl::widgets::{
 	button::{Button, ButtonStyle},
 	Manager, Widget, WidgetId,
 };
-use runner::exectute::Action;
+use runner::exectute::ActionType;
 use sdl2::render::Canvas;
 use sdl2::surface::Surface;
-use pg_sdl::widgets::slider::{Slider, SliderStyle, SliderType};
 
 enum AppState {
 	Idle,
 	AddingBloc { widget_id: WidgetId, container: Container },
 	Saving,
-	Running { index: u16, return_value: AstResult, stdout: Vec<String>, variables: VariableMap, actions: Vec<Action> },
+	Running { index: u16, console: runner::exectute::console::Console, actions: Vec<ActionType> },
 }
 
 pub struct BendayFront {
@@ -84,12 +84,12 @@ impl App for BendayFront {
 		if manager.get::<Button>(&2).is_pressed() {
 			let root_sequence = manager.get::<Sequence>(&0);
 			let ast = root_sequence.as_ast_node(manager);
-			let (return_value, stdout, variables, actions) = runner::exectute::runner(&ast);
+			let (console, actions) = runner::exectute::runner(&ast);
 			println!("Actions : {:?}", actions);
-			for str in &stdout {
+			for str in &console.stdout {
 				println!("{str}");
 			}
-			self.state = AppState::Running { index: 0, return_value, stdout, variables, actions }
+			self.state = AppState::Running { index: 0, console, actions };
 		}
 
 		match &self.state {
@@ -213,10 +213,10 @@ fn main() {
 	let style = ButtonStyle::new(Colors::LIGHT_GREEN, Some(8.), 16.);
 	let rect = Rect::new(200., 100., 100., 60.);
 	manager.add_widget(Box::new(Button::new(rect, style, "RUN".to_string())), false);
-	
+
 	// Debug slider
 	let style = SliderStyle::new(Colors::LIGHT_RED, Colors::GREY);
-	let rect = Rect::new(490. , 118., 300., 24.);
+	let rect = Rect::new(490., 118., 300., 24.);
 	let slider_type = SliderType::Discrete { snap: 50, default_value: 0, display: Some(Box::new(|v| format!("{}", v))) };
 	manager.add_widget(Box::new(Slider::new(rect, style, slider_type)), false);
 
