@@ -1,7 +1,8 @@
 // #![allow(dead_code, unused_variables, unused_imports)]
-mod blocs;
 mod animation;
+mod blocs;
 
+use crate::animation::{ease_in_out, interpolate, interpolate_rect, Animation, interpolate_color, parametric_ease_in_back, ease_in};
 use crate::blocs::bloc::Bloc;
 use crate::blocs::containers::Sequence;
 use crate::blocs::{new_root_sequence_bloc, BlocContainer, BlocType, Container, BLOC_NAMES, RADIUS};
@@ -9,7 +10,7 @@ use blocs::as_ast_node::AsAstNode;
 use nalgebra::{Point2, Vector2};
 use pg_sdl::app::{App, PgSdl};
 use pg_sdl::camera::Camera;
-use pg_sdl::color::Colors;
+use pg_sdl::color::{Colors, with_alpha};
 use pg_sdl::custom_rect::Rect;
 use pg_sdl::input::Input;
 use pg_sdl::primitives::{draw_rect, draw_rounded_rect, draw_text, fill_rounded_rect};
@@ -19,14 +20,17 @@ use pg_sdl::widgets::select::Select;
 use pg_sdl::widgets::slider::{Slider, SliderStyle, SliderType};
 use pg_sdl::widgets::switch::{Switch, SwitchStyle};
 use pg_sdl::widgets::{Manager, Widget, WidgetId};
-use runner::exectute::action::{Action, ActionType};
+use runner::exectute::action::ActionType;
 use runner::exectute::console::Console;
-use sdl2::render::Canvas;
+use sdl2::render::{BlendMode, Canvas};
 use sdl2::surface::Surface;
+use std::cmp::Ordering;
 use std::time::Duration;
-use crate::animation::{interpolate_rect, ease_in_out, Animation};
+use sdl2::pixels::Color;
+use pg_sdl::widgets::text_input::TextInput;
 
-const ANIM_TIME: Duration = Duration::from_millis(1000);
+const ANIM_TIME: Duration = Duration::from_millis(600);
+const RUN_COLOR: Color = Colors::LIGHT_YELLOW;
 
 #[allow(dead_code)]
 #[derive(Clone)]
@@ -34,7 +38,7 @@ enum AppState {
 	Idle,
 	AddingBloc { widget_id: WidgetId, container: Container },
 	Saving,
-	Running { last_action: u32, animation_timer: Duration, console: Console, actions: Vec<Action> },
+	Running { animation_timer: Duration, console: Console, animations: Vec<Animation> },
 }
 
 pub struct BendayFront {
@@ -44,21 +48,17 @@ pub struct BendayFront {
 	hovered_container: Option<Container>,
 	rect: Option<Rect>,
 	debug_slider_id: WidgetId,
-	r1: Rect,
-	r2: Rect,
-	switch_id: WidgetId,
-	t: Duration,
 }
 
 impl App for BendayFront {
 	fn update(&mut self, delta: Duration, input: &Input, manager: &mut Manager, camera: &mut Camera) -> bool {
 		let mut changed = false;
-		
+
 		{
 			if input.mouse.right_button.is_pressed() {
 				let mouse_position = input.mouse.position.cast();
 				let point = camera.transform().inverse() * mouse_position;
-				
+
 				let mut container = None;
 				for bloc_id in manager.get_cam_order().iter().rev() {
 					if self.blocs.contains(bloc_id) {
@@ -68,12 +68,13 @@ impl App for BendayFront {
 						}
 					}
 				}
-				
+
 				if let Some(container) = container {
 					let size = Vector2::new(100., 120.);
 					let widget_id = manager.add_widget(
 						Box::new(Select::new(
 							Rect::from(mouse_position - Vector2::new(size.x * 0.5, 0.), size),
+							Some(4.),
 							Default::default(),
 							BLOC_NAMES.iter().map(|&str| str.to_string()).collect(),
 							"Name".to_string(),
@@ -81,13 +82,13 @@ impl App for BendayFront {
 						false,
 					);
 					manager.focus_widget(widget_id);
-					
+
 					self.state = AppState::AddingBloc { widget_id, container };
 					changed = true;
 				}
 			}
 		}
-		
+
 		// Run
 		if manager.get::<Switch>(&2).is_pressed_on() {
 			let root_sequence = manager.get::<Sequence>(&0);
@@ -97,39 +98,45 @@ impl App for BendayFront {
 			for str in &console.stdout {
 				println!("{str}");
 			}
-			print!("Actions ids: ");
-			for action in &actions {
-				print!("{:?} ", action.get_id());
-			}
-			println!();
-			manager.get_mut::<Slider>(&3).set_visible();
-			manager.get_mut::<Slider>(&3).reset_value();
-			let snap = actions.len() as u32 - 1;
-			manager.get_mut::<Slider>(&3).change_snap(snap);
-			
-			/*
-			let animations = Vec::new(); // vec![Animation::ChangeBloc { rect_1: Rect {}, rect_2: Rect {} },Animation::ChangeBloc];
-			actions.iter().for_each(|action| {
+
+			let animations = actions.iter().map(|action| {
+				let node_id = action.get_id();
+				let node_rect = manager.get_widget(node_id).get_base().rect;
+				let node_radius = manager.get_widget(node_id).get_base().radius.unwrap_or_else(|| 1.);
 				match action.get_type() {
-					ActionType::Return(_) => {},
-					ActionType::CheckVarNameValidity(_) => {},
-					ActionType::EvaluateRawText => {},
-					ActionType::AssignVariable { .. } => {},
-					ActionType::CallBuildInFn(_) => {},
-					ActionType::PushStdout(_) => {},
-					ActionType::GetArgs => {},
-					ActionType::ControlFlowEvaluateCondition => {},
-					ActionType::Error(_) => {},
+					ActionType::Entered { from } => {
+						let rect_1 = manager.get_widget(from).get_base().rect;
+						let radius_1 = manager.get_widget(from).get_base().radius.unwrap_or_else(|| 1.);
+						Animation::EnterBloc { rect_1, rect_2: node_rect, radius_1, radius_2: node_radius }
+					}
+					ActionType::Return(_) => {
+						if let Some(parent_id) = &manager.get_widget(node_id).get_base().parent_id {
+							let rect_2 = manager.get_widget(parent_id).get_base().rect;
+							let radius_2 = manager.get_widget(parent_id).get_base().radius.unwrap_or_else(|| 1.);
+							Animation::Return { rect_1: node_rect, rect_2, radius_1: node_radius, radius_2 }
+						} else {
+							Animation::Other { rect: node_rect, radius: node_radius }
+						}
+					}
+					ActionType::AssignVariable { .. } => {
+						Animation::AssignVariable { rect: node_rect, radius: node_radius, bloc_id: *node_id }
+					}
+					ActionType::CheckVarNameValidity(result) => {
+						Animation::CheckValidity { rect: node_rect, radius: node_radius, valid: result.is_ok() }
+					}
+					_ => Animation::Other { rect: node_rect, radius: node_radius },
 				}
-			});
-			 */
-			
-			self.state = AppState::Running { last_action: 0, animation_timer: Duration::ZERO, console, actions };
+			}).collect::<Vec<Animation>>();
+
+			manager.get_mut::<Slider>(&3).reset_value();
+			manager.get_mut::<Slider>(&3).change_snap(animations.len() as u32);
+			manager.get_mut::<Slider>(&3).set_visible();
+			self.state = AppState::Running { animation_timer: Duration::ZERO, console, animations };
 		} else if manager.get::<Switch>(&2).is_pressed_off() {
 			manager.get_mut::<Slider>(&3).set_invisible();
 			self.state = AppState::Idle;
 		}
-		
+
 		match self.state.clone() {
 			AppState::Idle => {
 				if let Some(focused_widget) = &manager.focused_widget() {
@@ -168,7 +175,7 @@ impl App for BendayFront {
 							let moving_bloc_childs = manager.get::<Bloc>(focused_widget).get_recursive_childs(manager);
 							let rect = manager.get::<Bloc>(focused_widget).get_base().rect.translated(-Bloc::SHADOW);
 							let (mut new_hovered_container, mut ratio) = (None, 0.);
-							
+
 							manager.get_cam_order().iter().for_each(|bloc_id| {
 								if self.blocs.contains(bloc_id) && !moving_bloc_childs.contains(bloc_id) {
 									if let Some((new_container, new_ratio)) =
@@ -215,139 +222,152 @@ impl App for BendayFront {
 				}
 			}
 			AppState::Saving => {}
-			AppState::Running { last_action, animation_timer, console, actions } => {
-				let new_action = manager.get::<Slider>(&self.debug_slider_id).get_value() as u32;
+			AppState::Running { animation_timer, console, animations } => {
+				let timer_target = ANIM_TIME * manager.get::<Slider>(&self.debug_slider_id).get_value() as u32;
 				
-				if animation_timer < ANIM_TIME * new_action {
-					if animation_timer + delta > ANIM_TIME * new_action {
-						let animation_timer = ANIM_TIME * new_action;
-						self.state = AppState::Running { last_action, animation_timer, console, actions };
-					} else {
-						let animation_timer = animation_timer + delta;
-						self.state = AppState::Running { last_action, animation_timer, console, actions };
+				let mut timer = animation_timer;
+				match animation_timer.cmp(&timer_target) {
+					Ordering::Less => {
+						if timer_target - timer > 3 * ANIM_TIME {
+							timer = timer_target - 3 * ANIM_TIME;
+						}
+						self.state = AppState::Running {
+							animation_timer: if timer + delta > timer_target { timer_target } else { timer + delta },
+							console,
+							animations,
+						};
+						changed = true;
 					}
-					changed = true;
+					Ordering::Equal => (),
+					Ordering::Greater => {
+						if timer - timer_target > 3 * ANIM_TIME {
+							timer = timer_target + 3 * ANIM_TIME;
+						}
+						self.state = AppState::Running {
+							animation_timer: if timer < timer_target + delta { timer_target } else { timer - delta },
+							console,
+							animations,
+						};
+						changed = true;
+					}
 				}
 			}
 		}
-		
-		// test
-		if manager.get::<Switch>(&self.switch_id).is_switched() {
-			if self.t < ANIM_TIME {
-				self.t += delta;
-				if self.t > ANIM_TIME {
-					self.t = ANIM_TIME;
-				}
-				changed = true;
-			}
-		} else {
-			if self.t > Duration::ZERO {
-				if self.t < delta {
-					self.t = Duration::ZERO;
-				} else { self.t -= delta; }
-				changed = true;
-			}
-		}
-		// test
-		
+
 		changed
 	}
-	
+
 	fn draw(&self, canvas: &mut Canvas<Surface>, text_drawer: &mut TextDrawer, manager: &Manager, camera: &Camera) {
 		camera.draw_grid(canvas, text_drawer, Colors::LIGHT_GREY, true, false);
-		
+
 		manager.draw(canvas, text_drawer, camera);
-		draw_text(canvas, None, text_drawer, Point2::new(250., 90.), "Run", 25., &TextStyle::default(), Align::Bottom);
-		
+		draw_text(canvas, None, text_drawer, Point2::new(250., 90.), "Run", 22., &TextStyle::default(), Align::Bottom);
+
 		if let Some(rect) = self.rect {
 			draw_rect(canvas, Some(camera), Colors::WHITE, rect);
 		} else if let Some(focused_widget) = manager.focused_widget() {
 			if self.blocs.contains(&focused_widget) && manager.get::<Bloc>(&focused_widget).get_base().state.is_down() {
-            let rect = manager.get::<Bloc>(&focused_widget).get_base().rect.translated(-Bloc::SHADOW);
-            draw_rounded_rect(canvas, Some(camera), Colors::RED, rect, RADIUS);
-         }
+				let rect = manager.get::<Bloc>(&focused_widget).get_base().rect.translated(-Bloc::SHADOW);
+				draw_rounded_rect(canvas, Some(camera), Colors::RED, rect, RADIUS);
+			}
 		}
-		
+
 		match &self.state {
-			AppState::Running { last_action, animation_timer, actions, .. } => {
-				let new_action = manager.get::<Slider>(&self.debug_slider_id).get_value() as u32;
-				
-				match actions[new_action as usize] {
-					_ => ()
-				}
-				
-				let last_action_id = actions[*last_action as usize].get_id();
-				let new_action_id = actions[new_action as usize].get_id();
-				if last_action_id != new_action_id {
-					let rect_1 = manager.get_widget(last_action_id).get_base().rect;
-					let rect_2 = manager.get_widget(new_action_id).get_base().rect;
-					let t = ease_in_out(animation_timer.as_secs_f64() - animation_timer.as_secs_f64().floor() / ANIM_TIME.as_secs_f64());
-					let r_int = interpolate_rect(rect_1, rect_2, t);
-					draw_rounded_rect(canvas, Some(camera), Colors::WHITE, r_int, RADIUS);
+			AppState::Running { animation_timer, animations, .. } => {
+				let timer = animation_timer.as_secs_f64() / ANIM_TIME.as_secs_f64();
+				let (t, animation_index) = if timer == 0. {
+					(0., 0)
 				} else {
-					let rect = manager.get_widget(last_action_id).get_base().rect;
-					draw_rounded_rect(canvas, Some(camera), Colors::WHITE, rect, RADIUS);
+					(timer - timer.ceil() + 1., timer.ceil() as usize - 1)
+				};
+				let text = &format!("t ({}) index ({})", t, animation_index);
+				let position = Point2::new(200., 250.);
+				draw_text(canvas, None, text_drawer, position, text, 25., &TextStyle::default(), Align::Center);
+				
+				let t = ease_in_out(t);
+
+				match animations[animation_index] {
+					Animation::EnterBloc { rect_1, radius_1, rect_2, radius_2 } => {
+						let rect = interpolate_rect(rect_1, rect_2, ease_in_out(t));
+						let radius = interpolate(radius_1, radius_2, ease_in_out(t));
+						canvas.set_blend_mode(BlendMode::Blend);
+						fill_rounded_rect(canvas, Some(camera), with_alpha(RUN_COLOR, 63), rect, radius);
+						draw_rounded_rect(canvas, Some(camera), RUN_COLOR, rect, radius);
+					}
+					Animation::Return { rect_1, radius_1, rect_2, radius_2 } => {
+						let rect = interpolate_rect(rect_1, rect_2, ease_in_out(t));
+						let radius = interpolate(radius_1, radius_2, ease_in_out(t));
+						canvas.set_blend_mode(BlendMode::Blend);
+						fill_rounded_rect(canvas, Some(camera), with_alpha(Colors::LIGHT_BLUE, 63), rect, radius);
+						draw_rounded_rect(canvas, Some(camera), Colors::LIGHT_BLUE, rect, radius);
+					}
+					Animation::AssignVariable { rect, radius, bloc_id } => {
+						// canvas.set_blend_mode(BlendMode::Blend);
+						// fill_rounded_rect(canvas, Some(camera), with_alpha(RUN_COLOR, 63), rect, radius);
+						let ease_in_back = parametric_ease_in_back(10.);
+						draw_rounded_rect(canvas, Some(camera), RUN_COLOR, rect, radius);
+						let name_widget = manager.get::<TextInput>(manager.get::<Bloc>(&bloc_id).widgets[0].get_id());
+						let value_widget = manager.get::<TextInput>(manager.get::<Bloc>(&bloc_id).slots[0].get_id());
+						let position = interpolate(
+							value_widget.get_base().rect.mid_left().coords + Vector2::new(5., 0.),
+							name_widget.get_base().rect.mid_left().coords + Vector2::new(5., 0.),
+							ease_in(t)
+						).into();
+						let font_size = interpolate(value_widget.get_style().font_size, 0., ease_in_back(t));
+						let text = value_widget.get_text();
+						draw_text(canvas, Some(camera), text_drawer, position, text, font_size, &TextStyle::default(), Align::Left);
+					}
+					Animation::CheckValidity { rect, radius, valid } => {
+						let start_color = RUN_COLOR;
+						let target_color = if valid { Colors::GREEN } else { Colors::RED };
+						let color = interpolate_color(start_color, target_color, t);
+						canvas.set_blend_mode(BlendMode::Blend);
+						fill_rounded_rect(canvas, Some(camera), with_alpha(color, 63), rect, radius);
+						draw_rounded_rect(canvas, Some(camera), color, rect, radius);
+					}
+					Animation::Other { rect, radius } => {
+						canvas.set_blend_mode(BlendMode::Blend);
+						fill_rounded_rect(canvas, Some(camera), with_alpha(RUN_COLOR, 63), rect, radius);
+						draw_rounded_rect(canvas, Some(camera), RUN_COLOR, rect, radius);
+					}
 				}
-				let text = &format!("{:?}", animation_timer);
-				draw_text(canvas, None, text_drawer, Point2::new(600., 100.), text, 20. , &TextStyle::default(), Align::Center);
-			},
-			_ => ()
+			}
+			_ => (),
 		}
-		
-		// test
-		let radius = 7.;
-		draw_rounded_rect(canvas, None, Colors::BLACK, self.r1, radius);
-		draw_rounded_rect(canvas, None, Colors::BLACK, self.r2, radius);
-		let t = self.t.as_secs_f64() / ANIM_TIME.as_secs_f64();
-		let t = ease_in_out(t);
-		let r_int = interpolate_rect(self.r1, self.r2, t);
-		draw_rounded_rect(canvas, None, Colors::YELLOW, r_int.enlarged(-2.), radius);
-		// test
 	}
 }
 
 fn main() {
 	let mut manager = Manager::default();
-	
+
 	let mut bloc = new_root_sequence_bloc(&mut manager);
 	bloc.get_base_mut().rect.size = (bloc.get_size)(&bloc, &manager);
 	let root_id = manager.add_widget(Box::new(bloc), true);
 	manager.get_widget_mut(&root_id).set_invisible();
-	
+
 	// Run switch
 	let style = SwitchStyle::new(Colors::LIGHT_GREEN, Colors::LIGHT_RED);
 	let rect = Rect::new(200., 100., 80., 40.);
 	manager.add_widget(Box::new(Switch::new(rect, style)), false);
-	
+
 	// Debug slider
 	let style = SliderStyle::new(Colors::LIGHT_RED, Colors::GREY);
 	let rect = Rect::new(490., 118., 300., 24.);
 	let slider_type = SliderType::Discrete { snap: 2, default_value: 0, display: Some(Box::new(|v| format!("{}", v))) };
 	let debug_slider_id = manager.add_widget(Box::new(Slider::new(rect, style, slider_type)), false);
 	manager.get_mut::<Slider>(&debug_slider_id).set_invisible();
-	
-	// test
-	let style = SwitchStyle::new(Colors::LIGHT_YELLOW, Colors::LIGHTER_GREY);
-	let rect = Rect::new(220., 200., 40., 20.);
-	let switch_id = manager.add_widget(Box::new(Switch::new(rect, style)), false);
-	// test
-	
+
 	let resolution = Vector2::new(1280, 720);
 
 	let mut app = PgSdl::init("Benday", resolution, Some(120), true, Colors::LIGHT_GREY, manager);
-	
+
 	let mut my_app = BendayFront {
 		state: AppState::Idle,
 		blocs: vec![root_id],
 		hovered_container: None,
 		rect: None,
 		debug_slider_id,
-		r1: Rect::new(180., 300., 120., 80.),
-		r2: Rect::new(400., 400., 80., 40.),
-		switch_id,
-		t: Duration::ZERO
 	};
-	
+
 	app.run(&mut my_app);
 }
-

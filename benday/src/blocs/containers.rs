@@ -41,7 +41,8 @@ impl Slot {
 		let text_input_id = manager.add_widget(
 			Box::new(TextInput::new(
 				Rect::from_origin(Self::SIZE),
-				TextInputStyle::new(paler(color, 0.4), Some(Self::RADIUS), 12., true),
+				Some(Self::RADIUS),
+				TextInputStyle::new(paler(color, 0.4), 12., true),
 				placeholder,
 			)),
 			true,
@@ -91,18 +92,11 @@ pub struct SequenceStyle {
 	hovered_color: Color,
 	focused_color: Color,
 	border_color: Color,
-	corner_radius: f64,
 }
 
 impl SequenceStyle {
-	pub fn new(color: Color, corner_radius: f64) -> Self {
-		Self {
-			color,
-			hovered_color: darker(color, HOVER),
-			focused_color: Colors::BLACK,
-			border_color: darker(color, 0.95),
-			corner_radius,
-		}
+	pub fn new(color: Color) -> Self {
+		Self { color, hovered_color: darker(color, HOVER), focused_color: Colors::BLACK, border_color: darker(color, 0.95) }
 	}
 }
 
@@ -119,10 +113,10 @@ impl Sequence {
 	const GAP_HEIGHT: f64 = 10.;
 
 	pub fn add(color: Color, fn_relative_position: FnRelativePosition, manager: &mut Manager) -> WidgetId {
-		let style = SequenceStyle::new(darker(color, 0.95), Self::RADIUS);
+		let style = SequenceStyle::new(darker(color, 0.95));
 		manager.add_widget(
 			Box::new(Self {
-				base: Base::new(Rect::from_origin(Self::SIZE), false),
+				base: Base::new(Rect::from_origin(Self::SIZE), Some(Self::RADIUS), false),
 				style,
 				childs_ids: Vec::new(),
 				fn_relative_position,
@@ -228,11 +222,11 @@ impl Widget for Sequence {
 				camera,
 				with_alpha(border_color, FOCUS_HALO_ALPHA),
 				self.base.rect.enlarged(FOCUS_HALO_DELTA),
-				FOCUS_HALO_DELTA + self.style.corner_radius,
+				FOCUS_HALO_DELTA + self.base.radius.unwrap(),
 			);
 		}
-		fill_rounded_rect(canvas, camera, color, self.base.rect, self.style.corner_radius);
-		draw_rounded_rect(canvas, camera, border_color, self.base.rect, self.style.corner_radius);
+		fill_rounded_rect(canvas, camera, color, self.base.rect, self.base.radius.unwrap());
+		draw_rounded_rect(canvas, camera, border_color, self.base.rect, self.base.radius.unwrap());
 	}
 
 	fn get_base(&self) -> &Base {

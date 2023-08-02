@@ -28,9 +28,13 @@ pub struct WigBloc {
 	fn_relative_position: FnRelativePosition,
 }
 
+impl WigBloc {
+	pub fn get_id(&self) -> &WidgetId { &self.id }
+}
+
 pub const BLOC_NAMES: [&str; 5] = ["Variable assignment", "If else", "Function call", "Sequence", "While"];
 
-#[allow(dead_code)]
+#[allow(dead_code)] #[derive(Debug)]
 pub enum BlocType {
 	VariableAssignment,
 	IfElse,
@@ -82,7 +86,8 @@ pub fn new_variable_assignment_bloc(manager: &mut Manager) -> Bloc {
 		id: manager.add_widget(
 			Box::new(TextInput::new(
 				Rect::from_origin(TEXT_INPUT_SIZE),
-				TextInputStyle::new(paler(color, 0.2), None, 12., true),
+				None,
+				TextInputStyle::new(paler(color, 0.2), 12., true),
 				"name".to_string(),
 			)),
 			true,
@@ -162,7 +167,8 @@ pub fn new_function_call_bloc(manager: &mut Manager) -> Bloc {
 		id: manager.add_widget(
 			Box::new(TextInput::new(
 				Rect::from_origin(TEXT_INPUT_SIZE),
-				TextInputStyle::new(paler(color, 0.2), None, 12., true),
+				None,
+				TextInputStyle::new(paler(color, 0.2), 12., true),
 				"function".to_string(),
 			)),
 			true,
@@ -176,7 +182,7 @@ pub fn new_function_call_bloc(manager: &mut Manager) -> Bloc {
 		}),
 	}];
 
-	let slots = (0..5)
+	let slots = (0..2)
 		.map(|nth_slot| {
 			let fn_relative_position = Box::new(move |bloc: &Bloc, manager: &Manager| {
 				let widget_width = manager.get_widget(&bloc.widgets[0].id).get_base().rect.width();

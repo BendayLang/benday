@@ -44,7 +44,7 @@ pub enum ErrorType {
 	ConditionAlwaysFalse,
 	ConditionAlwaysTrue,
 	InvalidType { accepted: Vec<ValueType>, found: ValueType },
-	NEW_TYPE(String),
+	NewType(String),
 	VariableNameError(VariableNameError),
 	MathParsabilityError(MathParsabilityError),
 }

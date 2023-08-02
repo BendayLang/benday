@@ -41,9 +41,11 @@ pub struct Signal {
 	name: String,
 }
 
+#[derive(Debug)]
 pub struct Base {
 	id: WidgetId,
 	pub rect: Rect,
+	pub radius: Option<f64>,
 	pub state: KeyState,
 	focused: bool,
 	hovered: bool,
@@ -52,16 +54,17 @@ pub struct Base {
 	has_scroll: bool,
 }
 
-/// An struct that every widget must have
+/// A struct that every widget must have
 /// - id
 /// - rect
 /// - state
 /// - visible
 impl Base {
-	pub fn new(rect: Rect, has_scroll: bool) -> Self {
+	pub fn new(rect: Rect, radius: Option<f64>, has_scroll: bool) -> Self {
 		Self {
 			id: 0,
 			rect,
+			radius,
 			state: KeyState::default(),
 			focused: false,
 			hovered: false,

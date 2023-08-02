@@ -27,7 +27,6 @@ pub struct ButtonStyle {
 	pushed_color: Color,
 	focused_color: Color,
 	border_color: Color,
-	corner_radius: Option<f64>,
 	font_size: f64,
 	text_style: TextStyle,
 }
@@ -40,7 +39,6 @@ impl Default for ButtonStyle {
 			pushed_color: darker(Colors::LIGHTER_GREY, PUSH),
 			focused_color: Colors::BLUE,
 			border_color: Colors::BLACK,
-			corner_radius: Some(7.0),
 			font_size: 16.,
 			text_style: TextStyle::new(None, Colors::DARK_GREY, FontStyle::NORMAL),
 		}
@@ -48,14 +46,13 @@ impl Default for ButtonStyle {
 }
 
 impl ButtonStyle {
-	pub fn new(color: Color, corner_radius: Option<f64>, font_size: f64) -> Self {
+	pub fn new(color: Color, font_size: f64) -> Self {
 		Self {
 			color,
 			hovered_color: darker(color, HOVER),
 			pushed_color: darker(color, PUSH),
 			focused_color: Colors::BLUE,
 			border_color: Colors::BLACK,
-			corner_radius,
 			font_size,
 			text_style: TextStyle::new(None, darker(color, 0.5), FontStyle::NORMAL),
 		}
@@ -70,8 +67,8 @@ pub struct Button {
 }
 
 impl Button {
-	pub fn new(rect: Rect, style: ButtonStyle, text: String) -> Self {
-		Self { base: Base::new(rect, false), style, text }
+	pub fn new(rect: Rect, corner_radius: Option<f64>, style: ButtonStyle, text: String) -> Self {
+		Self { base: Base::new(rect, corner_radius, false), style, text }
 	}
 
 	pub fn get_text(&self) -> &String {
@@ -101,7 +98,7 @@ impl Widget for Button {
 		};
 		let border_color = if self.is_focused() { self.style.focused_color } else { self.style.border_color };
 
-		if let Some(corner_radius) = self.style.corner_radius {
+		if let Some(corner_radius) = self.base.radius {
 			if self.is_focused() {
 				canvas.set_blend_mode(BlendMode::Blend);
 				fill_rounded_rect(

@@ -18,18 +18,11 @@ pub struct BlankBoxStyle {
 	hovered_color: Color,
 	focused_color: Color,
 	border_color: Color,
-	corner_radius: Option<f64>,
 }
 
 impl BlankBoxStyle {
-	pub fn new(color: Color, corner_radius: Option<f64>) -> Self {
-		Self {
-			color,
-			hovered_color: darker(color, HOVER),
-			focused_color: Colors::BLACK,
-			border_color: darker(color, 0.5),
-			corner_radius,
-		}
+	pub fn new(color: Color) -> Self {
+		Self { color, hovered_color: darker(color, HOVER), focused_color: Colors::BLACK, border_color: darker(color, 0.5) }
 	}
 }
 
@@ -39,8 +32,8 @@ pub struct BlankBox {
 }
 
 impl BlankBox {
-	pub fn new(rect: Rect, style: BlankBoxStyle) -> Self {
-		Self { base: Base::new(rect, false), style }
+	pub fn new(rect: Rect, corner_radius: Option<f64>, style: BlankBoxStyle) -> Self {
+		Self { base: Base::new(rect, corner_radius, false), style }
 	}
 }
 
@@ -55,7 +48,7 @@ impl Widget for BlankBox {
 		let color = if self.is_hovered() { self.style.hovered_color } else { self.style.color };
 		let border_color = if self.is_focused() { self.style.focused_color } else { self.style.border_color };
 
-		if let Some(corner_radius) = self.style.corner_radius {
+		if let Some(corner_radius) = self.base.radius {
 			if self.is_focused() {
 				canvas.set_blend_mode(BlendMode::Blend);
 				fill_rounded_rect(

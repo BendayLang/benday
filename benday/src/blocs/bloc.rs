@@ -1,11 +1,9 @@
+use std::fmt::{Display, Formatter};
 use std::time::Duration;
 
 use crate::blocs::containers::{Sequence, Slot};
-use crate::blocs::{
-	Container, FnGetSize, WigBloc, TOP_BOX_BT_MARGIN, TOP_BOX_BT_RADIUS,
-	TOP_BOX_BT_SIZE,
-};
 use crate::blocs::{BlocContainer, BlocType};
+use crate::blocs::{Container, FnGetSize, WigBloc, RADIUS, TOP_BOX_BT_MARGIN, TOP_BOX_BT_RADIUS, TOP_BOX_BT_SIZE};
 use crate::get_base_;
 use models::ast;
 use nalgebra::{Point2, Vector2};
@@ -25,7 +23,6 @@ use sdl2::render::{BlendMode, Canvas};
 use sdl2::surface::Surface;
 
 use super::as_ast_node::AsAstNode;
-
 
 pub struct BlocStyle {
 	color: Color,
@@ -59,6 +56,12 @@ pub struct Bloc {
 	bloc_type: BlocType,
 }
 
+impl Display for Bloc {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(f, "Bloc({:?}, id: {})", self.bloc_type, self.get_id())
+	}
+}
+
 impl Bloc {
 	pub const SHADOW: Vector2<f64> = Vector2::new(6., 8.);
 
@@ -66,7 +69,7 @@ impl Bloc {
 		style: BlocStyle, widgets: Vec<WigBloc>, slots: Vec<Slot>, sequences_ids: Vec<WidgetId>, get_size: FnGetSize,
 		bloc_type: BlocType,
 	) -> Self {
-		let base = Base::new(Rect::zeros(), false);
+		let base = Base::new(Rect::zeros(), Some(RADIUS), false);
 		Self { base, style, grab_delta: None, widgets, slots, sequences_ids, get_size, parent: None, bloc_type }
 	}
 
@@ -79,7 +82,7 @@ impl Bloc {
 		let top_box_widgets = vec![
 			WigBloc {
 				id: manager.add_widget(
-					Box::new(Button::new(rect, ButtonStyle::new(Colors::LIGHT_YELLOW, corner_radius, 12.), "i".to_string())),
+					Box::new(Button::new(rect, corner_radius, ButtonStyle::new(Colors::LIGHT_YELLOW, 12.), "i".to_string())),
 					true,
 				),
 				fn_relative_position: Box::new(move |bloc: &Bloc, _: &Manager| {
@@ -88,7 +91,7 @@ impl Bloc {
 			},
 			WigBloc {
 				id: manager.add_widget(
-					Box::new(Button::new(rect, ButtonStyle::new(Colors::LIGHTER_GREY, corner_radius, 12.), "c".to_string())),
+					Box::new(Button::new(rect, corner_radius, ButtonStyle::new(Colors::LIGHTER_GREY, 12.), "c".to_string())),
 					true,
 				),
 				fn_relative_position: Box::new(move |bloc: &Bloc, _: &Manager| {
@@ -97,7 +100,7 @@ impl Bloc {
 			},
 			WigBloc {
 				id: manager.add_widget(
-					Box::new(Button::new(rect, ButtonStyle::new(Colors::LIGHT_GREEN, corner_radius, 12.), ">".to_string())),
+					Box::new(Button::new(rect, corner_radius, ButtonStyle::new(Colors::LIGHT_GREEN, 12.), ">".to_string())),
 					true,
 				),
 				fn_relative_position: Box::new(move |bloc: &Bloc, _: &Manager| {

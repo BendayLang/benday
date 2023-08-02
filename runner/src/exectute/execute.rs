@@ -89,7 +89,7 @@ pub fn execute_node(
 				if iteration == user_prefs::MAX_ITERATION {
 					return Err(vec![ErrorMessage::new(
 						id_path.clone(),
-						error::ErrorType::NEW_TYPE(format!("Max iteration reached ({})", user_prefs::MAX_ITERATION)),
+						error::ErrorType::NewType(format!("Max iteration reached ({})", user_prefs::MAX_ITERATION)),
 						None,
 					)]);
 				}
@@ -182,7 +182,7 @@ pub fn execute_node(
 			} else {
 				Err(vec![ErrorMessage::new(
 					id_path.clone(),
-					error::ErrorType::NEW_TYPE("Cannot assign void value to a variable".to_string()),
+					error::ErrorType::NewType("Cannot assign void value to a variable".to_string()),
 					None,
 				)])
 			}
@@ -209,7 +209,7 @@ pub fn execute_node(
 				}
 				_ => Err(vec![ErrorMessage::new(
 					id_path.clone(),
-					error::ErrorType::NEW_TYPE(format!("Unknown function '{}'", function_call.name)),
+					error::ErrorType::NewType(format!("Unknown function '{}'", function_call.name)),
 					None,
 				)])?,
 			}
@@ -276,6 +276,6 @@ fn get_bool(return_value: Option<ReturnValue>) -> Result<bool, ErrorType> {
 	if let Some(return_value) = return_value {
 		return_value.to_bool()
 	} else {
-		Err(ErrorType::NEW_TYPE("void should not be evaluated".to_string()))
+		Err(ErrorType::NewType("void should not be evaluated".to_string()))
 	}
 }

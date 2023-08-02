@@ -33,13 +33,12 @@ pub struct SelectStyle {
 	slider_pushed_color: Color,
 	focused_color: Color,
 	border_color: Color,
-	corner_radius: Option<f64>,
 	font_size: f64,
 	slider_width: f64,
 }
 
 impl SelectStyle {
-	pub fn new(color: Color, corner_radius: Option<f64>, font_size: f64) -> Self {
+	pub fn new(color: Color, font_size: f64) -> Self {
 		Self {
 			color,
 			hovered_color: darker(color, HOVER),
@@ -49,7 +48,6 @@ impl SelectStyle {
 			slider_pushed_color: darker(color, 0.85 * PUSH),
 			focused_color: Colors::BLUE,
 			border_color: Colors::BLACK,
-			corner_radius,
 			font_size,
 			slider_width: font_size,
 		}
@@ -67,7 +65,6 @@ impl Default for SelectStyle {
 			slider_pushed_color: darker(Colors::LIGHT_GREY, PUSH),
 			focused_color: Colors::BLUE,
 			border_color: Colors::BLACK,
-			corner_radius: Some(4.0),
 			font_size: 15.,
 			slider_width: 15.,
 		}
@@ -98,17 +95,17 @@ impl Select {
 	const HEIGHT_MARGIN: f64 = 4.;
 	const SLIDER_MARGIN: f64 = 2.;
 
-	pub fn new(rect: Rect, style: SelectStyle, options: Vec<String>, placeholder: String) -> Self {
+	pub fn new(rect: Rect, corner_radius: Option<f64>, style: SelectStyle, options: Vec<String>, placeholder: String) -> Self {
 		let text_input_rect = Rect::from(rect.position, Vector2::new(rect.width(), style.font_size + 2. * Self::HEIGHT_MARGIN));
-		let text_input_style = TextInputStyle::new(style.color, style.corner_radius, style.font_size, false);
+		let text_input_style = TextInputStyle::new(style.color, style.font_size, false);
 		let mut select = Self {
-			base: Base::new(rect, true),
+			base: Base::new(rect, corner_radius, true),
 			max_height: rect.height(),
 			style,
 			base_options: options.clone(),
 			options,
 			selected_option: 0,
-			text_input: TextInput::new(text_input_rect, text_input_style, placeholder),
+			text_input: TextInput::new(text_input_rect, corner_radius, text_input_style, placeholder),
 			slider_value: 0.0,
 			hovered_element: SelectElement::TextInput,
 			is_on_slider: None,
@@ -343,7 +340,7 @@ impl Widget for Select {
 	fn draw(&self, canvas: &mut Canvas<Surface>, text_drawer: &mut TextDrawer, camera: Option<&Camera>) {
 		if self.is_focused() {
 			// Focus
-			if let Some(corner_radius) = self.style.corner_radius {
+			if let Some(corner_radius) = self.base.radius {
 				canvas.set_blend_mode(BlendMode::Blend);
 				fill_rounded_rect(
 					canvas,
@@ -367,7 +364,7 @@ impl Widget for Select {
 		if self.is_focused() && !self.options.is_empty() {
 			// Background
 			let bottom_rect = self.get_bottom_rect();
-			if let Some(corner_radius) = self.style.corner_radius {
+			if let Some(corner_radius) = self.base.radius {
 				fill_rounded_rect(canvas, camera, self.style.color, bottom_rect, corner_radius);
 			} else {
 				fill_rect(canvas, camera, self.style.color, bottom_rect);
@@ -385,7 +382,7 @@ impl Widget for Select {
 				if let SelectElement::Options { option_index } = self.hovered_element {
 					let y = self.option_height() * option_index as f64 - self.slider_value * self.options_course();
 					let rect = Rect::new(0., y, width, self.option_height());
-					if let Some(corner_radius) = self.style.corner_radius {
+					if let Some(corner_radius) = self.base.radius {
 						fill_rounded_rect(&mut surface, camera, self.style.hovered_color, rect, corner_radius);
 					} else {
 						fill_rect(&mut surface, camera, self.style.hovered_color, rect);
@@ -394,7 +391,7 @@ impl Widget for Select {
 			}
 			let y = self.option_height() * self.selected_option as f64 - self.slider_value * self.options_course();
 			let rect = Rect::new(0., y, width, self.option_height());
-			if let Some(corner_radius) = self.style.corner_radius {
+			if let Some(corner_radius) = self.base.radius {
 				fill_rounded_rect(&mut surface, camera, self.style.selected_option_color, rect, corner_radius);
 			} else {
 				fill_rect(&mut surface, camera, self.style.selected_option_color, rect);
@@ -438,7 +435,7 @@ impl Widget for Select {
 				let mut slider_rect = self.get_slider_rect().enlarged(-Self::SLIDER_MARGIN);
 				slider_rect.size.y = self.slider_height();
 				slider_rect.position.y += self.slider_value * self.slider_course();
-				if let Some(corner_radius) = self.style.corner_radius {
+				if let Some(corner_radius) = self.base.radius {
 					fill_rounded_rect(canvas, camera, slider_color, slider_rect, corner_radius);
 					draw_rounded_rect(canvas, camera, self.style.border_color, slider_rect, corner_radius);
 				} else {
@@ -448,7 +445,7 @@ impl Widget for Select {
 			}
 
 			// Contour
-			if let Some(corner_radius) = self.style.corner_radius {
+			if let Some(corner_radius) = self.base.radius {
 				draw_rounded_rect(canvas, camera, self.style.border_color, bottom_rect, corner_radius);
 			} else {
 				draw_rect(canvas, camera, self.style.border_color, bottom_rect);

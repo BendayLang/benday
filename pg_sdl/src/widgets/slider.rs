@@ -85,7 +85,7 @@ impl Slider {
 	pub fn new(rect: Rect, style: SliderStyle, slider_type: SliderType) -> Self {
 		let orientation = if rect.width() > rect.height() { Orientation::Horizontal } else { Orientation::Vertical };
 		Self {
-			base: Base::new(rect, true),
+			base: Base::new(rect, None, true),
 			style,
 			orientation,
 			value: match slider_type {
@@ -95,9 +95,9 @@ impl Slider {
 			slider_type,
 		}
 	}
-	
+
 	pub fn change_snap(&mut self, snap: u32) {
-		let mut v = SliderType::Discrete {snap: 0, default_value: 0, display: None};
+		let mut v = SliderType::Discrete { snap: 0, default_value: 0, display: None };
 		std::mem::swap(&mut v, &mut self.slider_type);
 		let SliderType::Discrete { default_value, display, .. } = v
 			else { panic!("Cannot change snap if the slider isn't discrete !") };

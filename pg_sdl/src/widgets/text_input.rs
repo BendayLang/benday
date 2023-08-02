@@ -21,14 +21,13 @@ pub struct TextInputStyle {
 	border_color: Color,
 	carrot_color: Color,
 	selection_color: Color,
-	corner_radius: Option<f64>,
-	font_size: f64,
+	pub font_size: f64,
 	placeholder_style: TextStyle,
 	text_style: TextStyle,
 }
 
 impl TextInputStyle {
-	pub fn new(color: Color, corner_radius: Option<f64>, font_size: f64, focus: bool) -> Self {
+	pub fn new(color: Color, font_size: f64, focus: bool) -> Self {
 		Self {
 			color,
 			hovered_color: darker(color, HOVER),
@@ -36,7 +35,6 @@ impl TextInputStyle {
 			border_color: Colors::BLACK,
 			carrot_color: Colors::DARK_GREY,
 			selection_color: with_alpha(Colors::LIGHT_BLUE, 127),
-			corner_radius,
 			font_size,
 			placeholder_style: TextStyle { color: Colors::GREY, ..Default::default() },
 			text_style: TextStyle::default(),
@@ -53,7 +51,6 @@ impl Default for TextInputStyle {
 			border_color: Colors::BLACK,
 			carrot_color: Colors::DARK_GREY,
 			selection_color: with_alpha(Colors::LIGHT_BLUE, 127),
-			corner_radius: Some(4.0),
 			font_size: 15.,
 			placeholder_style: TextStyle { color: Colors::GREY, ..Default::default() },
 			text_style: TextStyle::default(),
@@ -80,9 +77,9 @@ impl TextInput {
 	const BLINKING_TIME_SEC: Duration = Duration::from_millis(400);
 	const DOUBLE_CLICK_TIME: Duration = Duration::from_millis(300);
 
-	pub fn new(rect: Rect, style: TextInputStyle, placeholder: String) -> Self {
+	pub fn new(rect: Rect, corner_radius: Option<f64>, style: TextInputStyle, placeholder: String) -> Self {
 		Self {
-			base: Base::new(rect, false),
+			base: Base::new(rect, corner_radius, false),
 			style,
 			placeholder,
 			text: String::new(),
@@ -93,6 +90,10 @@ impl TextInput {
 			click_count: 0,
 			click_position: 0,
 		}
+	}
+	
+	pub fn get_style(&self) -> &TextInputStyle {
+		&self.style
 	}
 
 	pub fn get_text(&self) -> &str {
@@ -185,7 +186,6 @@ fn get_word_position(text: &str, mut position: usize) -> (usize, usize) {
 
 	(start, end)
 }
-
 
 impl Widget for TextInput {
 	#[allow(clippy::diverging_sub_expression)]
@@ -409,7 +409,7 @@ impl Widget for TextInput {
 			}
 		};
 
-		if let Some(corner_radius) = self.style.corner_radius {
+		if let Some(corner_radius) = self.base.radius {
 			if self.is_focused() && self.style.focused_color.is_some() {
 				canvas.set_blend_mode(BlendMode::Blend);
 				fill_rounded_rect(

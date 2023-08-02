@@ -28,7 +28,7 @@ impl ReturnValue {
 	pub fn to_bool(&self) -> Result<bool, ErrorType> {
 		match self {
 			ReturnValue::Bool(val) => Ok(*val),
-			ReturnValue::String(val) => Err(ErrorType::NEW_TYPE(format!("error should return a bool, not a string ({val})"))),
+			ReturnValue::String(val) => Err(ErrorType::NewType(format!("error should return a bool, not a string ({val})"))),
 			ReturnValue::Int(val) => Ok(*val != 0),
 			ReturnValue::Float(val) => Ok(*val != 0.0),
 		}

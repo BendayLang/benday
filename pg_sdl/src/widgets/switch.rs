@@ -71,7 +71,7 @@ impl Switch {
 				Orientation::Vertical
 			}
 		};
-		Self { base: Base::new(rect, false), style, orientation, switched: false }
+		Self { base: Base::new(rect, None, false), style, orientation, switched: false }
 	}
 
 	pub fn set_switched(&mut self, switched: bool) {
