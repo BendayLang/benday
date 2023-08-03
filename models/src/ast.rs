@@ -21,7 +21,7 @@ pub enum NodeData {
 	FunctionDeclaration(FunctionDeclaration),
 }
 
-type Sequence = Vec<Node>;
+pub type Sequence = Vec<Node>;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]

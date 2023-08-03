@@ -223,8 +223,11 @@ impl Widget for Select {
 			self.reframe();
 			self.text_input.set_text(self.options[self.selected_option].clone());
 		}
-		if input.keys_state.enter.is_pressed() && !self.options.is_empty() {
-			self.text_input.set_text(self.options[self.selected_option].clone());
+		// Enter pressed
+		if input.keys_state.enter.is_pressed() {
+			if !self.options.is_empty() {
+				self.text_input.set_text(self.options[self.selected_option].clone());
+			}
 			manager.push_command(Command::UnfocusWidget);
 			changed = true;
 		}

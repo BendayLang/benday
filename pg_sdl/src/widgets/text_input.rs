@@ -1,3 +1,4 @@
+use std::ops::Range;
 use std::time::{Duration, Instant};
 
 use crate::camera::Camera;
@@ -13,6 +14,25 @@ use sdl2::pixels::Color;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::surface::Surface;
 use sdl2::video::Window;
+
+#[derive(PartialEq, Eq)]
+enum CharType {
+	Space,
+	AlphaNum,
+	Other,
+}
+
+impl CharType {
+	pub fn from_char(c: char) -> Self {
+		if c.is_alphanumeric() {
+			CharType::AlphaNum
+		} else if c.is_whitespace() {
+			CharType::Space
+		} else {
+			CharType::Other
+		}
+	}
+}
 
 pub struct TextInputStyle {
 	color: Color,
@@ -64,6 +84,7 @@ pub struct TextInput {
 	placeholder: String,
 	text: String,
 	carrot_timer_sec: Duration,
+	/// Gives the char's position of the carrot
 	carrot_position: usize,
 	/// The selected text (from, to)
 	selection: Option<(usize, usize)>,
@@ -103,7 +124,7 @@ impl TextInput {
 	pub fn set_text(&mut self, text: String) {
 		self.text = text;
 		self.selection = None;
-		self.carrot_position = self.text.len();
+		self.carrot_position = self.text.chars().count();
 	}
 
 	fn get_carrot_position(&self, text_drawer: &mut TextDrawer, mouse_position: Point2<i32>, camera: Option<&Camera>) -> usize {
@@ -122,70 +143,59 @@ impl TextInput {
 				return i;
 			}
 		}
-		self.text.len()
+		self.text.chars().count()
 	}
 
 	fn is_carrot_visible(&self) -> bool {
 		self.carrot_timer_sec < Self::BLINKING_TIME_SEC
 	}
-}
-
-#[derive(PartialEq, Eq)]
-enum CharType {
-	Space,
-	AlphaNum,
-	Other,
-}
-
-impl CharType {
-	pub fn from_char(c: char) -> Self {
-		if c.is_alphanumeric() {
-			CharType::AlphaNum
-		} else if c.is_whitespace() {
-			CharType::Space
-		} else {
-			CharType::Other
+	
+	/// Returns the byte position from the char position in the text
+	fn to_byte(&self, position: usize) -> usize {
+		self.text.chars().collect::<Vec<char>>()[0..position]
+			.iter().map(|char| char.to_string().len()).sum()
+	}
+	
+	fn to_byte_range(&self, start: usize, end: usize) -> Range<usize> {
+		self.to_byte(start)..self.to_byte(end)
+	}
+	
+	fn get_word_position(&self, position: usize) -> (usize, usize) {
+		if self.text.is_empty() {
+			return (0, 0);
 		}
+		let c: char = self.text.chars().nth(position).expect("position caca");
+		let char_type = CharType::from_char(c);
+	
+		let mut end = position + 1;
+		loop {
+			if end >= self.text.chars().count() {
+				break;
+			}
+			let c: char = self.text.chars().nth(end).expect("forward oups");
+			if CharType::from_char(c) != char_type {
+				break;
+			}
+			end += 1;
+		}
+	
+		let mut start = if position == 0 { 0 } else { position - 1 };
+		loop {
+			if start == 0 {
+				break;
+			}
+			let c: char = self.text.chars().nth(start).expect("back oups");
+			if CharType::from_char(c) != char_type {
+				start += 1;
+				break;
+			}
+			start -= 1;
+		}
+	
+		(start, end)
 	}
 }
 
-fn get_word_position(text: &str, mut position: usize) -> (usize, usize) {
-	if text.is_empty() {
-		return (0, 0);
-	}
-	if position >= text.len() {
-		position = text.len() - 1;
-	}
-	let c: char = text.chars().nth(position).expect("position caca");
-	let char_type = CharType::from_char(c);
-
-	let mut end = position + 1;
-	loop {
-		if end >= text.len() {
-			break;
-		}
-		let c: char = text.chars().nth(end).expect("forward oups");
-		if CharType::from_char(c) != char_type {
-			break;
-		}
-		end += 1;
-	}
-
-	let mut start = if position == 0 { 0 } else { position - 1 };
-	loop {
-		if start == 0 {
-			break;
-		}
-		let c: char = text.chars().nth(start).expect("back oups");
-		if CharType::from_char(c) != char_type {
-			start += 1;
-			break;
-		}
-		start -= 1;
-	}
-
-	(start, end)
-}
 
 impl Widget for TextInput {
 	#[allow(clippy::diverging_sub_expression)]
@@ -209,12 +219,11 @@ impl Widget for TextInput {
 		// Carrot movement
 		let mouse_carrot_position = self.get_carrot_position(text_drawer, input.mouse.position, camera);
 		let mut new_carrot_position = None;
-		if input.keys_state.left.is_pressed() && self.carrot_position > 0 {
+		if input.keys_state.left.is_pressed() && self.carrot_position != 0 {
 			let n: usize = if input.keys_state.lctrl.is_down() || input.keys_state.rctrl.is_down() {
-				let pos = get_word_position(&self.text, self.carrot_position - 1);
-				pos.0
+				self.get_word_position(self.carrot_position - 1).0
 			} else {
-				self.carrot_position - 1
+				self.carrot_position - 1 // todo
 			};
 			if input.keys_state.lshift.is_down() || input.keys_state.rshift.is_down() {
 				new_carrot_position = Some(n);
@@ -225,9 +234,9 @@ impl Widget for TextInput {
 			self.carrot_timer_sec = Duration::ZERO;
 			changed = true;
 		}
-		if input.keys_state.right.is_pressed() && self.carrot_position < self.text.len() {
+		if input.keys_state.right.is_pressed() && self.carrot_position != self.text.chars().count() {
 			let n: usize = if input.keys_state.lctrl.is_down() || input.keys_state.rctrl.is_down() {
-				let pos = get_word_position(&self.text, self.carrot_position);
+				let pos = self.get_word_position(self.carrot_position);
 				pos.1
 			} else {
 				self.carrot_position + 1
@@ -275,7 +284,7 @@ impl Widget for TextInput {
 					}
 				}
 				2 => {
-					let (start, end) = get_word_position(&self.text, mouse_carrot_position);
+					let (start, end) = self.get_word_position(mouse_carrot_position);
 					self.selection = Some((start, end));
 					self.carrot_position = end;
 					new_carrot_position = None;
@@ -283,7 +292,7 @@ impl Widget for TextInput {
 				}
 				_ => {
 					self.selection = Some((0, self.text.len()));
-					self.carrot_position = self.text.len();
+					self.carrot_position = self.text.chars().count();
 					new_carrot_position = None;
 					changed = true;
 				}
@@ -316,18 +325,18 @@ impl Widget for TextInput {
 		// Clipboard
 		if input.shortcut_pressed(&Shortcut::PASTE()) && input.clipboard.has_clipboard_text() {
 			if let Some((start, end)) = self.selection {
-				self.text.drain(start..end);
+				self.text.drain(self.to_byte_range(start, end));
 				self.carrot_position = start;
 			}
 			let clipboard_text = input.clipboard.clipboard_text().unwrap();
-			self.text.insert_str(self.carrot_position, &clipboard_text);
-			self.carrot_position += clipboard_text.len();
+			self.text.insert_str(self.to_byte(self.carrot_position), &clipboard_text);
+			self.carrot_position += clipboard_text.chars().count();
 			self.selection = None;
 			return true;
 		}
 		if input.shortcut_pressed(&Shortcut::COPY()) {
 			if let Some((start, end)) = self.selection {
-				let text = self.text[start..end].to_string();
+				let text = self.text[self.to_byte_range(start, end)].to_string();
 				input.clipboard.set_clipboard_text(&text).unwrap();
 				return true;
 			}
@@ -336,7 +345,7 @@ impl Widget for TextInput {
 		}
 		if input.shortcut_pressed(&Shortcut::CUT()) {
 			if let Some((start, end)) = self.selection {
-				let text = self.text.drain(start..end).collect::<String>();
+				let text = self.text.drain(self.to_byte_range(start, end)).collect::<String>();
 				input.clipboard.set_clipboard_text(&text).unwrap();
 				self.carrot_position = start;
 				self.selection = None;
@@ -351,11 +360,11 @@ impl Widget for TextInput {
 		// Text input
 		if let Some(c) = input.last_char {
 			if let Some((start, end)) = self.selection {
-				self.text.drain(start..end);
+				self.text.drain(self.to_byte_range(start, end));
 				self.carrot_position = start;
 			}
 
-			self.text.insert(self.carrot_position, c);
+			self.text.insert(self.to_byte(self.carrot_position), c);
 			self.carrot_position += 1;
 			self.selection = None;
 			changed = true;
@@ -364,15 +373,15 @@ impl Widget for TextInput {
 		// Remove input (backspace / delete)
 		if input.keys_state.backspace.is_pressed() {
 			if let Some((start, end)) = self.selection {
-				self.text.drain(start..end);
+				self.text.drain(self.to_byte_range(start, end));
 				self.carrot_position = start;
 			} else if self.carrot_position > 0 {
 				if input.keys_state.lctrl.is_down() || input.keys_state.lctrl.is_down() {
-					let pos = get_word_position(&self.text, self.carrot_position - 1);
-					self.text.drain(pos.0..self.carrot_position);
-					self.carrot_position = pos.0;
+					let start = self.get_word_position(self.carrot_position - 1).0;
+					self.text.drain(self.to_byte_range(start, self.carrot_position));
+					self.carrot_position = start;
 				} else {
-					self.text.remove(self.carrot_position - 1);
+					self.text.remove(self.to_byte(self.carrot_position - 1));
 					self.carrot_position -= 1;
 				}
 			}
@@ -381,15 +390,15 @@ impl Widget for TextInput {
 			changed = true;
 		} else if input.keys_state.delete.is_pressed() {
 			if let Some((start, end)) = self.selection {
-				self.text.drain(start..end);
+				self.text.drain(self.to_byte_range(start, end));
 				self.carrot_position = start;
 				self.selection = None;
-			} else if self.carrot_position < self.text.len() {
+			} else if self.carrot_position != self.text.chars().count() {
 				if input.keys_state.lctrl.is_down() || input.keys_state.lctrl.is_down() {
-					let pos = get_word_position(&self.text, self.carrot_position);
-					self.text.drain(self.carrot_position..pos.1);
+					let end = self.get_word_position(self.carrot_position).1;
+					self.text.drain(self.to_byte_range(self.carrot_position, end));
 				} else {
-					self.text.remove(self.carrot_position);
+					self.text.remove(self.to_byte(self.carrot_position));
 				}
 			}
 			self.carrot_timer_sec = Duration::ZERO;
@@ -442,9 +451,9 @@ impl Widget for TextInput {
 			if let Some((start, end)) = self.selection {
 				let selection_height = self.style.font_size * 1.3;
 				let selection_x =
-					get_text_size(camera, text_drawer, &self.text[..start], self.style.font_size, &self.style.text_style).x;
+					get_text_size(camera, text_drawer, &self.text[self.to_byte_range(0, end)], self.style.font_size, &self.style.text_style).x;
 				let selection_width =
-					get_text_size(camera, text_drawer, &self.text[start..end], self.style.font_size, &self.style.text_style).x;
+					get_text_size(camera, text_drawer, &self.text[self.to_byte_range(start, end)], self.style.font_size, &self.style.text_style).x;
 				let rect = Rect::from(
 					self.base.rect.mid_left() + Vector2::new(Self::LEFT_SHIFT + selection_x, -selection_height * 0.5),
 					Vector2::new(selection_width, selection_height),
@@ -457,10 +466,11 @@ impl Widget for TextInput {
 				let carrot_x = if self.carrot_position == 0 {
 					0.
 				} else {
+					let text = &self.text[self.to_byte_range(0, self.carrot_position)];
 					get_text_size(
 						camera,
 						text_drawer,
-						&self.text[0..self.carrot_position],
+						text,
 						self.style.font_size,
 						&self.style.text_style,
 					)

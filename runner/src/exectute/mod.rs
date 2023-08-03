@@ -23,10 +23,11 @@ use models::{
 	runner::{AstResult, IdPath, VariableMap},
 };
 use std::{collections::HashMap, path::Path};
+use std::fs::File;
 
 pub fn runner(ast: &ast::Node) -> (Console, Vec<Action>) {
 	match &ast.data {
-		models::ast::NodeData::Sequence(_) => (),
+		ast::NodeData::Sequence(_) => (),
 		_ => {
 			return (Console::default(), vec![Action::new(ActionType::Error(models::error::ErrorType::RootIsNotSequence), 0, 0)])
 		}
@@ -44,14 +45,14 @@ pub fn runner(ast: &ast::Node) -> (Console, Vec<Action>) {
 }
 
 pub fn save_ast_to(ast: &ast::Node, path: &Path) -> Result<(), std::io::Error> {
-	let mut file = std::fs::File::create(path)?;
+	let mut file = File::create(path)?;
 	let ast_string = serde_json::to_string_pretty(ast)?;
 	file.write_all(ast_string.as_bytes())?;
 	Ok(())
 }
 
 pub fn load_ast_from(path: &Path) -> Result<ast::Node, std::io::Error> {
-	let file = std::fs::File::open(path)?;
+	let file = File::open(path)?;
 	let ast: ast::Node = serde_json::from_reader(file)?;
 	Ok(ast)
 }

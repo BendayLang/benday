@@ -10,7 +10,7 @@ use sdl2::video::Window;
 use std::any::TypeId;
 use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::time::Duration;
 
@@ -30,6 +30,12 @@ pub struct Manager {
 	focused_widget_id: Option<WidgetId>,
 	hovered_widget_id: Option<WidgetId>,
 	commands: Vec<Command>,
+}
+
+impl Display for Manager {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+		write!(f, "Widgets [{:?}]", self.cam_order)
+	}
 }
 
 impl Manager {
@@ -181,6 +187,7 @@ impl Manager {
 		if let Some(old_focused_widget_id) = self.focused_widget_id {
 			let unfocus_old_widget = |manager: &mut Self| {
 				let widget = manager.widgets.remove(&old_focused_widget_id).unwrap();
+				widget.borrow_mut().get_base_mut().state = KeyState::Up;
 				widget.borrow_mut().on_unfocus(manager);
 				manager.widgets.insert(old_focused_widget_id, widget);
 				manager.get_widget_mut(&old_focused_widget_id).get_base_mut().focused = false;
@@ -189,6 +196,7 @@ impl Manager {
 				let option_parent_id = manager.get_widget(&old_focused_widget_id).get_base().parent_id;
 				if let Some(parent_id) = option_parent_id {
 					let widget = manager.widgets.remove(&parent_id).unwrap();
+					widget.borrow_mut().get_base_mut().state = KeyState::Up;
 					widget.borrow_mut().on_unfocus(manager);
 					manager.widgets.insert(parent_id, widget);
 					manager.get_widget_mut(&parent_id).get_base_mut().focused = false;

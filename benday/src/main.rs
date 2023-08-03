@@ -16,7 +16,7 @@ use pg_sdl::input::Input;
 use pg_sdl::primitives::{draw_rect, draw_rounded_rect, draw_text, fill_rounded_rect};
 use pg_sdl::style::Align;
 use pg_sdl::text::{TextDrawer, TextStyle};
-use pg_sdl::widgets::select::Select;
+use pg_sdl::widgets::select::{Select, SelectStyle};
 use pg_sdl::widgets::slider::{Slider, SliderStyle, SliderType};
 use pg_sdl::widgets::switch::{Switch, SwitchStyle};
 use pg_sdl::widgets::{Manager, Widget, WidgetId};
@@ -25,11 +25,17 @@ use runner::exectute::console::Console;
 use sdl2::render::{BlendMode, Canvas};
 use sdl2::surface::Surface;
 use std::cmp::Ordering;
+use std::fs::read_dir;
+use std::path::Path;
 use std::time::Duration;
 use sdl2::pixels::Color;
+use models::ast;
+use models::ast::NodeData;
+use pg_sdl::widgets::button::{Button, ButtonStyle};
 use pg_sdl::widgets::text_input::TextInput;
+use runner::exectute::{load_ast_from, save_ast_to};
 
-const ANIM_TIME: Duration = Duration::from_millis(600);
+const ANIM_TIME: Duration = Duration::from_millis(200);
 const RUN_COLOR: Color = Colors::LIGHT_YELLOW;
 
 #[allow(dead_code)]
@@ -37,7 +43,8 @@ const RUN_COLOR: Color = Colors::LIGHT_YELLOW;
 enum AppState {
 	Idle,
 	AddingBloc { widget_id: WidgetId, container: Container },
-	Saving,
+	Saving { widget_id: WidgetId },
+	Loading { widget_id: WidgetId },
 	Running { animation_timer: Duration, console: Console, animations: Vec<Animation> },
 }
 
@@ -47,13 +54,41 @@ pub struct BendayFront {
 	blocs: Vec<WidgetId>,
 	hovered_container: Option<Container>,
 	rect: Option<Rect>,
+	save_button_id: WidgetId,
+	load_button_id: WidgetId,
+	run_switch_id: WidgetId,
 	debug_slider_id: WidgetId,
+}
+
+fn saves() -> Vec<String> {
+	read_dir("saves").unwrap()
+		.map(|path| {
+			let mut name = path.unwrap().file_name().to_str().unwrap().to_string();
+			name.pop(); name.pop(); name.pop(); name.pop(); name.pop();
+			name
+		}).collect()
+}
+
+impl BendayFront {
+	fn clear_blocs(&mut self, manager: &mut Manager) {
+		let root_id = 1;
+		self.blocs.iter().for_each(|bloc_id| {
+			if bloc_id == &root_id { return; }
+			let childs = manager.get::<Bloc>(bloc_id).get_recursive_widget_childs(manager);
+			childs.iter().for_each(|id| {
+				manager.remove_widget(id);
+			})
+		});
+		manager.get_mut::<Sequence>(&0).clear_childs();
+		self.blocs = vec![root_id];
+	}
 }
 
 impl App for BendayFront {
 	fn update(&mut self, delta: Duration, input: &Input, manager: &mut Manager, camera: &mut Camera) -> bool {
 		let mut changed = false;
 
+		// New bloc
 		{
 			if input.mouse.right_button.is_pressed() {
 				let mouse_position = input.mouse.position.cast();
@@ -88,9 +123,48 @@ impl App for BendayFront {
 				}
 			}
 		}
+		
+		// Save
+		if manager.get::<Button>(&self.save_button_id).is_pressed() {
+			let center = (camera.get_resolution().cast::<f64>() * 0.5).into();
+			let size = Vector2::new(200., 300.);
+			let widget_id = manager.add_widget(
+				Box::new(Select::new(
+					Rect::from_center(center, size),
+					Some(4.),
+					SelectStyle::new(Colors::WHITE,20.),
+					saves(),
+					"File name".to_string(),
+				)),
+				false,
+			);
+			manager.focus_widget(widget_id);
+
+			self.state = AppState::Saving { widget_id };
+			changed = true;
+		}
+		// Load
+		if manager.get::<Button>(&self.load_button_id).is_pressed() {
+			let center = (camera.get_resolution().cast::<f64>() * 0.5).into();
+			let size = Vector2::new(200., 300.);
+			let widget_id = manager.add_widget(
+				Box::new(Select::new(
+					Rect::from_center(center, size),
+					Some(4.),
+					SelectStyle::new(Colors::WHITE,20.),
+					saves(),
+					"File name".to_string(),
+				)),
+				false,
+			);
+			manager.focus_widget(widget_id);
+
+			self.state = AppState::Loading { widget_id };
+			changed = true;
+		}
 
 		// Run
-		if manager.get::<Switch>(&2).is_pressed_on() {
+		if manager.get::<Switch>(&self.run_switch_id).is_pressed_on() {
 			let root_sequence = manager.get::<Sequence>(&0);
 			let ast = root_sequence.as_ast_node(manager);
 			let (console, actions) = runner::exectute::runner(&ast);
@@ -128,12 +202,12 @@ impl App for BendayFront {
 				}
 			}).collect::<Vec<Animation>>();
 
-			manager.get_mut::<Slider>(&3).reset_value();
-			manager.get_mut::<Slider>(&3).change_snap(animations.len() as u32);
-			manager.get_mut::<Slider>(&3).set_visible();
+			manager.get_mut::<Slider>(&self.debug_slider_id).reset_value();
+			manager.get_mut::<Slider>(&self.debug_slider_id).change_snap(animations.len() as u32);
+			manager.get_mut::<Slider>(&self.debug_slider_id).set_visible();
 			self.state = AppState::Running { animation_timer: Duration::ZERO, console, animations };
-		} else if manager.get::<Switch>(&2).is_pressed_off() {
-			manager.get_mut::<Slider>(&3).set_invisible();
+		} else if manager.get::<Switch>(&self.run_switch_id).is_pressed_off() {
+			manager.get_mut::<Slider>(&self.debug_slider_id).set_invisible();
 			self.state = AppState::Idle;
 		}
 
@@ -221,7 +295,53 @@ impl App for BendayFront {
 					changed = true;
 				}
 			}
-			AppState::Saving => {}
+			AppState::Saving { widget_id } => {
+				if !manager.get::<Select>(&widget_id).is_focused() {
+					let option = manager.get::<Select>(&widget_id).get_option().to_string();
+					manager.remove_widget(&widget_id);
+					
+					let root_sequence = manager.get::<Sequence>(&0);
+					let ast = root_sequence.as_ast_node(manager);
+					
+					let path_string = format!("saves/{}.json", option);
+					let path = Path::new(&path_string);
+					save_ast_to(&ast, path).expect("Save failed");
+					println!("saved '{}' !", option);
+					
+					self.state = AppState::Idle;
+					changed = true;
+				}
+			}
+			AppState::Loading { widget_id } => {
+				if !manager.get::<Select>(&widget_id).is_focused() {
+					let option = manager.get::<Select>(&widget_id).get_option().to_string();
+					if saves().contains(&option) {
+						let path_string = format!("saves/{}.json", option);
+						let path = Path::new(&path_string);
+						let mut ast = load_ast_from(path).expect("Load failed");
+						
+						self.clear_blocs(manager);
+						/* todo
+						loop {
+							match &ast.data {
+								NodeData::Sequence(ast::Sequence{ buf, len }) => {}
+								NodeData::While(while_) => {}
+								NodeData::IfElse(_) => {}
+								NodeData::RawText(_) => {}
+								NodeData::VariableAssignment(_) => {}
+								NodeData::FunctionCall(_) => {}
+								NodeData::FunctionDeclaration(_) => {}
+							}
+						}
+						 */
+						Bloc::update_size_and_layout(manager);
+					}
+					manager.remove_widget(&widget_id);
+					
+					self.state = AppState::Idle;
+					changed = true;
+				}
+			}
 			AppState::Running { animation_timer, console, animations } => {
 				let timer_target = ANIM_TIME * manager.get::<Slider>(&self.debug_slider_id).get_value() as u32;
 				
@@ -348,8 +468,16 @@ fn main() {
 	// Run switch
 	let style = SwitchStyle::new(Colors::LIGHT_GREEN, Colors::LIGHT_RED);
 	let rect = Rect::new(200., 100., 80., 40.);
-	manager.add_widget(Box::new(Switch::new(rect, style)), false);
+	let run_switch_id = manager.add_widget(Box::new(Switch::new(rect, style)), false);
 
+	let style = ButtonStyle::new(Colors::LIGHT_CYAN, 20.);
+	// Save button
+	let rect = Rect::new(50., 100., 80., 40.);
+	let save_button_id = manager.add_widget(Box::new(Button::new(rect, Some(5.), style.clone(), "Save".to_string())), false);
+	// Save button
+	let rect = Rect::new(50., 150., 80., 40.);
+	let load_button_id = manager.add_widget(Box::new(Button::new(rect, Some(5.), style, "Load".to_string())), false);
+	
 	// Debug slider
 	let style = SliderStyle::new(Colors::LIGHT_RED, Colors::GREY);
 	let rect = Rect::new(490., 118., 300., 24.);
@@ -366,8 +494,11 @@ fn main() {
 		blocs: vec![root_id],
 		hovered_container: None,
 		rect: None,
+		save_button_id,
+		load_button_id,
+		run_switch_id,
 		debug_slider_id,
 	};
-
+	
 	app.run(&mut my_app);
 }

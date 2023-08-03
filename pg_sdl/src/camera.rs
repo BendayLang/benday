@@ -63,6 +63,10 @@ impl Camera {
 		let camera_scope = Rect::from_origin(self.resolution.cast());
 		camera_scope.collide_rect(rect)
 	}
+	
+	pub fn get_resolution(&self) -> &Vector2<u32> {
+		&self.resolution
+	}
 
 	/// Translates and scales the camera from the inputs
 	pub fn update(&mut self, input: &Input, lock_translation: bool) -> bool {

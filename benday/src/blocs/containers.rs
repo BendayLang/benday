@@ -124,6 +124,10 @@ impl Sequence {
 			true,
 		)
 	}
+	
+	pub fn clear_childs(&mut self) {
+		self.childs_ids.clear()
+	}
 
 	pub fn get_relative_position(&self, bloc: &Bloc, manager: &Manager) -> Vector2<f64> {
 		(self.fn_relative_position)(bloc, manager)
